@@ -16,37 +16,33 @@ import { AnalysisTools } from "./tabs/AnalysisTools";
 import { DraftHub }      from "./tabs/DraftHub";
 import { Log }           from "./tabs/Log";
 
-// ─── MODULE-LEVEL CONSTANTS ───────────────────────────────────────────────────
-const isProxied    = () => typeof window !== "undefined" && (window.location.hostname.includes("claude.ai") || window.location.hostname.includes("anthropic.com"));
-const pickValue    = (round, yo) => (PICK_VALUES[round]||[10,8,6])[Math.min(yo,2)];
-const SEASON_MODES = ["offseason","preseason","inseason","playoffs","complete"];
+const isProxied = () => typeof window !== "undefined" &&
+  (window.location.hostname.includes("claude.ai") || window.location.hostname.includes("anthropic.com"));
 
-// Shared league key — readable by devtools but only accessible to leaguemates
-// who can log in via Sleeper. Set LEAGUE_API_KEY in constants.js.
 const getApiKey = () => {
-  if (isProxied()) return null; // claude.ai auto-proxies, no key needed
+  if (isProxied()) return null;
   try { return localStorage.getItem("mgg_anthropic_key") || LEAGUE_API_KEY || ""; } catch { return LEAGUE_API_KEY || ""; }
 };
 const hasApiKey = () => isProxied() || !!getApiKey();
 
+const pickValue    = (round, yo) => (PICK_VALUES[round]||[10,8,6])[Math.min(yo,2)];
+const SEASON_MODES = ["offseason","preseason","inseason","playoffs","complete"];
+
 export default function App() {
-  // ── Identity hook ────────────────────────────────────────────────────────
+  const [tradeOwnerA, setTradeOwnerA] = useState("");
+
   const {
     identity, currentOwner, isCommissioner, activeOwner, isViewMode, viewingOwner,
-    loginOpen, setLoginOpen, loginInput, setLoginInput,
-    loginLoading, setLoginLoading, loginError, setLoginError,
+    loginOpen, setLoginOpen,
+    loginInput, setLoginInput, loginLoading, setLoginLoading, loginError, setLoginError,
     commPassInput, setCommPassInput, commPassError,
     doSleeperLogin, finaliseLogin, doManualLogin, doLogout, setOwnerMapping,
     activateCommissioner, deactivateCommissioner, enterViewMode, exitViewMode,
   } = useIdentity();
 
-  const [tradeOwnerA, setTradeOwnerA] = useState(currentOwner);
-
-  // userId-based storage shorthand
   const userKey = identity?.userId || "guest";
   const ls = { get:(k,def)=>lsGet(userKey,k,def), set:(k,v)=>lsSet(userKey,k,v) };
 
-  // ── Core data ────────────────────────────────────────────────────────────
   const [phase,    setPhase]   = useState("idle");
   const [progress, setProgress]= useState([]);
   const [players,  setPlayers] = useState([]);
@@ -63,7 +59,6 @@ export default function App() {
     return{mode:"offseason",currentWeek:null,lastScoredWeek:null,hasMatchups:false,leagueStatus:"pre_draft",season:"2025",leagueName:"",_override:false};
   });
 
-  // ── User-scoped data ──────────────────────────────────────────────────────
   const [bigBoard,    setBigBoard]   = useState(()=>lsGet(userKey,"bigboard",[]));
   const [bigBoardMode,setBigBoardMode]=useState("rookies");
   const [faWatchlist, setFaWatchlist]= useState(()=>lsGet(userKey,"fa_watchlist",[]));
@@ -90,14 +85,6 @@ export default function App() {
     });
   },[]); // eslint-disable-line
 
-  // ── Settings modal ────────────────────────────────────────────────────────
-  const [apiKeyOpen, setApiKeyOpen] = useState(false);
-  const [apiKeySaved,setApiKeySaved]= useState(false);
-  const [apiKeyInput,setApiKeyInput]= useState("");
-  const saveKey =()=>{try{localStorage.setItem("mgg_anthropic_key",apiKeyInput.trim());}catch{}setApiKeySaved(true);setTimeout(()=>setApiKeySaved(false),2500);};
-  const clearKey=()=>{try{localStorage.removeItem("mgg_anthropic_key");}catch{}setApiKeyInput("");};
-
-  // ── Tab / filter state ────────────────────────────────────────────────────
   const [tab,       setTab]      = useState("dashboard");
   const [posFilter, setPosFilter]= useState("ALL");
   const [tierFilter,setTierFilter]=useState("ALL");
@@ -110,7 +97,6 @@ export default function App() {
   const overrideSeasonMode=(m)=>{const n={...seasonState,mode:m,_override:true};setSeasonState(n);try{localStorage.setItem("mgg_season_override",JSON.stringify(n));}catch{}};
   const clearSeasonOverride=()=>{setSeasonState(p=>({...p,_override:false}));try{localStorage.removeItem("mgg_season_override");}catch{}};
 
-  // ── Big Board ─────────────────────────────────────────────────────────────
   const saveBigBoard  =(next)=>{setBigBoard(next);ls.set("bigboard",next);};
   const bigBoardAdd   =(p)=>{if(bigBoard.find(b=>b.pid===p.pid))return;saveBigBoard([...bigBoard,{...p,note:"",addedAt:Date.now()}]);};
   const bigBoardRemove=(pid)=>saveBigBoard(bigBoard.filter(p=>p.pid!==pid));
@@ -118,7 +104,6 @@ export default function App() {
   const bigBoardNote  =(pid,note)=>saveBigBoard(bigBoard.map(p=>p.pid===pid?{...p,note}:p));
   const bigBoardClear =()=>{if(window.confirm("Clear your entire Big Board?"))saveBigBoard([]);};
 
-  // ── FA Watchlist ──────────────────────────────────────────────────────────
   const [faSearch,    setFaSearch]   = useState("");
   const [faPosFilter, setFaPosFilter]= useState("ALL");
   const [faTeamFilter,setFaTeamFilter]=useState("ALL");
@@ -127,7 +112,7 @@ export default function App() {
   const [faHideInj,   setFaHideInj]  = useState(false);
   const saveFaWatchlist=(next)=>{setFaWatchlist(next);ls.set("fa_watchlist",next);};
 
-  const owners  =[...new Set(players.map(p=>p.owner).filter(Boolean))].sort();
+  const owners=[...new Set(players.map(p=>p.owner).filter(Boolean))].sort();
   const rosteredPids=new Set(players.map(p=>p.pid));
 
   const faResults=Object.keys(nflDb).length>0?(()=>{
@@ -170,7 +155,6 @@ export default function App() {
   const addToFaWatchlist=(pid)=>{if(faWatchlist.find(p=>p.pid===pid))return;const raw=nflDb[pid];if(!raw)return;const s=scoreFA(pid,raw);if(!s)return;saveFaWatchlist([...faWatchlist,s]);setWatchlist(prev=>{if(prev.includes(s.name))return prev;const next=[...prev,s.name];ls.set("watchlist",next);return next;});};
   const removeFromFaWatchlist=(pid)=>{const pl=faWatchlist.find(p=>p.pid===pid);saveFaWatchlist(faWatchlist.filter(p=>p.pid!==pid));if(pl?.name)setWatchlist(prev=>{const next=prev.filter(n=>n!==pl.name);ls.set("watchlist",next);return next;});};
 
-  // ── Trade Analyzer ────────────────────────────────────────────────────────
   const [tradeOwnerB,  setTradeOwnerB]  = useState("");
   const [tradeSideA,   setTradeSideA]   = useState([]);
   const [tradeSideB,   setTradeSideB]   = useState([]);
@@ -195,7 +179,6 @@ export default function App() {
   const tradeReset=()=>{setTradeSideA([]);setTradeSideB([]);setTradeSearchA("");setTradeSearchB("");setTradeOwnerB("");setClaudeTradeNarrative(null);};
   const requestClaudeTradeNarrative=async()=>{const k=getApiKey();if(!k&&!isProxied())return;setClaudeTradeLoading(true);setClaudeTradeNarrative(null);try{setClaudeTradeNarrative(await claudeTradeAnalysis(tradeSideA,tradeSideB,tradeOwnerA,tradeOwnerB,k));}catch{}setClaudeTradeLoading(false);};
 
-  // ── Situations ────────────────────────────────────────────────────────────
   const [sitEditName, setSitEditName] = useState("");
   const [sitEditFlag, setSitEditFlag] = useState("NEW_OC");
   const [sitEditNote, setSitEditNote] = useState("");
@@ -208,7 +191,6 @@ export default function App() {
   const sitStartEdit=(n)=>{const s=manualSits[n];setSitEditing(n);setSitEditName(n);setSitEditFlag(s.flag);setSitEditNote(s.note||"");setSitEditGames(s.games?String(s.games):"");};
   const sitResetDefaults=()=>{if(window.confirm("Reset to hardcoded defaults?"))saveSituations({...MANUAL_SITUATIONS});setSitEditing(null);};
 
-  // ── Watchlist ─────────────────────────────────────────────────────────────
   const [watchInput,      setWatchInput]      = useState("");
   const [researchResults, setResearchResults] = useState({});
   const [researchRunning, setResearchRunning] = useState(false);
@@ -237,74 +219,58 @@ export default function App() {
     setResearchResults(results);setResearchRunning(false);
   };
 
-  // ── Draft Hub state ───────────────────────────────────────────────────────
   const [draftRoomMode,setDraftRoomMode]=useState("mock");
   const [mockState,    setMockState]    =useState(null);
   const [liveDraftId,  setLiveDraftId]  =useState(null);
 
-  // ── Log ───────────────────────────────────────────────────────────────────
   const log=(msg,type="info")=>{const e={msg,type,ts:new Date().toLocaleTimeString()};logRef.current=[...logRef.current,e];setProgress([...logRef.current]);};
 
-  // ── SYNC DATA ─────────────────────────────────────────────────────────────
   const doLoad=useCallback(async()=>{
     setPhase("loading");logRef.current=[];setProgress([]);
     try{
       const{players:pl,nflDb:db,seasonState:ss,draftPicksByOwner:dpbo,rosterIdToOwner:rid2o}=await apiLoadData(log,manualSitsRef);
       setPlayers(pl);setNflDb(db);setDraftPicksByOwner(dpbo);setRosterIdToOwner(rid2o);
       setSeasonState(prev=>prev._override?prev:ss);setSyncedAt(new Date().toLocaleTimeString());setPhase("done");
-      // If identity exists but ownerName doesn't match any loaded owner, reopen login to correct
+      // Re-open login if identity owner no longer matches loaded roster
       if(identity){
-        const loadedOwners=[...new Set(pl.map(p=>p.owner).filter(Boolean))];
-        if(loadedOwners.length>0&&!loadedOwners.includes(identity.ownerName)){
-          setLoginOpen(true);
-        }
+        const loaded=[...new Set(pl.map(p=>p.owner).filter(Boolean))];
+        if(loaded.length>0&&!loaded.includes(identity.ownerName)) setLoginOpen(true);
       }
     }catch(e){log(`Error: ${e.message}`,"error");setPhase("error");}
   },[identity]); // eslint-disable-line
 
-  // ── INTEL SCAN ────────────────────────────────────────────────────────────
   const doIntel=useCallback(async()=>{
     setNewsPhase("loading");
     try{const{newsMap:nm,enrichedPlayers}=await apiRunIntel(players);setPlayers(enrichedPlayers);setNewsMap(nm);setNewsPhase("done");}
     catch(e){console.error(e);setNewsPhase("error");}
   },[players]);
 
-  // ── SLEEPER LOGIN — with owner matching + lockout ─────────────────────────
+  // ── Sleeper login handler — owner matching + lockout ─────────────────────
   const handleSleeperLogin=async()=>{
     const user=await doSleeperLogin();
-    if(!user)return; // error already set inside hook
+    if(!user)return;
     const displayName=user.metadata?.team_name||user.display_name||user.username||loginInput.trim();
-    const uname=loginInput.trim().toLowerCase();
-
-    // Match display name against loaded owners (fuzzy)
+    const uname=(user.username||loginInput.trim()).toLowerCase();
     const matchedOwner=owners.find(o=>
       o.toLowerCase()===displayName.toLowerCase()||
       o.toLowerCase().includes(uname)||
       uname.includes(o.toLowerCase().split(" ")[0])
     );
-
-    // ── LOCKOUT: not a league member ─────────────────────────────────────
     if(owners.length>0&&!matchedOwner){
       setLoginError(`"${displayName}" is not a member of this league. Access denied.`);
       setLoginLoading(false);
       return;
     }
-
-    // League not loaded yet — allow login, owner will be matched after sync
     finaliseLogin(user, matchedOwner||displayName);
     setTradeOwnerA(matchedOwner||displayName);
   };
 
-  // ── Filtered board ────────────────────────────────────────────────────────
   const view=players
     .filter(p=>posFilter==="ALL"||p.pos===posFilter)
     .filter(p=>tierFilter==="ALL"||p.tier===tierFilter)
     .filter(p=>!search||p.name.toLowerCase().includes(search.toLowerCase())||(p.owner||"").toLowerCase().includes(search.toLowerCase())||(p.team||"").toLowerCase().includes(search.toLowerCase()))
     .sort((a,b)=>{const va=a[sortKey]??0,vb=b[sortKey]??0;const r=typeof va==="string"?va.localeCompare(vb):va-vb;return sortAsc?r:-r;});
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // RENDER
-  // ─────────────────────────────────────────────────────────────────────────
   return(
     <div style={{background:"#080d14",color:"#e2e8f0",minHeight:"100vh",fontFamily:"'Courier New',monospace"}}>
 
@@ -319,6 +285,7 @@ export default function App() {
         </div>
       )}
 
+      {/* HEADER */}
       <div style={{background:"linear-gradient(180deg,#0f1923,#080d14)",borderBottom:"1px solid #1e2d3d",padding:"16px 22px"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:10}}>
           <div style={{display:"flex",alignItems:"center",gap:12}}>
@@ -330,21 +297,31 @@ export default function App() {
           </div>
           <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
             {syncedAt&&<span style={{fontSize:9,color:"#2a3d52",letterSpacing:1}}>SYNCED {syncedAt}</span>}
-            {identity?(
-              <button onClick={()=>setLoginOpen(true)} style={{background:"none",border:`1px solid ${isCommissioner?"#f59e0b44":"#1e2d3d"}`,color:isCommissioner?"#f59e0b":"#4b6580",borderRadius:5,padding:"5px 10px",fontFamily:"inherit",fontSize:9,cursor:"pointer",letterSpacing:1,display:"flex",alignItems:"center",gap:5}}>
-                {isCommissioner&&<span>★</span>}◎ {currentOwner||identity.displayName}
-              </button>
-            ):(
-              <button onClick={()=>setLoginOpen(true)} style={{background:"#0f2b1a",border:"1px solid #22c55e44",color:"#22c55e",borderRadius:5,padding:"5px 10px",fontFamily:"inherit",fontSize:9,cursor:"pointer",letterSpacing:1}}>◎ LOG IN</button>
-            )}
-            <div style={{display:"flex",alignItems:"center",gap:0,background:"#0a1118",border:"1px solid #1e2d3d",borderRadius:5,overflow:"hidden"}}>
-              {SEASON_MODES.map(m=>{const active=seasonState.mode===m;const col={offseason:"#4b6580",preseason:"#60a5fa",inseason:"#22c55e",playoffs:"#f59e0b",complete:"#6b7280"}[m];return(<button key={m} onClick={()=>overrideSeasonMode(m)} title={seasonState._override?"Manual override":"Auto-detected"} style={{background:active?col+"22":"transparent",color:active?col:"#2a3d52",border:"none",padding:"4px 8px",fontFamily:"inherit",fontSize:8,fontWeight:active?900:400,letterSpacing:1,cursor:"pointer",borderRight:"1px solid #1e2d3d",transition:"all .15s"}}>{m.slice(0,3).toUpperCase()}</button>);})}
+
+            {/* Identity pill — opens account/login modal */}
+            <button onClick={()=>setLoginOpen(true)}
+              style={{background:"none",border:`1px solid ${isCommissioner?"#f59e0b44":"#1e2d3d"}`,
+                color:isCommissioner?"#f59e0b":"#4b6580",borderRadius:5,padding:"5px 12px",
+                fontFamily:"inherit",fontSize:9,cursor:"pointer",letterSpacing:1,
+                display:"flex",alignItems:"center",gap:5}}>
+              {isCommissioner&&<span>★</span>}
+              {identity ? `◎ ${currentOwner||identity.displayName}` : "◎ LOG IN"}
+            </button>
+
+            {/* Season mode pills */}
+            <div style={{display:"flex",alignItems:"center",background:"#0a1118",border:"1px solid #1e2d3d",borderRadius:5,overflow:"hidden"}}>
+              {SEASON_MODES.map(m=>{const active=seasonState.mode===m;const col={offseason:"#4b6580",preseason:"#60a5fa",inseason:"#22c55e",playoffs:"#f59e0b",complete:"#6b7280"}[m];return(
+                <button key={m} onClick={()=>overrideSeasonMode(m)} title={seasonState._override?"Manual override":"Auto-detected"}
+                  style={{background:active?col+"22":"transparent",color:active?col:"#2a3d52",border:"none",padding:"4px 8px",fontFamily:"inherit",fontSize:8,fontWeight:active?900:400,letterSpacing:1,cursor:"pointer",borderRight:"1px solid #1e2d3d",transition:"all .15s"}}>
+                  {m.slice(0,3).toUpperCase()}
+                </button>
+              );})}
               {seasonState._override&&<button onClick={clearSeasonOverride} style={{background:"#f59e0b22",color:"#f59e0b",border:"none",padding:"4px 6px",fontFamily:"inherit",fontSize:8,cursor:"pointer"}}>AUTO</button>}
             </div>
-            <button onClick={()=>setApiKeyOpen(o=>!o)} title="Settings" style={{background:"none",border:"1px solid #1e2d3d",color:"#4b6580",borderRadius:5,padding:"5px 10px",fontFamily:"inherit",fontSize:11,cursor:"pointer"}}>⚙</button>
-            <Btn onClick={doLoad}   disabled={phase==="loading"}                     grad="linear-gradient(135deg,#22c55e,#16a34a)">{phase==="loading"?"◌ SYNCING...":"⟳ SYNC DATA"}</Btn>
-            <Btn onClick={doIntel}  disabled={newsPhase==="loading"||!players.length} grad="linear-gradient(135deg,#f59e0b,#d97706)">{newsPhase==="loading"?"◌ SCANNING...":"◈ INTEL SCAN"}</Btn>
-            <Btn onClick={()=>doExport(players,newsMap)} disabled={!players.length}  grad="linear-gradient(135deg,#6366f1,#4f46e5)">⬇ EXPORT XLSX</Btn>
+
+            <Btn onClick={doLoad}   disabled={phase==="loading"}                      grad="linear-gradient(135deg,#22c55e,#16a34a)">{phase==="loading"?"◌ SYNCING...":"⟳ SYNC DATA"}</Btn>
+            <Btn onClick={doIntel}  disabled={newsPhase==="loading"||!players.length}  grad="linear-gradient(135deg,#f59e0b,#d97706)">{newsPhase==="loading"?"◌ SCANNING...":"◈ INTEL SCAN"}</Btn>
+            <Btn onClick={()=>doExport(players,newsMap)} disabled={!players.length}   grad="linear-gradient(135deg,#6366f1,#4f46e5)">⬇ EXPORT XLSX</Btn>
           </div>
         </div>
         <div style={{display:"flex",gap:0,marginTop:16,borderBottom:"1px solid #1e2d3d"}}>
@@ -431,7 +408,7 @@ export default function App() {
         {tab==="log"&&<Log progress={progress}/>}
       </div>
 
-      {/* ── LOGIN / ACCOUNT MODAL ────────────────────────────────────────── */}
+      {/* ── LOGIN / ACCOUNT MODAL ─────────────────────────────────────────── */}
       {loginOpen&&(
         <div onClick={e=>e.target===e.currentTarget&&identity&&setLoginOpen(false)}
           style={{position:"fixed",inset:0,background:"rgba(8,13,20,0.95)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}}>
@@ -444,29 +421,73 @@ export default function App() {
               {identity?"MANAGE YOUR IDENTITY":"LEAGUE ACCESS · SLEEPER VERIFICATION"}
             </div>
 
-            {identity?(
-              /* ── Logged-in panel ── */
+            {identity ? (
               <div>
+                {/* Identity card */}
                 <div style={{background:"#0a1118",border:"1px solid #1e2d3d",borderRadius:8,padding:"12px 16px",marginBottom:16}}>
                   <div style={{fontSize:9,color:"#4d6880",letterSpacing:1,marginBottom:4}}>LOGGED IN AS</div>
                   <div style={{fontSize:14,fontWeight:700,color:"#e2e8f0"}}>{identity.displayName}</div>
-                  <div style={{fontSize:9,color:"#4b6580",marginTop:2}}>@{identity.username} · {identity.ownerName}{isCommissioner&&<span style={{color:"#f59e0b",marginLeft:8,fontWeight:700}}>★ COMMISSIONER</span>}</div>
+                  <div style={{fontSize:9,color:"#4b6580",marginTop:2}}>
+                    @{identity.username} · {identity.ownerName}
+                    {isCommissioner&&<span style={{color:"#f59e0b",marginLeft:8,fontWeight:700}}>★ COMMISSIONER</span>}
+                  </div>
                 </div>
+                {/* Owner mapping correction */}
                 {owners.length>0&&(
                   <div style={{marginBottom:16}}>
-                    <div style={{fontSize:9,color:"#4d6880",letterSpacing:1,marginBottom:6}}>YOUR TEAM — tap to correct mapping</div>
+                    <div style={{fontSize:9,color:"#4d6880",letterSpacing:1,marginBottom:6}}>YOUR TEAM — tap to correct</div>
                     <div style={{display:"flex",flexDirection:"column",gap:4,maxHeight:200,overflowY:"auto"}}>
-                      {owners.map(o=>(<button key={o} onClick={()=>setOwnerMapping(o)} style={{background:identity.ownerName===o?"#0f2b1a":"#0a1118",border:`1px solid ${identity.ownerName===o?"#22c55e":"#1e2d3d"}`,color:identity.ownerName===o?"#22c55e":"#e2e8f0",borderRadius:6,padding:"8px 12px",fontFamily:"inherit",fontSize:11,fontWeight:identity.ownerName===o?700:400,cursor:"pointer",textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center"}}><span>{o}</span><span style={{fontSize:9,color:"#4d6880"}}>{players.filter(p=>p.owner===o).length} players</span></button>))}
+                      {owners.map(o=>(<button key={o} onClick={()=>setOwnerMapping(o)}
+                        style={{background:identity.ownerName===o?"#0f2b1a":"#0a1118",
+                          border:`1px solid ${identity.ownerName===o?"#22c55e":"#1e2d3d"}`,
+                          color:identity.ownerName===o?"#22c55e":"#e2e8f0",borderRadius:6,
+                          padding:"8px 12px",fontFamily:"inherit",fontSize:11,
+                          fontWeight:identity.ownerName===o?700:400,cursor:"pointer",
+                          textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                        <span>{o}</span>
+                        <span style={{fontSize:9,color:"#4d6880"}}>{players.filter(p=>p.owner===o).length} players</span>
+                      </button>))}
                     </div>
                   </div>
                 )}
+                {/* Commissioner mode */}
+                <div style={{marginBottom:16,padding:"12px 14px",background:"#0a1118",border:"1px solid #1e2d3d",borderRadius:8}}>
+                  <div style={{fontSize:9,color:"#f59e0b",letterSpacing:2,fontWeight:700,marginBottom:6}}>★ COMMISSIONER MODE</div>
+                  {isCommissioner?(
+                    <div>
+                      <div style={{fontSize:9,color:"#f59e0b",marginBottom:8}}>Active — view any team read-only</div>
+                      {owners.filter(o=>o!==currentOwner).length>0&&(
+                        <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:8}}>
+                          {owners.filter(o=>o!==currentOwner).map(o=>(
+                            <button key={o} onClick={()=>{enterViewMode(o);setLoginOpen(false);}}
+                              style={{background:"#1a1000",border:"1px solid #f59e0b33",color:"#f59e0b",borderRadius:4,padding:"3px 8px",fontFamily:"inherit",fontSize:9,cursor:"pointer"}}>
+                              👁 {o}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      <button onClick={deactivateCommissioner} style={{background:"none",border:"1px solid #374151",color:"#4b6580",borderRadius:4,padding:"5px 10px",fontFamily:"inherit",fontSize:9,cursor:"pointer"}}>DEACTIVATE</button>
+                    </div>
+                  ):(
+                    <div style={{display:"flex",gap:6}}>
+                      <input type="password" value={commPassInput} onChange={e=>setCommPassInput(e.target.value)}
+                        onKeyDown={e=>e.key==="Enter"&&activateCommissioner()}
+                        placeholder="Commissioner passphrase..."
+                        style={{flex:1,background:"#080d14",border:`1px solid ${commPassError?"#ef4444":"#1e2d3d"}`,color:"#e2e8f0",padding:"7px 10px",borderRadius:5,fontFamily:"monospace",fontSize:10}}/>
+                      <button onClick={activateCommissioner} disabled={!commPassInput}
+                        style={{background:commPassInput?"linear-gradient(135deg,#f59e0b,#d97706)":"#1e2d3d",color:commPassInput?"#080d14":"#4b6580",border:"none",borderRadius:5,padding:"7px 12px",fontFamily:"inherit",fontWeight:900,fontSize:9,cursor:commPassInput?"pointer":"not-allowed"}}>
+                        ★ UNLOCK
+                      </button>
+                    </div>
+                  )}
+                  {commPassError&&<div style={{fontSize:9,color:"#ef4444",marginTop:4}}>⚠ {commPassError}</div>}
+                </div>
                 <div style={{display:"flex",gap:8}}>
                   <button onClick={()=>setLoginOpen(false)} style={{flex:1,background:"#0f2b1a",border:"1px solid #22c55e44",color:"#22c55e",borderRadius:6,padding:"9px",fontFamily:"inherit",fontSize:10,cursor:"pointer",fontWeight:700,letterSpacing:1}}>✓ DONE</button>
                   <button onClick={doLogout} style={{background:"#1a0505",border:"1px solid #ef444433",color:"#ef4444",borderRadius:6,padding:"9px 14px",fontFamily:"inherit",fontSize:10,cursor:"pointer",letterSpacing:1}}>LOG OUT</button>
                 </div>
               </div>
             ):(
-              /* ── Login panel ── */
               <div>
                 <div style={{fontSize:10,color:"#7a95ae",lineHeight:1.8,marginBottom:20}}>
                   This tool is for <span style={{color:"#22c55e",fontWeight:700}}>MGG Dynasty league members only</span>.<br/>
@@ -477,8 +498,7 @@ export default function App() {
                   <input value={loginInput}
                     onChange={e=>{setLoginInput(e.target.value);setLoginError("");}}
                     onKeyDown={e=>e.key==="Enter"&&handleSleeperLogin()}
-                    placeholder="your_sleeper_username"
-                    autoFocus
+                    placeholder="your_sleeper_username" autoFocus
                     style={{width:"100%",boxSizing:"border-box",background:"#080d14",
                       border:`1px solid ${loginError?"#ef4444":"#1e2d3d"}`,
                       color:"#e2e8f0",padding:"11px 14px",borderRadius:6,
@@ -491,79 +511,29 @@ export default function App() {
                 </div>
                 <button onClick={handleSleeperLogin} disabled={loginLoading||!loginInput.trim()}
                   style={{width:"100%",background:loginLoading||!loginInput.trim()?"#1e2d3d":"linear-gradient(135deg,#22c55e,#16a34a)",
-                    color:loginLoading||!loginInput.trim()?"#4b6580":"#080d14",
-                    border:"none",borderRadius:6,padding:"12px",fontFamily:"inherit",
-                    fontWeight:900,fontSize:11,letterSpacing:2,
-                    cursor:loginLoading||!loginInput.trim()?"not-allowed":"pointer",
-                    marginBottom:16}}>
+                    color:loginLoading||!loginInput.trim()?"#4b6580":"#080d14",border:"none",
+                    borderRadius:6,padding:"12px",fontFamily:"inherit",fontWeight:900,
+                    fontSize:11,letterSpacing:2,cursor:loginLoading||!loginInput.trim()?"not-allowed":"pointer",marginBottom:16}}>
                   {loginLoading?"◌ VERIFYING WITH SLEEPER...":"▸ VERIFY & ENTER"}
                 </button>
-                <div style={{fontSize:9,color:"#2a3d52",lineHeight:1.7,textAlign:"center"}}>
-                  Your Sleeper account must be a member of this league.<br/>
-                  Non-members will be denied access.
+                <div style={{fontSize:9,color:"#2a3d52",textAlign:"center",lineHeight:1.7}}>
+                  Your Sleeper account must be a member of this league.<br/>Non-members will be denied access.
                 </div>
-                {/* Manual fallback — only show if league data already loaded */}
                 {phase==="done"&&owners.length>0&&(
-                  <details style={{marginTop:16}}>
+                  <details style={{marginTop:14}}>
                     <summary style={{fontSize:9,color:"#4d6880",cursor:"pointer",letterSpacing:1}}>▸ SKIP VERIFICATION (pick manually)</summary>
-                    <div style={{display:"flex",flexDirection:"column",gap:4,marginTop:8,maxHeight:180,overflowY:"auto"}}>
-                      {owners.map(o=>(<button key={o} onClick={()=>doManualLogin(o)} style={{background:"#0a1118",border:"1px solid #1e2d3d",color:"#7a95ae",borderRadius:5,padding:"8px 12px",fontFamily:"inherit",fontSize:10,cursor:"pointer",textAlign:"left",display:"flex",justifyContent:"space-between"}}><span>{o}</span><span style={{fontSize:9,color:"#2a3d52"}}>{players.filter(p=>p.owner===o).length} players</span></button>))}
+                    <div style={{display:"flex",flexDirection:"column",gap:4,marginTop:8,maxHeight:160,overflowY:"auto"}}>
+                      {owners.map(o=>(<button key={o} onClick={()=>doManualLogin(o)}
+                        style={{background:"#0a1118",border:"1px solid #1e2d3d",color:"#7a95ae",borderRadius:5,
+                          padding:"8px 12px",fontFamily:"inherit",fontSize:10,cursor:"pointer",
+                          textAlign:"left",display:"flex",justifyContent:"space-between"}}>
+                        <span>{o}</span><span style={{fontSize:9,color:"#2a3d52"}}>{players.filter(p=>p.owner===o).length} players</span>
+                      </button>))}
                     </div>
                   </details>
                 )}
               </div>
             )}
-          </div>
-        </div>
-      )}
-
-      {/* ── SETTINGS MODAL ──────────────────────────────────────────────── */}
-      {apiKeyOpen&&(
-        <div onClick={e=>e.target===e.currentTarget&&setApiKeyOpen(false)} style={{position:"fixed",inset:0,zIndex:2000,background:"rgba(0,0,0,0.75)",display:"flex",alignItems:"center",justifyContent:"center"}}>
-          <div style={{background:"#0f1923",border:"1px solid #1e2d3d",borderRadius:12,padding:"28px 32px",width:460,maxWidth:"92vw",boxShadow:"0 0 60px rgba(0,0,0,0.7)"}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
-              <div><div style={{fontSize:12,fontWeight:900,color:"#e2e8f0",letterSpacing:2,marginBottom:3}}>⚙ SETTINGS</div><div style={{fontSize:9,color:"#4d6880",letterSpacing:1}}>API key · Commissioner mode</div></div>
-              <button onClick={()=>setApiKeyOpen(false)} style={{background:"none",border:"none",color:"#4d6680",fontSize:18,cursor:"pointer"}}>✕</button>
-            </div>
-            <div style={{marginBottom:20,paddingBottom:20,borderBottom:"1px solid #1e2d3d"}}>
-              <div style={{fontSize:9,color:"#60a5fa",letterSpacing:2,fontWeight:700,marginBottom:8}}>ANTHROPIC API KEY</div>
-              {isProxied()?(
-                <div style={{background:"#0f2b1a",border:"1px solid #22c55e44",borderRadius:8,padding:"10px 14px",fontSize:10,color:"#22c55e"}}>✓ Running in claude.ai — auto-proxied. No key needed.</div>
-              ):LEAGUE_API_KEY?(
-                <div style={{background:"#0a1118",border:"1px solid #1e2d3d",borderRadius:8,padding:"10px 14px",marginBottom:10}}>
-                  <div style={{fontSize:9,color:"#22c55e",fontWeight:700,marginBottom:2}}>✓ LEAGUE KEY ACTIVE</div>
-                  <div style={{fontSize:9,color:"#4d6880",lineHeight:1.7}}>AI features are enabled for all league members via the shared league key. You can override with your own personal key below.</div>
-                </div>
-              ):(
-                <div style={{fontSize:9,color:"#4d6880",marginBottom:10,lineHeight:1.7}}>No league key configured. Add a personal key below to enable AI features.</div>
-              )}
-              <input type="password" value={apiKeyInput} onChange={e=>setApiKeyInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&saveKey()} placeholder={LEAGUE_API_KEY?"Override league key (optional)...":"sk-ant-api03-..."} style={{width:"100%",boxSizing:"border-box",background:"#080d14",border:"1px solid #1e2d3d",color:"#e2e8f0",padding:"9px 12px",borderRadius:6,fontFamily:"monospace",fontSize:11,marginBottom:8,marginTop:10}}/>
-              <div style={{display:"flex",gap:8}}>
-                <button onClick={saveKey} style={{flex:1,background:apiKeySaved?"#0f2b1a":"linear-gradient(135deg,#22c55e,#16a34a)",color:apiKeySaved?"#22c55e":"#080d14",border:apiKeySaved?"1px solid #22c55e":"none",borderRadius:6,padding:"9px",fontFamily:"inherit",fontWeight:900,fontSize:10,letterSpacing:1,cursor:"pointer"}}>{apiKeySaved?"✓ SAVED":"SAVE KEY"}</button>
-                {localStorage.getItem("mgg_anthropic_key")&&<button onClick={clearKey} style={{background:"#1a0505",color:"#ef4444",border:"1px solid #ef444433",borderRadius:6,padding:"9px 14px",fontFamily:"inherit",fontSize:10,cursor:"pointer",letterSpacing:1}}>CLEAR</button>}
-              </div>
-            </div>
-            <div>
-              <div style={{fontSize:9,color:"#f59e0b",letterSpacing:2,fontWeight:700,marginBottom:8}}>★ COMMISSIONER MODE</div>
-              {isCommissioner?(
-                <div>
-                  <div style={{background:"#1a1000",border:"1px solid #f59e0b33",borderRadius:8,padding:"10px 14px",marginBottom:10,fontSize:10,color:"#f59e0b"}}>★ Active — you can view any team in the league</div>
-                  {owners.filter(o=>o!==currentOwner).length>0&&(
-                    <div style={{display:"flex",flexWrap:"wrap",gap:5,marginBottom:12}}>
-                      {owners.filter(o=>o!==currentOwner).map(o=>(<button key={o} onClick={()=>{enterViewMode(o);setApiKeyOpen(false);}} style={{background:"#1a1000",border:"1px solid #f59e0b33",color:"#f59e0b",borderRadius:4,padding:"4px 10px",fontFamily:"inherit",fontSize:9,cursor:"pointer"}}>👁 {o}</button>))}
-                    </div>
-                  )}
-                  <button onClick={deactivateCommissioner} style={{background:"none",border:"1px solid #374151",color:"#4b6580",borderRadius:5,padding:"6px 12px",fontFamily:"inherit",fontSize:9,cursor:"pointer",letterSpacing:1}}>DEACTIVATE</button>
-                </div>
-              ):(
-                <div>
-                  <div style={{fontSize:9,color:"#4d6880",marginBottom:8,lineHeight:1.7}}>Enter the commissioner passphrase to unlock team browsing and view mode.</div>
-                  <input type="password" value={commPassInput} onChange={e=>setCommPassInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&activateCommissioner()} placeholder="Commissioner passphrase..." style={{width:"100%",boxSizing:"border-box",background:"#080d14",border:`1px solid ${commPassError?"#ef4444":"#1e2d3d"}`,color:"#e2e8f0",padding:"8px 12px",borderRadius:6,fontFamily:"monospace",fontSize:11,marginBottom:6}}/>
-                  {commPassError&&<div style={{fontSize:9,color:"#ef4444",marginBottom:6}}>⚠ {commPassError}</div>}
-                  <button onClick={activateCommissioner} disabled={!commPassInput} style={{background:commPassInput?"linear-gradient(135deg,#f59e0b,#d97706)":"#1e2d3d",color:commPassInput?"#080d14":"#4b6580",border:"none",borderRadius:6,padding:"8px 18px",fontFamily:"inherit",fontWeight:900,fontSize:10,letterSpacing:1,cursor:commPassInput?"pointer":"not-allowed"}}>★ ACTIVATE</button>
-                </div>
-              )}
-            </div>
           </div>
         </div>
       )}

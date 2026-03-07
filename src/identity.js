@@ -1,27 +1,24 @@
 // ─── IDENTITY SYSTEM ─────────────────────────────────────────────────────────
-// Manages Sleeper login, commissioner mode, and view mode.
-//
 // Identity shape: { userId, username, displayName, ownerName, avatar, isCommissioner }
 //
-// Key design decisions:
-//   - loginOpen starts TRUE if no identity saved — modal shows immediately on load
-//   - Owner matching happens in App.jsx after league data loads, not here
-//   - Lockout check is done in App.jsx post-load so owners list is available
-//   - Passphrase is commissioner-only convenience lock, not a security boundary
+// Key fixes vs previous version:
+//   - loginOpen starts TRUE when no identity in localStorage (auto-shows on first visit)
+//   - doSleeperLogin returns raw Sleeper user — owner matching + lockout done in App.jsx
+//     where the live owners array is available after data loads
+//   - Legacy mgg_owner key cleared on login
 
 import { useState } from "react";
 import { runMigration } from "./storage";
 
-export const COMMISSIONER_PASS = "mggedynasty2025"; // ← change before deploying
+export const COMMISSIONER_PASS = "mggedynasty2025"; // change before sharing
 
 export function useIdentity() {
 
-  // ── State ──────────────────────────────────────────────────────────────────
   const [identity, setIdentityState] = useState(() => {
     try { return JSON.parse(localStorage.getItem("mgg_identity")); } catch { return null; }
   });
 
-  // Auto-open login modal if no identity saved yet
+  // ── Auto-open on first visit if no identity saved ─────────────────────────
   const [loginOpen,     setLoginOpen]     = useState(() => !localStorage.getItem("mgg_identity"));
   const [loginInput,    setLoginInput]    = useState("");
   const [loginLoading,  setLoginLoading]  = useState(false);
@@ -30,13 +27,11 @@ export function useIdentity() {
   const [commPassError, setCommPassError] = useState("");
   const [viewingOwner,  setViewingOwner]  = useState(null);
 
-  // ── Derived ────────────────────────────────────────────────────────────────
   const currentOwner   = identity?.ownerName || "";
   const isCommissioner = identity?.isCommissioner || false;
   const activeOwner    = viewingOwner || currentOwner;
   const isViewMode     = !!viewingOwner && viewingOwner !== currentOwner;
 
-  // ── Persist helper ─────────────────────────────────────────────────────────
   const persistIdentity = (id) => {
     setIdentityState(id);
     try {
@@ -45,12 +40,10 @@ export function useIdentity() {
     } catch {}
   };
 
-  // ── Sleeper login ──────────────────────────────────────────────────────────
-  // Returns { ok: true, userId, username, displayName } or throws.
-  // Owner matching and lockout are handled in App.jsx after this resolves.
+  // ── Returns raw Sleeper user object — App.jsx handles matching + lockout ───
   const doSleeperLogin = async () => {
     const username = loginInput.trim().toLowerCase();
-    if (!username) return;
+    if (!username) return null;
     setLoginLoading(true);
     setLoginError("");
     try {
@@ -61,7 +54,7 @@ export function useIdentity() {
       if (!res.ok) throw new Error("Sleeper username not found. Check your spelling.");
       const user = await res.json();
       if (!user?.user_id) throw new Error("Invalid Sleeper response.");
-      return user; // let App.jsx handle owner matching + lockout
+      return user;
     } catch(e) {
       setLoginError(e.message || "Login failed. Try again.");
       setLoginLoading(false);
@@ -72,30 +65,28 @@ export function useIdentity() {
   // Called by App.jsx after owner matching + lockout check pass
   const finaliseLogin = (user, ownerName) => {
     const newIdentity = {
-      userId:        user.user_id,
-      username:      user.username || user.display_name || loginInput.trim().toLowerCase(),
-      displayName:   user.metadata?.team_name || user.display_name || user.username,
+      userId:         user.user_id,
+      username:       user.username || loginInput.trim().toLowerCase(),
+      displayName:    user.metadata?.team_name || user.display_name || user.username,
       ownerName,
-      avatar:        user.avatar || null,
+      avatar:         user.avatar || null,
       isCommissioner: false,
     };
     runMigration(user.user_id);
-    // Clear legacy non-namespaced owner key from pre-0.8.0
-    try { localStorage.removeItem("mgg_owner"); } catch {}
+    try { localStorage.removeItem("mgg_owner"); } catch {} // clear legacy key
     persistIdentity(newIdentity);
     setLoginOpen(false);
     setLoginInput("");
     setLoginLoading(false);
   };
 
-  // ── Manual login (no Sleeper verification — fallback only) ─────────────────
   const doManualLogin = (ownerName) => {
     const fallback = {
-      userId:        `local_${ownerName.replace(/\s+/g, "_").toLowerCase()}`,
-      username:      ownerName.toLowerCase().replace(/\s+/g, "_"),
-      displayName:   ownerName,
+      userId:         `local_${ownerName.replace(/\s+/g,"_").toLowerCase()}`,
+      username:       ownerName.toLowerCase().replace(/\s+/g,"_"),
+      displayName:    ownerName,
       ownerName,
-      avatar:        null,
+      avatar:         null,
       isCommissioner: false,
     };
     runMigration(fallback.userId);
@@ -104,20 +95,17 @@ export function useIdentity() {
     setLoginOpen(false);
   };
 
-  // ── Logout ─────────────────────────────────────────────────────────────────
   const doLogout = () => {
     persistIdentity(null);
     setViewingOwner(null);
     setLoginOpen(true);
   };
 
-  // ── Correct owner→roster mapping ───────────────────────────────────────────
   const setOwnerMapping = (ownerName) => {
     if (!identity) return;
     persistIdentity({ ...identity, ownerName });
   };
 
-  // ── Commissioner ───────────────────────────────────────────────────────────
   const activateCommissioner = () => {
     if (commPassInput === COMMISSIONER_PASS) {
       persistIdentity({ ...identity, isCommissioner: true });
@@ -127,12 +115,12 @@ export function useIdentity() {
       setTimeout(() => setCommPassError(""), 2000);
     }
   };
+
   const deactivateCommissioner = () => {
     persistIdentity({ ...identity, isCommissioner: false });
     setViewingOwner(null);
   };
 
-  // ── View mode ──────────────────────────────────────────────────────────────
   const enterViewMode = (ownerName) => {
     if (!ownerName || ownerName === currentOwner) { setViewingOwner(null); return; }
     setViewingOwner(ownerName);
