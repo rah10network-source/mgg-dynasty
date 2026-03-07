@@ -47,25 +47,85 @@ export const loadData = async (log, manualSitsRef) => {
 
   log("Loading rosters...");
   const rosters = await sf(`/league/${LEAGUE_ID}/rosters`);
-  const ownerMap = {}, taxiMap = {}, draftPicksByOwner = {}, rosterIdToOwner = {};
+  const ownerMap = {}, taxiMap = {}, rosterIdToOwner = {};
   rosters.forEach(r => {
     const name = userMap[r.owner_id] || r.owner_id;
     rosterIdToOwner[r.roster_id] = name;
     (r.players || []).forEach(pid => { ownerMap[pid] = name; });
     (r.taxi    || []).forEach(pid => { taxiMap[pid]  = true; });
-    // Future draft picks this owner holds
-    (r.draft_picks || []).forEach(pick => {
-      if (!draftPicksByOwner[name]) draftPicksByOwner[name] = [];
-      draftPicksByOwner[name].push({
-        season:        pick.season,
-        round:         pick.round,
-        rosterId:      pick.roster_id,
-        prevRosterId:  pick.previous_owner_id,
-        ownerName:     name,
-      });
-    });
   });
   log(`${Object.keys(ownerMap).length} rostered players`, "success");
+
+  // ── Draft pick reconstruction ──────────────────────────────────────────────
+  // Sleeper rosters[n].draft_picks only holds traded picks already received.
+  // We reconstruct full ownership: every team starts with all their own picks
+  // for the next 3 seasons, then apply traded_picks to move picks around.
+  log("Loading draft picks...");
+  const draftPicksByOwner = {};
+  const draftRounds = lg.settings?.draft_rounds || lg.settings?.rounds || 5;
+  const currentSeason = Number(lg.season || new Date().getFullYear());
+  const futureSeasons = [currentSeason + 1, currentSeason + 2, currentSeason + 3];
+
+  // 1. Seed every roster with their own picks for all future seasons
+  rosters.forEach(r => {
+    const name = userMap[r.owner_id] || r.owner_id;
+    if (!draftPicksByOwner[name]) draftPicksByOwner[name] = [];
+    futureSeasons.forEach(season => {
+      for (let round = 1; round <= draftRounds; round++) {
+        draftPicksByOwner[name].push({
+          season:       String(season),
+          round,
+          rosterId:     r.roster_id,   // original team (for labelling)
+          ownerRosterId: r.roster_id,  // current holder (starts as own)
+          isTraded:     false,
+        });
+      }
+    });
+  });
+
+  // 2. Fetch traded picks and apply movements
+  try {
+    const tradedPicks = await sf(`/league/${LEAGUE_ID}/traded_picks`);
+    tradedPicks.forEach(tp => {
+      const season = String(tp.season);
+      const round  = tp.round;
+      const origId = tp.roster_id;          // whose pick it originally was
+      const newId  = tp.owner_id;           // who now owns it
+      const prevId = tp.previous_owner_id;
+
+      // Remove from whoever currently holds it
+      const prevOwnerName = rosterIdToOwner[prevId] || rosterIdToOwner[origId];
+      if (prevOwnerName && draftPicksByOwner[prevOwnerName]) {
+        const idx = draftPicksByOwner[prevOwnerName].findIndex(
+          p => String(p.season) === season && p.round === round && p.rosterId === origId
+        );
+        if (idx !== -1) draftPicksByOwner[prevOwnerName].splice(idx, 1);
+      }
+
+      // Add to new owner
+      const newOwnerName = rosterIdToOwner[newId];
+      if (newOwnerName) {
+        if (!draftPicksByOwner[newOwnerName]) draftPicksByOwner[newOwnerName] = [];
+        // Avoid duplicates
+        const already = draftPicksByOwner[newOwnerName].some(
+          p => String(p.season) === season && p.round === round && p.rosterId === origId
+        );
+        if (!already) {
+          draftPicksByOwner[newOwnerName].push({
+            season,
+            round,
+            rosterId:      origId,
+            ownerRosterId: newId,
+            isTraded:      origId !== newId,
+          });
+        }
+      }
+    });
+    const tradedCount = tradedPicks.length;
+    log(`Draft picks loaded · ${tradedCount} traded picks applied`, "success");
+  } catch(e) {
+    log(`Draft picks: traded picks fetch failed (${e.message}) — showing original allocations`, "info");
+  }
 
   log("Downloading NFL player database...");
   const allP = await sf(`/players/nfl`);
@@ -114,7 +174,7 @@ export const loadData = async (log, manualSitsRef) => {
   for (let wk = 1; wk <= 18; wk++) {
     try {
       const r = await fetch(
-        `https://api.sleeper.app/v1/stats/nfl/regular/2025/${wk}`,
+        `https://api.sleeper.app/v1/stats/nfl/regular/${lg.season}/${wk}`,
         { signal: AbortSignal.timeout(10000) }
       );
       if (!r.ok) continue;

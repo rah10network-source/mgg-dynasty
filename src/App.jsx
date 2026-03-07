@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 
 import { LEAGUE_ID, POS_ORDER, PICK_VALUES, PICK_ROUNDS, PICK_YEARS, MANUAL_SITUATIONS } from "./constants";
 import { calcAge, resolveBreakoutFlag, ageScore, sitMultiplier } from "./scoring";
@@ -90,6 +90,21 @@ export default function App() {
     setFaWatchlist(next);
     try { localStorage.setItem("mgg_fa_watchlist", JSON.stringify(next)); } catch {}
   };
+
+  // ── Reconcile faWatchlist → watchlist on first load ─────────────────────────
+  // Backfills any players already in faWatchlist that got orphaned before the
+  // add/remove sync was wired up. Runs once after both states have initialised.
+  useEffect(() => {
+    if (faWatchlist.length === 0) return;
+    setWatchlist(prev => {
+      const names = new Set(prev);
+      const toAdd = faWatchlist.map(p => p.name).filter(n => n && !names.has(n));
+      if (toAdd.length === 0) return prev;
+      const next = [...prev, ...toAdd];
+      try { localStorage.setItem("mgg_watchlist", JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Big Board helpers ────────────────────────────────────────────────────────
   const saveBigBoard = (next) => {
@@ -205,7 +220,18 @@ export default function App() {
       return next;
     });
   };
-  const removeFromFaWatchlist = (pid) => saveFaWatchlist(faWatchlist.filter(p => p.pid !== pid));
+  const removeFromFaWatchlist = (pid) => {
+    const player = faWatchlist.find(p => p.pid === pid);
+    saveFaWatchlist(faWatchlist.filter(p => p.pid !== pid));
+    // Mirror removal in the main watchlist so Watchlist tab stays in sync
+    if (player?.name) {
+      setWatchlist(prev => {
+        const next = prev.filter(n => n !== player.name);
+        try { localStorage.setItem("mgg_watchlist", JSON.stringify(next)); } catch {}
+        return next;
+      });
+    }
+  };
 
   // ── Trade Analyzer ───────────────────────────────────────────────────────────
   const [tradeOwnerA,  setTradeOwnerA]  = useState("");

@@ -14,7 +14,7 @@ const estimateValue = (round, season) => {
   return vals[Math.min(yearOffset, vals.length - 1)];
 };
 
-export function MyPicks({ currentOwner, draftPicksByOwner, rosterIdToOwner, players, phase }) {
+export function MyPicks({ currentOwner, draftPicksByOwner, rosterIdToOwner, players, phase, seasonState }) {
 
   if (phase !== "done") {
     return (
@@ -24,15 +24,19 @@ export function MyPicks({ currentOwner, draftPicksByOwner, rosterIdToOwner, play
     );
   }
 
+  // Use league season from Sleeper — auto-updates each year
+  const leagueSeason = Number(seasonState?.season || new Date().getFullYear());
+
   const myPicks = (currentOwner ? draftPicksByOwner[currentOwner] || [] : [])
     .map(pk => ({
       ...pk,
-      roundLabel:  ROUND_LABEL[pk.round] || `${pk.round}th`,
-      value:       estimateValue(pk.round, pk.season),
+      roundLabel:   ROUND_LABEL[pk.round] || `${pk.round}th`,
+      value:        estimateValue(pk.round, pk.season),
       originalTeam: rosterIdToOwner[pk.rosterId] || `Roster ${pk.rosterId}`,
-      isOwn:       rosterIdToOwner[pk.rosterId] === currentOwner,
+      // isOwn = this pick originally belonged to currentOwner (not acquired via trade)
+      isOwn:        !pk.isTraded,
     }))
-    .sort((a,b) => a.season - b.season || a.round - b.round);
+    .sort((a,b) => Number(a.season) - Number(b.season) || a.round - b.round);
 
   // All picks in the league grouped by owner — for context
   const allOwnerPicks = Object.entries(draftPicksByOwner)

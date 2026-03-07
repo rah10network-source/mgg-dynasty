@@ -51,6 +51,7 @@ export function DraftHub({
           draftPicksByOwner={draftPicksByOwner}
           rosterIdToOwner={rosterIdToOwner}
           players={players}
+          seasonState={seasonState}
         />
       )}
 
