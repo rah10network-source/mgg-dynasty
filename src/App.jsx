@@ -725,6 +725,7 @@ export default function App() {
               background:"#9580FF", color:"#0d1117", border:"none",
               padding:"12px 40px", fontFamily:"'Bebas Neue',sans-serif",
               fontWeight:400, fontSize:16, letterSpacing:"0.15em", cursor:"pointer",
+              borderRadius:0,
             }}>⟳ INITIALIZE</button>
           </div>
         )}
@@ -754,11 +755,11 @@ export default function App() {
           </div>
         )}
 
-        {/* Tab content */}
-        {tab==="dashboard"  && <Dashboard phase={phase} players={players} currentOwner={activeOwner} owners={owners} newsMap={newsMap} seasonState={seasonState} viewMode={viewMode} onViewTeam={isCommissioner?enterViewMode:undefined}/>}
-        {tab==="leaguehub" && <LeagueHub phase={phase} players={players} owners={owners} currentOwner={activeOwner} newsMap={newsMap} setDetail={setDetail} setActiveTab={setTab} seasonState={seasonState} viewMode={viewMode} onViewTeam={isCommissioner?enterViewMode:undefined}/>}
-        {tab==="teamhub"   && <TeamHub phase={phase} players={players} owners={owners} currentOwner={activeOwner} newsMap={newsMap} setDetail={setDetail} isViewMode={isViewMode} viewingOwner={viewingOwner} isCommissioner={isCommissioner} onViewTeam={enterViewMode} onExitView={exitViewMode} playerNotes={playerNotes} savePlayerNote={savePlayerNote} viewMode={viewMode}/>}
-        {tab==="playerhub" && <PlayerHub
+        {/* Tab content - only render when data is loaded. Log always renders. */}
+        {tab==="dashboard"  && phase==="done" && <Dashboard phase={phase} players={players} currentOwner={activeOwner} owners={owners} newsMap={newsMap} seasonState={seasonState} viewMode={viewMode} onViewTeam={isCommissioner?enterViewMode:undefined}/>}
+        {tab==="leaguehub" && phase==="done" && <LeagueHub phase={phase} players={players} owners={owners} currentOwner={activeOwner} newsMap={newsMap} setDetail={setDetail} setActiveTab={setTab} seasonState={seasonState} viewMode={viewMode} onViewTeam={isCommissioner?enterViewMode:undefined}/>}
+        {tab==="teamhub"   && phase==="done" && <TeamHub phase={phase} players={players} owners={owners} currentOwner={activeOwner} newsMap={newsMap} setDetail={setDetail} isViewMode={isViewMode} viewingOwner={viewingOwner} isCommissioner={isCommissioner} onViewTeam={enterViewMode} onExitView={exitViewMode} playerNotes={playerNotes} savePlayerNote={savePlayerNote} viewMode={viewMode}/>}
+        {tab==="playerhub" && phase==="done" && <PlayerHub
           currentOwner={currentOwner} activeOwner={activeOwner} isViewMode={isViewMode}
           owners={owners} phase={phase} players={players} newsMap={newsMap} nflDb={nflDb} view={view}
           detail={detail} setDetail={setDetail} tierFilter={tierFilter} setTierFilter={setTierFilter}
@@ -778,7 +779,7 @@ export default function App() {
           addToFaWatchlist={addToFaWatchlist} removeFromFaWatchlist={removeFromFaWatchlist}
           viewMode={viewMode}
         />}
-        {tab==="tools"     && <AnalysisTools
+        {tab==="tools"     && phase==="done" && <AnalysisTools
           phase={phase} owners={owners} players={players} nflDb={nflDb}
           currentOwner={currentOwner} newsMap={newsMap}
           faWatchlist={faWatchlist} onAddToFaWatchlist={addToFaWatchlist}
@@ -796,7 +797,7 @@ export default function App() {
           requestClaudeTradeNarrative={requestClaudeTradeNarrative} hasApiKey={hasApiKey()}
           viewMode={viewMode}
         />}
-        {tab==="drafthub"  && <DraftHub
+        {tab==="drafthub"  && phase==="done" && <DraftHub
           phase={phase} players={players} nflDb={nflDb} currentOwner={currentOwner} owners={owners}
           rosterIdToOwner={rosterIdToOwner} draftPicksByOwner={draftPicksByOwner} seasonState={seasonState}
           bigBoard={bigBoard} bigBoardMode={bigBoardMode} setBigBoardMode={setBigBoardMode}
