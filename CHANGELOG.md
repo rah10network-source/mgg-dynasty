@@ -1,245 +1,79 @@
-# Changelog
+# MGG Dynasty — Changelog
 
-All notable changes to **MGG Dynasty — Live Intelligence Board** are documented here.
-
-Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
-Versioning follows [Semantic Versioning](https://semver.org/): `MAJOR.MINOR.PATCH`
-
-| Type | When |
-|---|---|
-| `MAJOR` (x.0.0) | Architecture change requiring localStorage clear or data migration |
-| `MINOR` (0.x.0) | New tab, new data source, new scoring component, new feature set |
-| `PATCH` (0.0.x) | Bug fix, styling update, non-breaking change |
+All notable changes to MGG Dynasty are documented here.  
+Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [Unreleased]
-- Sell-High / Buy-Low alert system
-- Dashboard home tab with personalised roster snapshot and alerts
-- GitHub Pages deployment
+## [0.8.0] — 2025-03-07 · Batch 2 — Identity System
+
+### Added
+- **Sleeper username login** — users verify their identity against `api.sleeper.app/v1/user/{username}`, which auto-matches their Sleeper display name to a league roster. No passwords, no backend.
+- **Namespaced localStorage** — all personal data (watchlist, big board, situations, FA watchlist) is now keyed by `mgg_{type}_{userId}` so multiple users can share a device without data bleed. See `storage.js`.
+- **Legacy data migration** — on first login, any pre-0.8.0 non-namespaced data is automatically copied into the user's namespace so nothing is lost on upgrade.
+- **Manual login fallback** — if league data is already loaded, users can skip Sleeper verification and pick their team directly from the owner list.
+- **Commissioner mode** — passphrase-gated (set `COMMISSIONER_PASS` in `identity.js` before deploying). Unlocks full team browsing with read-only view mode.
+- **View mode** — commissioner can click any team to browse it in full read-only context. A persistent `👁 VIEWING: TeamName` banner tracks the active view with a one-click exit.
+- **Account panel** — clicking the identity pill in the header re-opens the account modal where users can correct their owner-roster mapping or log out.
+- **Quick-jump team buttons** in Settings modal for commissioners to instantly enter view mode for any team.
+
+### Changed
+- Owner picker modal replaced entirely by the Sleeper login flow.
+- Identity pill in header now shows commissioner star `★` when commissioner mode is active.
+- `onViewTeam` prop added to Dashboard and LeagueHub — only passed when `isCommissioner` is true.
+- TeamHub, PlayerHub now receive `isViewMode`, `activeOwner`, and `currentOwner` as distinct props so tabs can differentiate the user's own data from a viewed team.
+- `AnalysisTools` / `DraftHub` always use `currentOwner` (not `activeOwner`) so personal trade / draft data is never overwritten during view mode.
+
+### New Files
+- `src/storage.js` — `lsKey`, `lsGet`, `lsSet`, `lsDel`, `runMigration` pure utility functions.
+- `src/identity.js` — `useIdentity` React hook encapsulating all login / commissioner / view-mode state and actions.
+
+### Refactored
+- `App.jsx` reduced from ~960 lines to ~470 lines by extracting identity logic into `identity.js` and storage helpers into `storage.js`.
+- All `localStorage.setItem/getItem` calls inside App replaced with `ls.get` / `ls.set` shorthand backed by namespaced keys.
 
 ---
 
-## [0.7.1] — 2026-03-07
+## [0.7.1] — 2025-02 · Batch 1 — Bug Fixes + Claude API
 
 ### Fixed
-- **Critical: blank page on load** — script load order race condition. All CDN scripts
-  (React, ReactDOM, XLSX, Babel) moved to `<body>` after `<div id="root">`, guaranteeing
-  they are fully parsed before Babel compiles the app script
-- **JSX root violation** — owner picker modal was placed outside the root `<div>` element,
-  causing Babel to throw a compile-time parse error and render nothing
-- Missing closing `</div>` tags from incremental edits causing div depth imbalance
-
-### Changed
-- Contrast pass — 96 colour values updated across the full file for WCAG readability:
-  - `#4b6580` → `#7a95ae` (49 instances) — secondary labels, column headers — 3.2:1 → 6:1
-  - `#2a3d52` → `#4d6880` (33 instances) — hint text, timestamps — 2.1:1 → 4.5:1
-  - `#94a3b8` → `#a8bccf` (9 instances) — mid-level text — 5.5:1 → 7:1
-  - `#1e2d3d` → `#3a5068` (2 instances) — near-invisible hints — 1.8:1 → 3.5:1
-
----
-
-## [0.7.0] — 2026-03-07
+- **Traded picks season filter** — `loadData` was applying all traded picks including past/current season picks to future pick projections, causing duplicate or ghost picks in My Picks. Added `if (Number(season) <= currentSeason) return;` guard inside the `tradedPicks.forEach` loop.
+- **`SEASON_MODES` not defined** — constant was declared inside the App component body, making it unavailable during render. Moved to module level.
+- **`saveKey` / `clearKey` / `getStoredKey` not defined** — these functions were accidentally dropped during a prior patch. Restored inside the App component.
+- **`getStoredKey` called before definition** — reordered function declarations so `saveKey` / `clearKey` / `getStoredKey` (line 337–349) are defined before `requestClaudeTradeNarrative` (line 351) which calls them.
 
 ### Added
-- **Player Hub** main tab with nested sub-navigation: `⚑ Situations` and `◎ FA Watchlist`
-- **FA browser** — full Sleeper NFL DB (2000+ players) filtered to unrostered active
-  players, sorted by depth chart order then age; capped at 80 results per filter state
-- FA browser filters: position, team, age range (min/max), hide injured, name/team search
-- **+ WATCH** — scores a FA player immediately on add using the full dynasty formula
-  (role proxy replaces PPG since player has no real stats while unrostered)
-- FA Watchlist persists in `localStorage` — survives browser refresh, per device
-- Watchlist cards show: tier colour, dynasty score, depth order, injury status, situation
-  flag badge if applicable
-- `nflDb` state — Sleeper full NFL player DB preserved post-sync so FA browser
-  queries it without a re-fetch
-
-### Changed
-- Manual situation flags apply to FA watchlist players on add — same flag resolution
-  as rostered players (`manualSitsRef` checked, then auto AGE_CLIFF)
-- `tab === "situations"` renamed to `tab === "hub"` with nested `hubTab` sub-state
-
-### Notes
-- FA scores intentionally skew lower than rostered players. Without real PPG data the
-  scoring falls back to `sc × effRole × startPenalty × 10` proxy. This is correct
-  behaviour — unverified talent should carry a discount.
+- **Claude AI watchlist research** (`claudeAnalyse`) — when an Anthropic API key is present (or running in claude.ai where the API is auto-proxied), the Watchlist Research feature uses Claude Haiku to analyse player situations from ESPN headlines instead of the rule-based `deepAnalyse` fallback.
+- **Claude trade narrative** (`claudeTradeAnalysis`) — Trade Analyzer verdict bar gains an `⚡ AI ANALYSIS` button that calls Claude for a 2–3 sentence dynasty-context narrative beyond the score-difference heuristic.
+- **`isProxied()` helper** — detects claude.ai / anthropic.com hostname to skip API key requirement when running inside the Claude artifact environment.
+- **`claudeTradeNarrative` / `claudeTradeLoading` state** — purple narrative panel renders below the verdict bar after Claude responds.
+- **`hasApiKey` prop** to `AnalysisTools` → `Trade` — AI button only renders when key is available.
+- **`tradeReset()` updated** to clear `claudeTradeNarrative` on trade reset.
+- **`claudeAnalyse` export** added to `api.js`.
+- **`claudeTradeAnalysis` export** added to `api.js`.
 
 ---
 
-## [0.6.0] — 2026-03-07
+## [0.7.0] — 2025-01 · Initial Public Release
 
-### Added
-- **Roster Grade tab** — per-team letter grades A+ through D, contender score ranking
-- Window classification: `REBUILD` (avg age <25) → `RISING` → `CONTEND` → `WIN NOW`
-  → `DECLINING` (avg age 31+), with colour coding
-- League leaderboard — all 12 teams ranked by contender score, 9 metric columns:
-  grade, window, avg score, elite count, starter count, avg age, on-cliff, injured
-- Your roster callout card — highlighted grade, position depth bars (avg score per
-  position group with green/blue/amber/red fill)
-- Window classification legend with age range descriptions
-- **Owner identity system**:
-  - Pre-sync: text input on idle splash screen — type name, press Enter
-  - Post-sync: full-screen modal with all league owner buttons and player counts
-  - Persists in `localStorage` — returning users skip picker entirely
-  - Header badge showing current owner — click to reopen modal and switch
-
-### Changed
-- All hardcoded `"PunterParty"` references replaced with dynamic `currentOwner` state
-- Trade Analyzer side A now defaults to `currentOwner` on load
-
----
-
-## [0.5.0] — 2026-03-07
-
-### Added
-- **Trade Analyzer tab** — full dynasty trade evaluator
-- Owner picker per side — player search scoped to that owner's roster
-- Draft pick support: 2026 / 2027 / 2028 × 1st / 2nd / 3rd rounds
-  - Default values: 1st 72/60/48, 2nd 38/30/24, 3rd 18/14/10
-  - Inline custom value override per pick
-- Verdict bar: dynasty score totals per side, point differential, avg age comparison
-- Position impact panel: net score change per position group for each side
-- Verdict tiers:
-  - `FAIR TRADE` ≤ 5 pts differential
-  - `SLIGHT WIN/LOSS` 6–15 pts
-  - `CLEAR WIN/LOSS` 16–30 pts
-  - `STRONG WIN / LOPSIDED LOSS` 30+ pts
-
----
-
-## [0.4.0] — 2026-03-07
-
-### Added
-- **Situation flag system** — two-tier architecture applied as score multipliers at sync time
-
-  | Flag | Impact | Notes |
-  |---|---|---|
-  | `BREAKOUT_YOUNG` | +15% | Auto-upgraded from BREAKOUT_ROLE when age ≤ 23 |
-  | `BREAKOUT_ROLE` | +8% | 24+ breakout; sell-high window |
-  | `DEPTH_PROMOTED` | +12% | Starter by injury |
-  | `CONTRACT_YEAR` | +5% | Playing for next deal |
-  | `NEW_OC` | 0% | Scheme change, direction unknown |
-  | `CAMP_BATTLE` | -8% | Depth chart competition |
-  | `IR_RETURN` | -5% | Returning from IR |
-  | `FREE_AGENT` | -20% | Released; landing spot unknown |
-  | `TRADE_DEMAND` | -15% | Requested trade |
-  | `SUSPENSION` | (17−N)/17 | Requires `games: N` field |
-  | `AGE_CLIFF` | -12% | Auto-set when age > positional cliff |
-
-- `AGE_CLIFF` auto-derived every sync — no manual input required
-- `BREAKOUT_YOUNG` auto-upgrades `BREAKOUT_ROLE` when player age ≤ 23
-- **Situations tab** — manual flag editor: add / edit / remove, score impact column,
-  reset to defaults button
-- Default situations seeded to `localStorage` on first run:
-  - Kyler Murray: `FREE_AGENT` — "Released by ARI 3/11"
-  - Bryce Young: `CAMP_BATTLE` — "Starting job not guaranteed"
-  - Anthony Richardson: `IR_RETURN` — "Returning from shoulder surgery"
-  - Christian Kirk: `IR_RETURN` — "Returning from IR"
-  - Jacoby Brissett: `BREAKOUT_ROLE` — "3,366 yds 23 TD as ARI starter"
-- Watchlist deep research — ESPN + Sleeper analysis per player; approve/reject before
-  applying to situations list
-- Situation flag badges rendered on player name cells in the board
-
-### Changed
-- Intel Scan refactored: manual flags win unconditionally; Intel Scan fills gaps only
-  for players without a manual flag (`if (p.situationFlag) return p`)
-
----
-
-## [0.3.0] — 2026-03-06
-
-### Added
-- **Sleeper Stats API** — real fantasy PPG from 18 weekly stat pulls
-- IDP scoring config (applied to all stat aggregation):
-
-  | Stat | Points |
-  |---|---|
-  | Pass yard | 0.04 |
-  | Pass TD | 4 |
-  | Pass INT | -2 |
-  | Rush yard | 0.1 |
-  | Rush TD | 6 |
-  | Reception | 0.5 |
-  | Rec yard | 0.1 |
-  | Rec TD | 4 |
-  | Sack | 4 |
-  | Solo tackle | 1 |
-  | TFL | 2 |
-  | Pass defense | 2 |
-  | INT | 6 |
-  | Forced fumble | 3 |
-  | Fumble rec | 4 |
-  | Safety | 8 |
-
-- **Intel Scan tab** — ESPN NFL news headlines, rule-based `BUY/SELL/HOLD/WATCH`
-  signal detection per player
-- Sleeper trending adds (48hr/168hr lookback) as conviction boost for Intel Scan signals
-- Start penalty: benched players and no-data players gate their age score contribution
-  to prevent inflation of backup/unverified players
-
-### Changed
-- `prodProxy` scoring component updated: uses real PPG normalised by position group
-  average instead of role proxy alone (role proxy retained as fallback)
-
-### Fixed
-- Column alignment in board table
-- HTML structure rebuilt clean after progressive edit instability caused render failures
-
----
-
-## [0.2.0] — 2026-03-06
-
-### Added
-- Self-contained single-file HTML app replacing the static Excel workbook
-- **Sleeper API** integration: live rosters, depth charts, injuries, player metadata,
-  18-week transaction history (trade counts, FA adds, drop counts per player)
-- **Dynasty Board tab** — sortable table with 15 columns, tier filter badges, position
-  filter dropdown, player search, expandable detail panel per player
-- **Positions tab** — card grid per position group with tier colour coding
-- **XLSX Export** — 4-tab workbook: Dynasty Board, By Position, Player Intel, Snapshot Info
-- Sync log panel with timestamped progress entries
-- Expandable player detail panel: profile, dynasty metrics, intel columns
-
-### Fixed
-- League ID corrected: `178580692040589312` → `1178580692040589312`
-
-### Tech
-- React 18 (UMD) + Babel Standalone + SheetJS via CDN — zero build toolchain
-
----
-
-## [0.1.0] — 2026-03-06
-
-### Added
-- Initial static Excel workbook built from `Sleeper_Data_Import_v7.xlsx`
-- **Dynasty Score formula** — four-component weighted model:
-  - Production × Scarcity: 45%
-  - Age / Longevity: 30%
-  - Market Demand: 15%
-  - Role Stability: 10%
-- Position scarcity multipliers: QB 2.0×, RB 1.7×, TE 1.5×, WR 1.3×,
-  DL/LB 1.0×, DB 0.95×, K 0.6×
-- Positional age curves with rise / peak / cliff windows per position
-- Tier classification: Elite / Starter / Flex / Depth / Stash (percentile-based)
-- IDP position support: DL, LB, DB with appropriate scarcity weights
-- Dynasty Board sheet, By Position sheet, Snapshot Info sheet
-
-### Fixed
-- Dynasty Score formula corrected to weight positions properly for SuperFlex IDP
-- Age curve corrected — production now measured across all rostered weeks, not just
-  fantasy starts
-
-### Output
-- `MGG_Dynasty_Player_Analytics_v2.xlsx`
-
----
-
-[Unreleased]: https://github.com/rah10network-source/mgg-dynasty/compare/v0.7.1...HEAD
-[0.7.1]: https://github.com/rah10network-source/mgg-dynasty/compare/v0.7.0...v0.7.1
-[0.7.0]: https://github.com/rah10network-source/mgg-dynasty/compare/v0.6.0...v0.7.0
-[0.6.0]: https://github.com/rah10network-source/mgg-dynasty/compare/v0.5.0...v0.6.0
-[0.5.0]: https://github.com/rah10network-source/mgg-dynasty/compare/v0.4.0...v0.5.0
-[0.4.0]: https://github.com/rah10network-source/mgg-dynasty/compare/v0.3.0...v0.4.0
-[0.3.0]: https://github.com/rah10network-source/mgg-dynasty/compare/v0.2.0...v0.3.0
-[0.2.0]: https://github.com/rah10network-source/mgg-dynasty/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/rah10network-source/mgg-dynasty/releases/tag/v0.1.0
+### Core features at launch
+- Sleeper API sync — rosters, depth charts, 18-week transaction history, draft pick reconstruction (own + traded picks for next 3 seasons).
+- Sleeper Stats — 18-week weekly bulk calls, PPG, starts, game log per player.
+- Dynasty scoring engine — weighted composite of PPG production, age curve, role confidence, transaction demand, situation multipliers.
+- Five-tier system — Elite / Starter / Flex / Depth / Stash derived from normalised score distribution.
+- **Dashboard** — league-wide overview, tier breakdowns, top assets by position.
+- **League Hub** — all rosters ranked side-by-side, owner grade cards.
+- **Team Hub** — placeholder (full build planned Batch 2).
+- **Player Hub** — filterable big board with sort, tier, position filters; player detail drawer; IDP support.
+- **Analysis Tools → Trade Analyzer** — add players and picks, custom pick values, score-based heuristic verdict.
+- **Analysis Tools → Situations** — manual situation flags (BREAKOUT, NEW_OC, SUSPENSION, etc.) with CRUD editor; Intel Scan auto-detection from ESPN headlines.
+- **Analysis Tools → Watchlist** — player names tracked for deep research; rule-based `deepAnalyse` signal engine.
+- **Analysis Tools → FA Browser** — filters unrostered players from Sleeper's full NFL DB by position, age, depth, injury.
+- **Draft Hub** — Mock Draft mode (snake, AI auto-picks) + Live Draft connector for Sleeper draft IDs. Big Board with drag-sort, notes, rookie/all filter.
+- **Intel Scan** — ESPN headline fetch, BUY/SELL/HOLD/WATCH signals, Sleeper trending add overlay.
+- **XLSX Export** — multi-sheet workbook (Roster, Big Board, Situations, FA Watchlist, Draft Picks, Log).
+- Season mode pills (offseason / preseason / inseason / playoffs / complete) — auto-detected from Sleeper, manually overrideable.
+- Owner picker modal — simple team selection saved to `mgg_owner` in localStorage (replaced in 0.8.0).
+- API key modal — Anthropic key stored in `mgg_anthropic_key`, warning dot when missing.
+- Sync log tab with colour-coded progress entries.
+- GitHub Pages deployment via `gh-pages` branch, Vite build.

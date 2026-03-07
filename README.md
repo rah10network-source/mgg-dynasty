@@ -1,152 +1,129 @@
-# MGG Dynasty — Live Intelligence Board
+# Ω MGG Dynasty
 
-> Dynasty fantasy football analytics for the MGG league. Live data, real scoring, trade analysis, and roster grading — all in a single HTML file.
-
-**League ID:** `1178580692040589312` · **Format:** SuperFlex IDP · **Platform:** Sleeper
-
----
-
-## Quick Start
-
-1. Download `index.html`
-2. Double-click to open in any browser
-3. Click **⟳ SYNC DATA** — loads in ~15 seconds
-4. Select your owner identity from the modal
-5. Explore your roster, run trades, browse free agents
-
-No installation. No build step. No login. Works offline after first sync.
+A dynasty fantasy football intelligence app built on the Sleeper API.  
+Live at: `https://rah10network-source.github.io/mgg-dynasty/`
 
 ---
 
 ## Features
 
-| Tab | What it does |
-|---|---|
-| **◈ BOARD** | Full dynasty board — sortable, filterable, tier badges, player detail panel |
-| **⬡ POSITIONS** | Card grid per position group with tier colour coding |
-| **⇄ TRADE** | Dynasty trade evaluator — players + draft picks, verdict bar, position impact |
-| **⬡ ROSTER** | Per-team letter grades, window classification, league leaderboard |
-| **◉ INTEL** | ESPN news scan with BUY/SELL/HOLD/WATCH signals |
-| **⬡ PLAYER HUB** | Situation flag editor + FA browser with on-demand scoring watchlist |
-| **▸ LOG** | Live sync log with timestamped progress |
+| Module | Description |
+|--------|-------------|
+| **Dashboard** | League-wide tier breakdown, top assets, recent news |
+| **League Hub** | All roster grades side-by-side, owner comparisons |
+| **Team Hub** | Per-team deep dive — roster, picks, grades *(full build in progress)* |
+| **Player Hub** | Filterable big board, player detail drawer, IDP support |
+| **Trade Analyzer** | Score-based verdict + Claude AI narrative |
+| **Situations** | Manual flags (BREAKOUT, NEW_OC, SUSPENSION…) + Intel Scan auto-detect |
+| **Watchlist** | Deep research with Claude AI or rule-based signal engine |
+| **FA Browser** | Filter the full Sleeper NFL DB by position, age, depth, injury |
+| **Draft Hub** | Mock Draft (snake, AI auto-picks) + Live Draft connector |
+| **Intel Scan** | ESPN headlines → BUY/SELL/HOLD/WATCH signals, Sleeper trending |
+| **XLSX Export** | Multi-sheet workbook snapshot |
 
 ---
 
-## Data Sources
+## Getting Started
 
-| Source | Data | Endpoint |
-|---|---|---|
-| Sleeper API | Rosters, depth charts, injuries, metadata | `api.sleeper.app/v1/league/{id}` |
-| Sleeper Stats | Real PPG from 18-week 2025 season | `api.sleeper.app/v1/stats/nfl/regular/2025/{wk}` |
-| Sleeper Trending | FA add trends (48hr/168hr) | `api.sleeper.app/v1/players/nfl/trending/add` |
-| ESPN NFL News | Headlines for Intel Scan signals | `site.api.espn.com/apis/site/v2/sports/football/nfl/news` |
+### Prerequisites
+- Node 18+
+- A Sleeper account in the configured league
 
-All APIs are public and require no authentication.
-
----
-
-## Dynasty Score Formula
-
-```
-Score = (Production × Scarcity) × 0.45
-      + (Age / Longevity)        × 0.30
-      + Market Demand            × 0.15
-      + Role Stability           × 0.10
+### Install & run locally
+```bash
+npm install
+npm run dev
 ```
 
-| Component | Source | Notes |
-|---|---|---|
-| Production × Scarcity | Real PPG × position multiplier | Fallback to role proxy for FAs |
-| Age / Longevity | Age curve × role gate | Positional prime windows per pos |
-| Market Demand | Trades × 3 + Adds − Drops × 0.5 | 18-week transaction history |
-| Role Stability | Depth chart order | #1=100, #2=70, #3+=40 |
-
-**Scarcity multipliers:** QB 2.0× · RB 1.7× · TE 1.5× · WR 1.3× · DL/LB 1.0× · DB 0.95× · K 0.6×
+### Deploy to GitHub Pages
+```bash
+npm run build
+npm run deploy
+```
+The `deploy` script pushes the `dist/` folder to the `gh-pages` branch.
 
 ---
 
-## Situation Flags
+## Configuration
 
-Applied as score multipliers at sync time. Set manually in **Player Hub → Situations**.
+### League ID
+Set in `src/constants.js` or via the `VITE_LEAGUE_ID` environment variable:
+```
+VITE_LEAGUE_ID=1178580692040589312
+```
 
-| Flag | Impact | Description |
-|---|---|---|
-| `BREAKOUT_YOUNG` | +15% | Auto-upgraded from BREAKOUT_ROLE when age ≤ 23 |
-| `BREAKOUT_ROLE` | +8% | 24+ breakout; sell-high window |
-| `DEPTH_PROMOTED` | +12% | Starter by injury |
-| `CONTRACT_YEAR` | +5% | Playing for next deal |
-| `NEW_OC` | 0% | Scheme change; direction unknown |
-| `CAMP_BATTLE` | −8% | Depth chart competition |
-| `IR_RETURN` | −5% | Returning from IR |
-| `FREE_AGENT` | −20% | Released; landing spot unknown |
-| `TRADE_DEMAND` | −15% | Requested trade |
-| `SUSPENSION` | (17−N)/17 | Requires games count |
-| `AGE_CLIFF` | −12% | Auto-set when age > positional cliff |
+### Commissioner passphrase
+Change `COMMISSIONER_PASS` at the top of `src/identity.js` before deploying:
+```js
+export const COMMISSIONER_PASS = "your-secret-here";
+```
+This unlocks team view mode for the commissioner. It is not cryptographically secure — treat it as a convenience lock, not a security boundary.
 
-`AGE_CLIFF` fires automatically every sync — no manual input needed.
+### Anthropic API key
+Optional. Powers Claude AI analysis in the Watchlist and Trade Analyzer.  
+- Enter via the ⚙ Settings modal — stored in `localStorage` only, never sent anywhere except Anthropic.  
+- When running inside claude.ai the API is auto-proxied and no key is needed.  
+- Get a key at [console.anthropic.com](https://console.anthropic.com).
 
 ---
 
-## IDP Scoring Config
+## Identity & Multi-User
+
+Since v0.8.0 the app supports per-user data isolation:
+
+1. Click **◎ LOG IN** and enter your Sleeper username.
+2. The app verifies your account against the Sleeper API and maps your display name to your league roster.
+3. Your watchlist, big board, situations, and FA watchlist are stored under a namespaced key (`mgg_{type}_{userId}`) so multiple users can share a browser without data bleed.
+
+**No backend required** — everything lives in the browser's `localStorage`.
+
+### View Mode (Commissioner)
+1. Open ⚙ Settings and enter the commissioner passphrase.
+2. Click any team name in Settings or use the quick-jump buttons to enter read-only view mode for that team.
+3. A `👁 VIEWING: TeamName` banner appears at the top. Your own personal data is untouched.
+
+---
+
+## Project Structure
 
 ```
-Pass: 0.04/yd · 4/TD · -2/INT
-Rush: 0.1/yd · 6/TD
-Rec:  0.5/rec · 0.1/yd · 4/TD
-Def:  4/sack · 1/solo tackle · 2/TFL · 2/pass def
-      6/INT · 3/forced fumble · 4/fumble rec · 8/safety
+src/
+├── App.jsx              # Root component — state orchestration
+├── identity.js          # useIdentity hook — Sleeper login, commissioner, view mode
+├── storage.js           # Namespaced localStorage utilities
+├── api.js               # Sleeper data loading, Intel scan, Claude API calls
+├── scoring.js           # Dynasty scoring engine — age curves, normalisation
+├── constants.js         # League ID, pick values, situation flags, tier styles
+├── export.js            # XLSX workbook export
+└── tabs/
+    ├── Dashboard.jsx
+    ├── LeagueHub.jsx
+    ├── TeamHub.jsx
+    ├── PlayerHub.jsx
+    ├── AnalysisTools.jsx
+    ├── DraftHub.jsx
+    └── Log.jsx
 ```
 
 ---
 
 ## Tech Stack
 
-```
-index.html          Single self-contained file — open directly in browser
-├── React 18        UI rendering (UMD CDN — no build toolchain)
-├── Babel 7         JSX compilation in-browser
-├── SheetJS         XLSX export
-└── Sleeper/ESPN    Public APIs — no auth required
-```
-
-**Persistence:** `localStorage` — owner identity, manual situations, FA watchlist, research results all survive browser refresh.
+- **React + Vite** — SPA, no router
+- **Sleeper API** — rosters, stats, picks, transactions (public, no auth)
+- **ESPN API** — NFL news headlines for Intel Scan
+- **Claude API (Anthropic)** — AI watchlist research + trade narratives (optional)
+- **SheetJS** — XLSX export
+- **GitHub Pages** — hosting
 
 ---
 
-## Deployment (GitHub Pages)
+## Changelog
 
-1. Fork or create a new repository
-2. Upload `index.html` → rename to `index.html` at repo root
-3. Upload `CHANGELOG.md` and `README.md`
-4. **Settings → Pages → Branch: main / folder: / (root) → Save**
-5. Live at `https://YOUR_USERNAME.github.io/REPO_NAME`
-
-Updates: replace `index.html` in the repo → live within 60 seconds.
+See [CHANGELOG.md](./CHANGELOG.md) for version history.
 
 ---
 
-## Repository Structure
+## License
 
-```
-/
-├── index.html          Main app (self-contained)
-├── README.md           This file
-└── CHANGELOG.md        Version history
-```
-
----
-
-## Roadmap
-
-See [CHANGELOG.md](./CHANGELOG.md) for the full version history and `[Unreleased]` section for what's coming next.
-
-Current version: **v0.7.1**
-
----
-
-## League Info
-
-- **Platform:** Sleeper
-- **Format:** SuperFlex IDP
-- **League ID:** `1178580692040589312`
-- **Season:** 2025
+Private project — not for redistribution.
