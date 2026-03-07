@@ -1,0 +1,659 @@
+import { useState, useCallback, useRef } from "react";
+
+import { LEAGUE_ID, POS_ORDER, PICK_VALUES, PICK_ROUNDS, PICK_YEARS, MANUAL_SITUATIONS } from "./constants";
+import { calcAge, resolveBreakoutFlag, ageScore, sitMultiplier } from "./scoring";
+import { loadData as apiLoadData, runIntel as apiRunIntel, sf } from "./api";
+import { doExport } from "./export";
+
+import { Btn }            from "./components/Btn";
+import { Dashboard }      from "./tabs/Dashboard";
+import { LeagueHub }      from "./tabs/LeagueHub";
+import { TeamHub }        from "./tabs/TeamHub";
+import { PlayerHub }      from "./tabs/PlayerHub";
+import { AnalysisTools }  from "./tabs/AnalysisTools";
+import { Log }            from "./tabs/Log";
+
+// ─── PICK HELPERS ─────────────────────────────────────────────────────────────
+const pickValue   = (round, yearOffset) => (PICK_VALUES[round]||[10,8,6])[Math.min(yearOffset,2)];
+
+// ─── MAIN APP ─────────────────────────────────────────────────────────────────
+export default function App() {
+
+  // ── Core data ───────────────────────────────────────────────────────────────
+  const [phase,     setPhase]    = useState("idle");
+  const [progress,  setProgress] = useState([]);
+  const [players,   setPlayers]  = useState([]);
+  const [nflDb,     setNflDb]    = useState({});
+  const [newsMap,   setNewsMap]  = useState({});
+  const [newsPhase, setNewsPhase]= useState("idle");
+  const [syncedAt,  setSyncedAt] = useState(null);
+  const logRef = useRef([]);
+
+  // ── Owner identity (localStorage) ───────────────────────────────────────────
+  const [currentOwner,    setCurrentOwner]    = useState(() => localStorage.getItem("mgg_owner") || "");
+  const [ownerPickerOpen, setOwnerPickerOpen] = useState(() => !localStorage.getItem("mgg_owner"));
+
+  const selectOwner = (name) => {
+    setCurrentOwner(name);
+    setOwnerPickerOpen(false);
+    setTradeOwnerA(name);
+    try { localStorage.setItem("mgg_owner", name); } catch {}
+  };
+
+  // ── Tab / filter state ──────────────────────────────────────────────────────
+  const [tab,        setTab]       = useState("dashboard");
+  const [posFilter,  setPosFilter] = useState("ALL");
+  const [tierFilter, setTierFilter]= useState("ALL");
+  const [search,     setSearch]    = useState("");
+  const [sortKey,    setSortKey]   = useState("score");
+  const [sortAsc,    setSortAsc]   = useState(false);
+  const [detail,     setDetail]    = useState(null);
+
+  const hs = (k) => {
+    if (k === sortKey) setSortAsc(x => !x);
+    else { setSortKey(k); setSortAsc(false); }
+  };
+
+  // ── FA Watchlist ─────────────────────────────────────────────────────────────
+  const [faSearch,    setFaSearch]    = useState("");
+  const [faPosFilter, setFaPosFilter] = useState("ALL");
+  const [faTeamFilter,setFaTeamFilter]= useState("ALL");
+  const [faAgeMin,    setFaAgeMin]    = useState("");
+  const [faAgeMax,    setFaAgeMax]    = useState("");
+  const [faHideInj,   setFaHideInj]  = useState(false);
+  const [faWatchlist, setFaWatchlist] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("mgg_fa_watchlist")||"[]"); } catch { return []; }
+  });
+
+  const saveFaWatchlist = (next) => {
+    setFaWatchlist(next);
+    try { localStorage.setItem("mgg_fa_watchlist", JSON.stringify(next)); } catch {}
+  };
+
+  const rosteredPids = new Set(players.map(p => p.pid));
+
+  const faResults = Object.keys(nflDb).length > 0 ? (() => {
+    const inj = new Set(["Out","IR","PUP","Doubtful"]);
+    return Object.entries(nflDb)
+      .filter(([pid, p]) => {
+        if (rosteredPids.has(pid))               return false;
+        if (!p.position || !["QB","RB","WR","TE","DL","LB","DB","K"].includes(p.position)) return false;
+        if (!p.active && p.status !== "Active")  return false;
+        if (faPosFilter !== "ALL" && p.position !== faPosFilter) return false;
+        if (faTeamFilter !== "ALL" && (p.team||"FA") !== faTeamFilter) return false;
+        if (faHideInj && inj.has(p.injury_status)) return false;
+        const age = calcAge(p.birth_date);
+        if (faAgeMin && age && age < Number(faAgeMin)) return false;
+        if (faAgeMax && age && age > Number(faAgeMax)) return false;
+        if (faSearch) {
+          const s   = faSearch.toLowerCase();
+          const name= (p.full_name||`${p.first_name||""} ${p.last_name||""}`).toLowerCase();
+          if (!name.includes(s) && !(p.team||"").toLowerCase().includes(s)) return false;
+        }
+        return true;
+      })
+      .map(([pid, p]) => ({
+        pid,
+        name:   p.full_name || `${p.first_name||""} ${p.last_name||""}`.trim(),
+        pos:    p.position,
+        team:   p.team || "FA",
+        age:    calcAge(p.birth_date),
+        depth:  p.depth_chart_order || null,
+        inj:    p.injury_status || null,
+        yrsExp: p.years_exp,
+      }))
+      .sort((a,b) => (a.depth||99)-(b.depth||99) || (a.age||99)-(b.age||99))
+      .slice(0, 80);
+  })() : [];
+
+  const faTeams = [...new Set(Object.values(nflDb).map(p => p.team).filter(Boolean))].sort();
+
+  // scoreFA — lightweight scorer for unrostered FA players (no PPG data)
+  const manualSitsRef = useRef(MANUAL_SITUATIONS);
+  const scoreFA = (pid, raw) => {
+    const { SCARCITY, PRIME } = { SCARCITY:{QB:2.0,RB:1.7,WR:1.3,TE:1.5,DL:1.0,LB:1.0,DB:0.95,K:0.6}, PRIME:{QB:[25,34,38],RB:[23,27,30],WR:[23,29,33],TE:[24,31,35],DL:[23,29,33],LB:[23,28,32],DB:[23,28,32],K:[24,35,42]} };
+    const pos        = raw.position;
+    if (!SCARCITY[pos]) return null;
+    const age        = calcAge(raw.birth_date);
+    const depthOrder = raw.depth_chart_order || null;
+    const roleConf   = depthOrder===1?1.0:depthOrder===2?0.55:depthOrder>=3?0.25:0.65;
+    const injStatus  = raw.injury_status || null;
+    const name       = raw.full_name || `${raw.first_name||""} ${raw.last_name||""}`.trim();
+    const ageRaw     = ageScore(age, pos);
+    const startPen   = depthOrder===1?0.85:depthOrder===2?0.55:0.35;
+    const sc         = SCARCITY[pos]||1.0;
+    const prodProxy  = sc*roleConf*startPen*10;
+    const ageGated   = ageRaw*Math.min(roleConf,1.0)*startPen;
+    const roleStab   = depthOrder?Math.max(0,100-(depthOrder-1)*30):40;
+    let situationFlag=null, situationNote=null;
+    const manualSit  = manualSitsRef.current[name];
+    if (manualSit) {
+      situationFlag = resolveBreakoutFlag(manualSit.flag, age);
+      situationNote = manualSit.note;
+    } else if (age) {
+      const [,,cliff] = PRIME[pos]||[23,29,33];
+      if (age>cliff) { situationFlag="AGE_CLIFF"; situationNote=`Age ${age} past ${pos} cliff`; }
+    }
+    const rawScore = Math.round(Math.min(100,Math.max(0, prodProxy*0.45+(ageGated/100)*30+roleStab*0.10)));
+    const tier     = rawScore>=80?"Elite":rawScore>=60?"Starter":rawScore>=40?"Flex":rawScore>=20?"Depth":"Stash";
+    return { pid, name, pos, team:raw.team||"FA", age, yrsExp:raw.years_exp, depthOrder,
+             depthPos:raw.depth_chart_position||"", roleConf, injStatus, status:raw.status,
+             height:raw.height, weight:raw.weight, score:rawScore, tier, situationFlag,
+             situationNote, trades:0, adds:0, drops:0, ppg:null, gamesStarted:null,
+             gamesPlayed:null, owner:"FA", onTaxi:false, isFA:true };
+  };
+
+  const addToFaWatchlist    = (pid) => {
+    if (faWatchlist.find(p => p.pid === pid)) return;
+    const raw    = nflDb[pid]; if (!raw) return;
+    const scored = scoreFA(pid, raw); if (!scored) return;
+    saveFaWatchlist([...faWatchlist, scored]);
+  };
+  const removeFromFaWatchlist = (pid) => saveFaWatchlist(faWatchlist.filter(p => p.pid !== pid));
+
+  // ── Trade Analyzer ───────────────────────────────────────────────────────────
+  const [tradeOwnerA,  setTradeOwnerA]  = useState("");
+  const [tradeOwnerB,  setTradeOwnerB]  = useState("");
+  const [tradeSideA,   setTradeSideA]   = useState([]);
+  const [tradeSideB,   setTradeSideB]   = useState([]);
+  const [tradeSearchA, setTradeSearchA] = useState("");
+  const [tradeSearchB, setTradeSearchB] = useState("");
+  const [tradePickYrA, setTradePickYrA] = useState(2026);
+  const [tradePickRdA, setTradePickRdA] = useState("1st");
+  const [tradePickYrB, setTradePickYrB] = useState(2026);
+  const [tradePickRdB, setTradePickRdB] = useState("1st");
+
+  const owners    = [...new Set(players.map(p => p.owner).filter(Boolean))].sort();
+  const rosterOf  = (owner) => players.filter(p => p.owner===owner).sort((a,b)=>b.score-a.score);
+
+  const tradeSearchResults = (owner, search) => {
+    if (!search.trim()) return [];
+    const s = search.toLowerCase();
+    return rosterOf(owner).filter(p =>
+      p.name.toLowerCase().includes(s) &&
+      !tradeSideA.find(x => x.pid===p.pid) &&
+      !tradeSideB.find(x => x.pid===p.pid)
+    ).slice(0, 6);
+  };
+
+  const addPlayer = (side, p) => {
+    const setter = side==="A" ? setTradeSideA : setTradeSideB;
+    setter(prev => [...prev, { type:"player", pid:p.pid, name:p.name,
+      pos:p.pos, team:p.team, age:p.age, score:p.score, tier:p.tier, owner:p.owner }]);
+    if (side==="A") setTradeSearchA(""); else setTradeSearchB("");
+  };
+
+  const addPick = (side) => {
+    const yr  = side==="A" ? tradePickYrA : tradePickYrB;
+    const rd  = side==="A" ? tradePickRdA : tradePickRdB;
+    const val = pickValue(rd, yr - 2026);
+    const setter = side==="A" ? setTradeSideA : setTradeSideB;
+    setter(prev => [...prev, { type:"pick", id:`${yr}-${rd}-${Date.now()}`,
+      label:`${yr} ${rd}`, year:yr, round:rd, score:val, customVal:null }]);
+  };
+
+  const removeItem = (side, id) => {
+    const setter = side==="A" ? setTradeSideA : setTradeSideB;
+    setter(prev => prev.filter(x => (x.pid||x.id) !== id));
+  };
+
+  const setPickCustomVal = (side, id, val) => {
+    const setter = side==="A" ? setTradeSideA : setTradeSideB;
+    setter(prev => prev.map(x => x.id===id ? {...x, customVal:val===''?null:Number(val)} : x));
+  };
+
+  const itemScore  = (item) => item.customVal ?? item.score ?? 0;
+  const tradeTotal = (side) => (side==="A" ? tradeSideA : tradeSideB).reduce((s,x)=>s+itemScore(x),0);
+
+  const tradeVerdict = () => {
+    const diff = tradeTotal("B") - tradeTotal("A");
+    const abs  = Math.abs(diff);
+    if (abs <= 5)  return { label:"FAIR TRADE",                                color:"#3b82f6", diff };
+    if (abs <= 15) return { label:diff>0?"SLIGHT WIN":"SLIGHT LOSS",           color:diff>0?"#22c55e":"#f59e0b", diff };
+    if (abs <= 30) return { label:diff>0?"CLEAR WIN":"CLEAR LOSS",             color:diff>0?"#22c55e":"#ef4444", diff };
+    return               { label:diff>0?"STRONG WIN":"LOPSIDED LOSS",          color:diff>0?"#22c55e":"#ef4444", diff };
+  };
+
+  const tradeReset = () => {
+    setTradeSideA([]); setTradeSideB([]);
+    setTradeSearchA(""); setTradeSearchB("");
+    setTradeOwnerB("");
+  };
+
+  // ── Manual Situations ────────────────────────────────────────────────────────
+  const loadSituations = () => {
+    try { const s=localStorage.getItem("mgg_situations"); if(s) return JSON.parse(s); } catch {}
+    return { ...MANUAL_SITUATIONS };
+  };
+  const [manualSits,   setManualSits]   = useState(loadSituations);
+  const [sitEditName,  setSitEditName]  = useState("");
+  const [sitEditFlag,  setSitEditFlag]  = useState("NEW_OC");
+  const [sitEditNote,  setSitEditNote]  = useState("");
+  const [sitEditGames, setSitEditGames] = useState("");
+  const [sitEditing,   setSitEditing]   = useState(null);
+
+  // Keep ref in sync so loadData closure sees latest
+  manualSitsRef.current = manualSits;
+
+  const saveSituations = (next) => {
+    setManualSits(next);
+    try { localStorage.setItem("mgg_situations", JSON.stringify(next)); } catch {}
+  };
+
+  const sitAdd = () => {
+    if (!sitEditName.trim()) return;
+    const next = { ...manualSits, [sitEditName.trim()]: {
+      flag: sitEditFlag, note: sitEditNote.trim(),
+      ...(sitEditFlag==="SUSPENSION" && sitEditGames ? { games:parseInt(sitEditGames) } : {}),
+    }};
+    saveSituations(next);
+    setSitEditName(""); setSitEditNote(""); setSitEditGames(""); setSitEditing(null);
+  };
+  const sitRemove = (name) => { const n={...manualSits}; delete n[name]; saveSituations(n); };
+  const sitStartEdit = (name) => {
+    const s = manualSits[name];
+    setSitEditing(name); setSitEditName(name);
+    setSitEditFlag(s.flag); setSitEditNote(s.note||"");
+    setSitEditGames(s.games ? String(s.games) : "");
+  };
+  const sitResetDefaults = () => {
+    if (window.confirm("Reset to hardcoded defaults? Your custom entries will be lost."))
+      saveSituations({ ...MANUAL_SITUATIONS });
+    setSitEditing(null);
+  };
+
+  // ── Deep Situation Watchlist ──────────────────────────────────────────────────
+  const [watchlist,       setWatchlist]       = useState(() => {
+    try { return JSON.parse(localStorage.getItem("mgg_watchlist")||"[]"); } catch { return []; }
+  });
+  const [watchInput,      setWatchInput]      = useState("");
+  const [researchResults, setResearchResults] = useState({});
+  const [researchRunning, setResearchRunning] = useState(false);
+
+  const saveWatchlist = (next) => {
+    setWatchlist(next);
+    try { localStorage.setItem("mgg_watchlist", JSON.stringify(next)); } catch {}
+  };
+  const watchAdd    = () => {
+    const name = watchInput.trim();
+    if (!name || watchlist.includes(name)) return;
+    saveWatchlist([...watchlist, name]); setWatchInput("");
+  };
+  const watchRemove = (name) => {
+    saveWatchlist(watchlist.filter(n => n!==name));
+    setResearchResults(r => { const n={...r}; delete n[name]; return n; });
+  };
+  const approveResult = (name) => {
+    const r = researchResults[name]; if (!r) return;
+    const next = { ...manualSits, [name]: { flag:r.flag, note:r.note,
+      ...(r.flag==="SUSPENSION"&&r.games?{games:r.games}:{}) }};
+    saveSituations(next);
+    setResearchResults(prev => ({...prev,[name]:{...prev[name],approved:true}}));
+  };
+  const rejectResult = (name) => {
+    setResearchResults(prev => { const n={...prev}; delete n[name]; return n; });
+  };
+
+  const runWatchlistResearch = async () => {
+    if (!watchlist.length) return;
+    setResearchRunning(true);
+    const rosterLookup = {}; players.forEach(p => { rosterLookup[p.name]=p; });
+    const loading = {}; watchlist.forEach(n => { loading[n]={status:"loading"}; });
+    setResearchResults(loading);
+
+    // Import deepAnalyse inline to avoid circular deps
+    const { deepAnalyse } = await import("./api.js");
+    let allArticles = [];
+    try {
+      const r = await fetch("https://site.api.espn.com/apis/site/v2/sports/football/nfl/news?limit=200",
+        { signal:AbortSignal.timeout(10000) });
+      if (r.ok) {
+        const d = await r.json();
+        allArticles = (d.articles||[]).map(a=>[a.headline,a.description].filter(Boolean).join(". "));
+      }
+    } catch(e) {
+      const errs = {}; watchlist.forEach(n=>{errs[n]={status:"error",error:"ESPN fetch failed: "+e.message};});
+      setResearchResults(errs); setResearchRunning(false); return;
+    }
+
+    let trending = [];
+    try {
+      const r = await fetch("https://api.sleeper.app/v1/players/nfl/trending/add?lookback_hours=168&limit=100",
+        {signal:AbortSignal.timeout(6000)});
+      if (r.ok) { const d=await r.json(); trending=d.map(t=>t.player_id||t); }
+    } catch {}
+
+    const results = {};
+    for (const name of watchlist) {
+      const p      = rosterLookup[name];
+      const result = deepAnalyse(name, allArticles, p);
+      const isTrending = p && trending.includes(p.pid);
+      if (result) {
+        if (isTrending && result.signal==="BUY") result.reasoning+=" Also trending on Sleeper adds.";
+        results[name] = result;
+      } else {
+        results[name] = {
+          flag:null,
+          note:`No notable situation found in ${allArticles.length} recent articles`,
+          signal: isTrending?"WATCH":"HOLD",
+          reasoning: isTrending
+            ? "No news flags detected but player is trending on Sleeper adds this week."
+            : `No situation keywords matched. Player appears stable.`,
+          status:"done", approved:false,
+        };
+      }
+    }
+    setResearchResults(results);
+    setResearchRunning(false);
+  };
+
+  // ── Log helper ───────────────────────────────────────────────────────────────
+  const log = (msg, type="info") => {
+    const entry = { msg, type, ts:new Date().toLocaleTimeString() };
+    logRef.current = [...logRef.current, entry];
+    setProgress([...logRef.current]);
+  };
+
+  // ── SYNC DATA ────────────────────────────────────────────────────────────────
+  const doLoad = useCallback(async () => {
+    setPhase("loading"); logRef.current=[]; setProgress([]);
+    try {
+      const { players: pl, nflDb: db } = await apiLoadData(log, manualSitsRef);
+      setPlayers(pl);
+      setNflDb(db);
+      setSyncedAt(new Date().toLocaleTimeString());
+      setPhase("done");
+      setOwnerPickerOpen(!localStorage.getItem("mgg_owner"));
+    } catch(e) {
+      log(`Error: ${e.message}`, "error");
+      setPhase("error");
+    }
+  }, []);
+
+  // ── INTEL SCAN ───────────────────────────────────────────────────────────────
+  const doIntel = useCallback(async () => {
+    setNewsPhase("loading");
+    try {
+      const { newsMap: nm, enrichedPlayers } = await apiRunIntel(players);
+      setPlayers(enrichedPlayers);
+      setNewsMap(nm);
+      setNewsPhase("done");
+    } catch(e) {
+      console.error(e); setNewsPhase("error");
+    }
+  }, [players]);
+
+  // ── Filtered view for Board ──────────────────────────────────────────────────
+  const view = players
+    .filter(p => posFilter==="ALL"  || p.pos===posFilter)
+    .filter(p => tierFilter==="ALL" || p.tier===tierFilter)
+    .filter(p => !search ||
+      p.name.toLowerCase().includes(search.toLowerCase()) ||
+      (p.owner||"").toLowerCase().includes(search.toLowerCase()) ||
+      (p.team||"").toLowerCase().includes(search.toLowerCase()))
+    .sort((a,b) => {
+      const va=a[sortKey]??0, vb=b[sortKey]??0;
+      const r = typeof va==="string" ? va.localeCompare(vb) : va-vb;
+      return sortAsc ? r : -r;
+    });
+
+  // ── RENDER ───────────────────────────────────────────────────────────────────
+  return (
+    <div style={{background:"#080d14",color:"#e2e8f0",minHeight:"100vh",fontFamily:"'Courier New',monospace"}}>
+
+      {/* ── HEADER ─────────────────────────────────────────────────────────── */}
+      <div style={{background:"linear-gradient(180deg,#0f1923,#080d14)",borderBottom:"1px solid #1e2d3d",padding:"16px 22px"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:10}}>
+          <div style={{display:"flex",alignItems:"center",gap:12}}>
+            <div style={{width:36,height:36,background:"linear-gradient(135deg,#22c55e,#0ea5e9)",borderRadius:8,
+              display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,fontWeight:900,color:"#080d14"}}>
+              Ω
+            </div>
+            <div>
+              <div style={{fontSize:19,fontWeight:900,letterSpacing:3,
+                background:"linear-gradient(90deg,#22c55e,#0ea5e9)",
+                WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>
+                MGG DYNASTY
+              </div>
+              <div style={{fontSize:8,color:"#2a3d52",letterSpacing:4,marginTop:1}}>
+                LIVE INTELLIGENCE BOARD · {LEAGUE_ID}
+              </div>
+            </div>
+          </div>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
+            {syncedAt && <span style={{fontSize:9,color:"#2a3d52",letterSpacing:1}}>SYNCED {syncedAt}</span>}
+            {currentOwner && (
+              <button onClick={() => setOwnerPickerOpen(true)}
+                style={{background:"none",border:"1px solid #1e2d3d",color:"#4b6580",borderRadius:5,
+                  padding:"5px 10px",fontFamily:"inherit",fontSize:9,cursor:"pointer",letterSpacing:1}}>
+                ◎ {currentOwner}
+              </button>
+            )}
+            <Btn onClick={doLoad}    disabled={phase==="loading"}                     grad="linear-gradient(135deg,#22c55e,#16a34a)">
+              {phase==="loading" ? "◌ SYNCING..." : "⟳ SYNC DATA"}
+            </Btn>
+            <Btn onClick={doIntel}   disabled={newsPhase==="loading"||players.length===0} grad="linear-gradient(135deg,#f59e0b,#d97706)">
+              {newsPhase==="loading" ? "◌ SCANNING..." : "◈ INTEL SCAN"}
+            </Btn>
+            <Btn onClick={() => doExport(players, newsMap)} disabled={players.length===0} grad="linear-gradient(135deg,#6366f1,#4f46e5)">
+              ⬇ EXPORT XLSX
+            </Btn>
+          </div>
+        </div>
+
+        {/* Tab bar */}
+        <div style={{display:"flex",gap:0,marginTop:16,borderBottom:"1px solid #1e2d3d"}}>
+          {[
+            ["dashboard",  "Ω DASHBOARD"],
+            ["leaguehub",  "⬡ LEAGUE HUB"],
+            ["teamhub",    "◎ TEAM HUB"],
+            ["playerhub",  "◈ PLAYER HUB"],
+            ["tools",      "⇄ ANALYSIS TOOLS"],
+            ["log",        "▸ LOG"],
+          ].map(([id, lbl]) => (
+            <button key={id} onClick={() => setTab(id)} style={{
+              background:"none", border:"none",
+              borderBottom: tab===id ? "2px solid #22c55e" : "2px solid transparent",
+              color:        tab===id ? "#22c55e" : "#4b6580",
+              padding:"7px 16px", fontFamily:"inherit",
+              fontSize:10, letterSpacing:2, fontWeight:700, cursor:"pointer",
+            }}>{lbl}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* ── CONTENT ────────────────────────────────────────────────────────── */}
+      <div style={{padding:"18px 22px"}}>
+
+        {/* Idle splash */}
+        {phase === "idle" && (
+          <div style={{textAlign:"center",padding:"72px 20px",border:"1px dashed #1e2d3d",borderRadius:12}}>
+            <div style={{fontSize:48,fontWeight:900,
+              background:"linear-gradient(135deg,#22c55e,#0ea5e9)",
+              WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",marginBottom:14}}>Ω</div>
+            <div style={{fontSize:13,color:"#4b6580",letterSpacing:3,marginBottom:8}}>DYNASTY INTELLIGENCE SYSTEM</div>
+            <div style={{fontSize:11,color:"#2a3d52",maxWidth:420,margin:"0 auto 6px",lineHeight:1.9}}>
+              <span style={{color:"#22c55e"}}>Sleeper API</span> — live rosters, depth charts, transactions<br/>
+              <span style={{color:"#60a5fa"}}>Sleeper Stats</span> — season PPG + stat lines per player<br/>
+              <span style={{color:"#f59e0b"}}>Intel Scan</span> — ESPN headlines + BUY/SELL/HOLD signals
+            </div>
+            <div style={{fontSize:10,color:"#1e2d3d",marginBottom:26}}>⬇ EXPORT XLSX generates a formatted workbook snapshot anytime</div>
+            <button onClick={doLoad}
+              style={{background:"linear-gradient(135deg,#22c55e,#0ea5e9)",color:"#080d14",border:"none",
+                borderRadius:8,padding:"11px 34px",fontFamily:"inherit",fontWeight:900,fontSize:12,
+                letterSpacing:3,cursor:"pointer"}}>
+              ⟳ INITIALIZE
+            </button>
+          </div>
+        )}
+
+        {/* Loading log */}
+        {phase === "loading" && (
+          <div style={{background:"#0f1923",border:"1px solid #1e2d3d",borderRadius:10,padding:22,marginBottom:18}}>
+            <div style={{fontSize:9,color:"#22c55e",letterSpacing:2,marginBottom:10,fontWeight:700}}>▸ LIVE SYNC</div>
+            {progress.map((e,i) => (
+              <div key={i} style={{fontSize:11,padding:"3px 0",
+                color:e.type==="success"?"#22c55e":e.type==="error"?"#ef4444":e.type==="done"?"#0ea5e9":"#4b6580"}}>
+                <span style={{color:"#2a3d52",marginRight:8,fontSize:9}}>{e.ts}</span>{e.msg}
+              </div>
+            ))}
+            <div style={{marginTop:14,height:3,background:"#1e2d3d",borderRadius:2,overflow:"hidden"}}>
+              <div style={{height:"100%",width:`${Math.min(100,progress.length/10*100)}%`,
+                background:"linear-gradient(90deg,#22c55e,#0ea5e9)",transition:"width .4s"}}/>
+            </div>
+          </div>
+        )}
+
+        {/* Error */}
+        {phase === "error" && (
+          <div style={{background:"#1a0505",border:"1px solid #ef4444",borderRadius:8,padding:"16px 20px",marginBottom:16}}>
+            <div style={{color:"#ef4444",fontWeight:700,marginBottom:8}}>⚠ SYNC FAILED</div>
+            {progress.filter(e => e.type==="error").map((e,i) => (
+              <div key={i} style={{fontSize:11,color:"#ef4444"}}>{e.msg}</div>
+            ))}
+            <div style={{fontSize:11,color:"#6b7280",marginTop:10,lineHeight:1.7}}>
+              Common causes: Sleeper API CORS, network timeout, or invalid league ID.<br/>
+              League ID: <strong style={{color:"#e2e8f0"}}>{LEAGUE_ID}</strong>
+            </div>
+            <button onClick={doLoad}
+              style={{marginTop:12,background:"#1e2d3d",color:"#e2e8f0",border:"1px solid #374151",
+                borderRadius:6,padding:"7px 16px",fontFamily:"inherit",fontSize:10,cursor:"pointer",letterSpacing:1}}>
+              ⟳ RETRY
+            </button>
+          </div>
+        )}
+
+        {/* ── TABS ─────────────────────────────────────────────────────────── */}
+        {tab === "dashboard" && (
+          <Dashboard phase={phase} players={players} currentOwner={currentOwner}/>
+        )}
+
+        {tab === "leaguehub" && (
+          <LeagueHub
+            phase={phase}
+            players={players}
+            owners={owners}
+            currentOwner={currentOwner}
+            newsMap={newsMap}
+            setDetail={setDetail}
+            setActiveTab={setTab}
+          />
+        )}
+
+        {tab === "teamhub" && (
+          <TeamHub
+            phase={phase}
+            players={players}
+            owners={owners}
+            currentOwner={currentOwner}
+          />
+        )}
+
+        {tab === "playerhub" && (
+          <PlayerHub
+            phase={phase}
+            players={players}
+            newsMap={newsMap}
+            nflDb={nflDb}
+            view={view}
+            detail={detail} setDetail={setDetail}
+            tierFilter={tierFilter} setTierFilter={setTierFilter}
+            search={search} setSearch={setSearch}
+            posFilter={posFilter} setPosFilter={setPosFilter}
+            sortKey={sortKey} sortAsc={sortAsc} onSort={hs}
+            newsPhase={newsPhase} onRunIntel={doIntel}
+            manualSits={manualSits}
+            sitEditName={sitEditName} setSitEditName={setSitEditName}
+            sitEditFlag={sitEditFlag} setSitEditFlag={setSitEditFlag}
+            sitEditNote={sitEditNote} setSitEditNote={setSitEditNote}
+            sitEditGames={sitEditGames} setSitEditGames={setSitEditGames}
+            sitEditing={sitEditing} setSitEditing={setSitEditing}
+            sitAdd={sitAdd} sitRemove={sitRemove}
+            sitStartEdit={sitStartEdit} sitResetDefaults={sitResetDefaults}
+            watchlist={watchlist} watchInput={watchInput} setWatchInput={setWatchInput}
+            watchAdd={watchAdd} watchRemove={watchRemove}
+            researchResults={researchResults} researchRunning={researchRunning}
+            runWatchlistResearch={runWatchlistResearch}
+            approveResult={approveResult} rejectResult={rejectResult}
+            faSearch={faSearch} setFaSearch={setFaSearch}
+            faPosFilter={faPosFilter} setFaPosFilter={setFaPosFilter}
+            faTeamFilter={faTeamFilter} setFaTeamFilter={setFaTeamFilter}
+            faAgeMin={faAgeMin} setFaAgeMin={setFaAgeMin}
+            faAgeMax={faAgeMax} setFaAgeMax={setFaAgeMax}
+            faHideInj={faHideInj} setFaHideInj={setFaHideInj}
+            faResults={faResults} faTeams={faTeams} faWatchlist={faWatchlist}
+            addToFaWatchlist={addToFaWatchlist}
+            removeFromFaWatchlist={removeFromFaWatchlist}
+          />
+        )}
+
+        {tab === "tools" && (
+          <AnalysisTools
+            phase={phase} owners={owners}
+            tradeOwnerA={tradeOwnerA} setTradeOwnerA={setTradeOwnerA}
+            tradeOwnerB={tradeOwnerB} setTradeOwnerB={setTradeOwnerB}
+            tradeSideA={tradeSideA}   tradeSideB={tradeSideB}
+            tradeSearchA={tradeSearchA} setTradeSearchA={setTradeSearchA}
+            tradeSearchB={tradeSearchB} setTradeSearchB={setTradeSearchB}
+            tradePickYrA={tradePickYrA} setTradePickYrA={setTradePickYrA}
+            tradePickRdA={tradePickRdA} setTradePickRdA={setTradePickRdA}
+            tradePickYrB={tradePickYrB} setTradePickYrB={setTradePickYrB}
+            tradePickRdB={tradePickRdB} setTradePickRdB={setTradePickRdB}
+            tradeSearchResults={tradeSearchResults}
+            addPlayer={addPlayer} addPick={addPick}
+            removeItem={removeItem} setPickCustomVal={setPickCustomVal}
+            itemScore={itemScore} tradeTotal={tradeTotal}
+            tradeVerdict={tradeVerdict} tradeReset={tradeReset}
+          />
+        )}
+
+        {tab === "log" && <Log progress={progress}/>}
+
+      </div>
+
+      {/* ── OWNER PICKER MODAL ──────────────────────────────────────────────── */}
+      {phase === "done" && ownerPickerOpen && (
+        <div style={{position:"fixed",inset:0,background:"rgba(8,13,20,0.92)",
+          display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}}>
+          <div style={{background:"#0f1923",border:"2px solid #22c55e",borderRadius:14,
+            padding:"28px 32px",width:380,boxShadow:"0 0 40px rgba(34,197,94,0.2)"}}>
+            <div style={{fontSize:20,fontWeight:900,
+              background:"linear-gradient(90deg,#22c55e,#0ea5e9)",
+              WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",marginBottom:6}}>
+              WHO ARE YOU?
+            </div>
+            <div style={{fontSize:10,color:"#7a95ae",marginBottom:20,lineHeight:1.6}}>
+              Select your team to personalize the app.<br/>Saved to this browser — won't ask again.
+            </div>
+            <div style={{display:"flex",flexDirection:"column",gap:8,maxHeight:320,overflowY:"auto"}}>
+              {owners.sort().map(o => (
+                <button key={o} onClick={() => selectOwner(o)}
+                  style={{background:currentOwner===o?"#0f2b1a":"#0a1118",
+                    border:`1px solid ${currentOwner===o?"#22c55e":"#1e2d3d"}`,
+                    color:currentOwner===o?"#22c55e":"#e2e8f0",
+                    borderRadius:7,padding:"10px 16px",fontFamily:"inherit",
+                    fontSize:12,fontWeight:700,cursor:"pointer",textAlign:"left",
+                    display:"flex",justifyContent:"space-between",alignItems:"center"}}
+                  onMouseOver={e => { if(currentOwner!==o) e.currentTarget.style.borderColor="#374151"; }}
+                  onMouseOut={e  => { if(currentOwner!==o) e.currentTarget.style.borderColor="#1e2d3d"; }}>
+                  <span>{o}</span>
+                  <span style={{fontSize:9,color:"#7a95ae",fontWeight:400}}>
+                    {players.filter(p => p.owner===o).length} players
+                  </span>
+                </button>
+              ))}
+            </div>
+            {currentOwner && (
+              <button onClick={() => setOwnerPickerOpen(false)}
+                style={{marginTop:14,width:"100%",background:"none",border:"1px solid #1e2d3d",
+                  color:"#7a95ae",borderRadius:6,padding:"7px",fontFamily:"inherit",
+                  fontSize:9,cursor:"pointer",letterSpacing:1}}>
+                KEEP: {currentOwner}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

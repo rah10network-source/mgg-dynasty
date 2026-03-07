@@ -1,0 +1,377 @@
+import {
+  LEAGUE_ID, SLEEPER, SCARCITY, PRIME, POS_ORDER, SCORING, SITUATION_PATTERNS,
+} from "./constants";
+import {
+  calcAge, ageScore, normalise, calcSleeperPts, idpScarcity,
+  sitMultiplier, resolveBreakoutFlag, detectSituation, deriveSignal,
+} from "./scoring";
+
+// ─── RAW FETCH ────────────────────────────────────────────────────────────────
+export const sf = async (path) => {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 12000);
+  try {
+    const r = await fetch(`${SLEEPER}${path}`, { signal: ctrl.signal });
+    clearTimeout(t);
+    if (!r.ok) throw new Error(`HTTP ${r.status} on ${path}`);
+    return await r.json();
+  } catch (e) {
+    clearTimeout(t);
+    throw e;
+  }
+};
+
+// ─── STAT FIELDS TO ACCUMULATE ────────────────────────────────────────────────
+const STAT_FIELDS = [
+  "pass_yd","pass_td","pass_int",
+  "rush_yd","rush_td","rush_att",
+  "rec","rec_yd","rec_td","rec_tgt",
+  "def_sack","def_tackle_solo","def_tackle_for_loss",
+  "def_pass_def","def_int","def_forced_fumble","def_fumble_rec",
+];
+
+// ─── LOAD DATA ────────────────────────────────────────────────────────────────
+// Pulls all Sleeper data, builds player profiles, runs dynasty scoring.
+// Calls log(msg, type) for progress updates.
+// Returns { players, nflDb, syncedAt } or throws.
+export const loadData = async (log, manualSitsRef) => {
+  log("Connecting to Sleeper API...");
+  const lg = await sf(`/league/${LEAGUE_ID}`);
+  log(`League: "${lg.name || LEAGUE_ID}" · Season ${lg.season}`, "success");
+
+  log("Loading owners...");
+  const users = await sf(`/league/${LEAGUE_ID}/users`);
+  const userMap = {};
+  users.forEach(u => { userMap[u.user_id] = u.metadata?.team_name || u.display_name || u.username; });
+  log(`${users.length} owners loaded`, "success");
+
+  log("Loading rosters...");
+  const rosters = await sf(`/league/${LEAGUE_ID}/rosters`);
+  const ownerMap = {}, taxiMap = {};
+  rosters.forEach(r => {
+    const name = userMap[r.owner_id] || r.owner_id;
+    (r.players || []).forEach(pid => { ownerMap[pid] = name; });
+    (r.taxi    || []).forEach(pid => { taxiMap[pid]  = true; });
+  });
+  log(`${Object.keys(ownerMap).length} rostered players`, "success");
+
+  log("Downloading NFL player database...");
+  const allP = await sf(`/players/nfl`);
+  log(`${Object.keys(allP).length} players in database`, "success");
+
+  log("Parsing transactions (18 weeks)...");
+  const tradeCnt = {}, faAdd = {}, dropCnt = {};
+  for (let wk = 1; wk <= 18; wk++) {
+    try {
+      const txs = await sf(`/league/${LEAGUE_ID}/transactions/${wk}`);
+      if (!Array.isArray(txs)) continue;
+      txs.forEach(tx => {
+        if (tx.type === "trade")
+          Object.keys(tx.adds || {}).forEach(pid => { tradeCnt[pid] = (tradeCnt[pid] || 0) + 1; });
+        if (["free_agent","waiver"].includes(tx.type)) {
+          Object.keys(tx.adds  || {}).forEach(pid => { faAdd[pid]   = (faAdd[pid]   || 0) + 1; });
+          Object.keys(tx.drops || {}).forEach(pid => { dropCnt[pid] = (dropCnt[pid] || 0) + 1; });
+        }
+      });
+    } catch {}
+  }
+  log(`Transactions done · ${Object.keys(tradeCnt).length} traded`, "success");
+
+  // Build player profiles
+  log("Building player profiles...");
+  let pl = Object.keys(ownerMap).map(pid => {
+    const p = allP[pid];
+    if (!p || !SCARCITY[p.position]) return null;
+    const depthOrder = p.depth_chart_order || null;
+    const roleConf   = depthOrder === 1 ? 1.0 : depthOrder === 2 ? 0.55 : depthOrder >= 3 ? 0.25 : 0.65;
+    return {
+      pid, pos: p.position,
+      name: p.full_name || `${p.first_name} ${p.last_name}`,
+      age: calcAge(p.birth_date),
+      team: p.team || "FA", owner: ownerMap[pid], onTaxi: taxiMap[pid] || false,
+      injStatus: p.injury_status || null, depthOrder, depthPos: p.depth_chart_position || "",
+      roleConf, yrsExp: p.years_exp, height: p.height, weight: p.weight, status: p.status,
+      trades: tradeCnt[pid] || 0, adds: faAdd[pid] || 0, drops: dropCnt[pid] || 0,
+      gamesStarted: null, gamesPlayed: null, ppg: null, statLine: null, seasonTotals: null,
+    };
+  }).filter(Boolean);
+
+  // Sleeper season stats (18 weekly bulk calls)
+  log("Fetching Sleeper season stats (18 weeks)...");
+  const sleeperTotals = {};
+  for (let wk = 1; wk <= 18; wk++) {
+    try {
+      const r = await fetch(
+        `https://api.sleeper.app/v1/stats/nfl/regular/2025/${wk}`,
+        { signal: AbortSignal.timeout(10000) }
+      );
+      if (!r.ok) continue;
+      const weekStats = await r.json();
+      Object.entries(weekStats).forEach(([pid, s]) => {
+        if (!s) return;
+        if (!Object.values(s).some(v => v > 0)) return;
+        if (!sleeperTotals[pid]) sleeperTotals[pid] = { pts: 0, gs: 0, gp: 0 };
+        const t = sleeperTotals[pid];
+        t.pts += calcSleeperPts(s);
+        t.gp  += 1;
+        t.gs  += (s.gs || s.gms_active || 0);
+        STAT_FIELDS.forEach(f => { t[f] = (t[f] || 0) + (s[f] || 0); });
+      });
+    } catch (e) {
+      console.warn(`Week ${wk} stats failed:`, e.message);
+    }
+    if (wk % 6 === 0) log(`Sleeper stats: ${wk}/18 weeks aggregated...`);
+  }
+  log(`Sleeper stats complete · ${Object.keys(sleeperTotals).length} players with data`, "success");
+
+  // Apply stats to rostered players
+  let hits = 0;
+  pl.forEach(p => {
+    const t = sleeperTotals[p.pid];
+    if (!t || t.gp === 0) return;
+    p.gamesPlayed  = t.gp;
+    p.gamesStarted = t.gs;
+    p.ppg          = +(t.pts / t.gp).toFixed(1);
+    p.seasonTotals = t;
+    hits++;
+    if      (p.pos === "QB")             p.statLine = `${Math.round(t.pass_yd||0)}yds ${t.pass_td||0}td ${t.pass_int||0}int`;
+    else if (p.pos === "RB")             p.statLine = `${Math.round(t.rush_yd||0)}ru ${t.rush_td||0}td · ${t.rec||0}rec ${Math.round(t.rec_yd||0)}yds`;
+    else if (["WR","TE"].includes(p.pos)) p.statLine = `${t.rec||0}rec ${Math.round(t.rec_yd||0)}yds ${t.rec_td||0}td · ${t.rec_tgt||0}tgt`;
+    else if (["DL","LB","DB"].includes(p.pos)) p.statLine = `${t.def_tackle_solo||0}tkl ${t.def_sack||0}sck ${t.def_int||0}int ${t.def_pass_def||0}pd`;
+  });
+  log(`Stats applied to ${hits}/${pl.length} rostered players`, hits > 0 ? "success" : "info");
+
+  // Dynasty scoring
+  pl.forEach(p => {
+    p.ageRaw = ageScore(p.age, p.pos);
+    const espnRate = (p.gamesStarted != null && p.gamesPlayed > 0) ? p.gamesStarted / p.gamesPlayed : null;
+    p.effRole = espnRate != null ? p.roleConf * 0.35 + espnRate * 0.65 : p.roleConf;
+
+    let startPenalty = 1.0;
+    if (p.pos === "QB") {
+      if (p.gamesStarted != null) {
+        if      (p.gamesStarted < 5)  startPenalty = 0.30;
+        else if (p.gamesStarted < 9)  startPenalty = 0.55;
+        else if (p.gamesStarted < 13) startPenalty = 0.78;
+      } else {
+        startPenalty = p.depthOrder === 1 ? 0.72 : 0.45;
+      }
+    } else if (p.gamesStarted != null && p.gamesStarted < 4) {
+      startPenalty = 0.50;
+    } else if (p.gamesStarted === null && ["RB","WR","TE"].includes(p.pos) && p.depthOrder > 1) {
+      startPenalty = 0.65;
+    }
+
+    p.ageGated = p.ageRaw * Math.min(p.effRole, 1.0) * startPenalty;
+
+    const sc = ["DL","LB","DB"].includes(p.pos)
+      ? idpScarcity(p.pos, p.seasonTotals)
+      : SCARCITY[p.pos] || 1.0;
+    p.scarcityUsed = sc;
+
+    const baseProd = p.ppg != null
+      ? p.ppg * sc
+      : sc * p.effRole * startPenalty * 10;
+
+    // Manual situations (seeded before any Intel scan)
+    const manualSit = manualSitsRef.current[p.name];
+    if (manualSit) {
+      p.situationFlag  = resolveBreakoutFlag(manualSit.flag, p.age);
+      p.situationNote  = manualSit.note;
+      p.situationGames = manualSit.games || null;
+    } else {
+      p.situationFlag  = null;
+      p.situationNote  = null;
+      p.situationGames = null;
+    }
+
+    // Auto AGE_CLIFF if no other flag
+    if (!p.situationFlag) {
+      const [,, cliff] = PRIME[p.pos] || [23, 29, 33];
+      if ((p.age || 0) > cliff) {
+        p.situationFlag = "AGE_CLIFF";
+        p.situationNote = `Age ${p.age} — past ${p.pos} cliff (${cliff})`;
+      }
+    }
+    if (p.situationFlag === "BREAKOUT_ROLE" && (p.age || 99) <= 23) {
+      p.situationFlag = "BREAKOUT_YOUNG";
+    }
+
+    p.prodProxy = baseProd * sitMultiplier(p);
+    p.demandRaw = p.trades * 3 + p.adds - p.drops * 0.5;
+    p.roleStab  = p.depthOrder ? Math.max(0, 100 - (p.depthOrder - 1) * 30) : 55;
+  });
+
+  pl = normalise(pl, "prodProxy");
+  pl = normalise(pl, "ageGated");
+  pl = normalise(pl, "demandRaw");
+  pl = normalise(pl, "roleStab");
+  pl.forEach(p => {
+    p.score = Math.round(Math.min(100, Math.max(0,
+      p.prodProxy_n * 0.45 + p.ageGated_n * 0.30 + p.demandRaw_n * 0.15 + p.roleStab_n * 0.10
+    )));
+  });
+
+  const srt = [...pl].sort((a, b) => b.score - a.score);
+  const n   = srt.length;
+  const [t90, t70, t45, t20] = [0.10, 0.30, 0.55, 0.80].map(q => srt[Math.floor(n * q)]?.score || 50);
+  pl.forEach(p => {
+    p.tier = p.score >= t90 ? "Elite" : p.score >= t70 ? "Starter" : p.score >= t45 ? "Flex" : p.score >= t20 ? "Depth" : "Stash";
+  });
+
+  const tc = ["Elite","Starter","Flex","Depth","Stash"]
+    .map(t => `${t}:${pl.filter(x => x.tier === t).length}`).join(" · ");
+  log(`Scores complete · ${tc}`, "success");
+  log("Ready — use ◈ INTEL SCAN for news, ⬇ EXPORT XLSX for snapshot", "done");
+
+  return { players: pl.sort((a, b) => b.score - a.score), nflDb: allP };
+};
+
+// ─── INTEL SCAN ───────────────────────────────────────────────────────────────
+// Rule-based signal derivation from ESPN headlines + Sleeper trending.
+// Returns newsMap { playerName: { status, situation, signal, note, situationFlag, situationNote } }
+export const runIntel = async (players) => {
+  let headlines = [];
+  try {
+    const r = await fetch(
+      "https://site.api.espn.com/apis/site/v2/sports/football/nfl/news?limit=100",
+      { signal: AbortSignal.timeout(6000) }
+    );
+    if (r.ok) {
+      const d = await r.json();
+      headlines = (d.articles || []).map(a => a.headline || a.title || "").filter(Boolean);
+    }
+  } catch {}
+
+  let trending = [];
+  try {
+    const r = await fetch(
+      "https://api.sleeper.app/v1/players/nfl/trending/add?lookback_hours=48&limit=50",
+      { signal: AbortSignal.timeout(6000) }
+    );
+    if (r.ok) {
+      const d = await r.json();
+      trending = d.map(t => t.player_id || t);
+    }
+  } catch {}
+
+  // Auto-detect situations from headlines for players without a manual flag
+  const enrichedPlayers = players.map(p => {
+    if (p.situationFlag) return p;
+    const autoFlag = detectSituation(p.name, headlines);
+    if (autoFlag) {
+      const resolved = resolveBreakoutFlag(autoFlag, p.age);
+      return { ...p, situationFlag: resolved, situationNote: "Auto-detected from news", situationGames: null };
+    }
+    return p;
+  });
+
+  const result = {};
+  enrichedPlayers
+    .filter(p => ["QB","RB","WR","TE"].includes(p.pos))
+    .forEach(p => {
+      const intel = deriveSignal(p, headlines);
+      if (trending.includes(p.pid) && intel.signal === "HOLD") intel.signal = "WATCH";
+      // Situation flag overrides
+      if ((p.situationFlag === "BREAKOUT_YOUNG" || p.situationFlag === "BREAKOUT_ROLE") && intel.signal === "HOLD") intel.signal = "BUY";
+      if (p.situationFlag === "DEPTH_PROMOTED"  && intel.signal === "HOLD") intel.signal = "BUY";
+      if (p.situationFlag === "CAMP_BATTLE"     && intel.signal === "HOLD") intel.signal = "WATCH";
+      if (p.situationFlag === "IR_RETURN"       && intel.signal === "HOLD") intel.signal = "WATCH";
+      if (p.situationFlag === "TRADE_DEMAND")                                intel.signal = "SELL";
+      if (p.situationFlag === "SUSPENSION")                                  intel.signal = "WATCH";
+      if (p.situationFlag === "AGE_CLIFF"       && intel.signal === "HOLD") intel.signal = "WATCH";
+      if (p.situationFlag === "FREE_AGENT")                                  intel.signal = "WATCH";
+      result[p.name] = { ...intel, situationFlag: p.situationFlag, situationNote: p.situationNote };
+    });
+
+  return { newsMap: result, enrichedPlayers };
+};
+
+// ─── DEEP ANALYSE ─────────────────────────────────────────────────────────────
+// Used by the watchlist research feature in the Hub tab.
+// Analyses a player against a batch of ESPN headlines + Sleeper roster data.
+const HEADLINE_RULES = [
+  { flag:"TRADE_DEMAND",  terms:["trade request","requested trade","wants out","unhappy","demands trade"] },
+  { flag:"FREE_AGENT",    terms:["released","cut by","waived","terminated contract"] },
+  { flag:"SUSPENSION",    terms:["suspended","suspension","banned"] },
+  { flag:"IR_RETURN",     terms:["return from ir","activated from ir","cleared to return","off injured reserve"] },
+  { flag:"CAMP_BATTLE",   terms:["competition","camp battle","depth chart battle","competing for starting","position battle"] },
+  { flag:"DEPTH_PROMOTED",terms:["named starter","takes over as starter","steps in at","starting in place","promoted to starter"] },
+  { flag:"BREAKOUT_ROLE", terms:["lead back","featured back","bell cow","every down back","expanded role","target share increase"] },
+  { flag:"NEW_OC",        terms:["traded to","acquired by","sent to","new team","offensive coordinator","new oc","scheme change"] },
+  { flag:"CONTRACT_YEAR", terms:["contract year","final year of","extension talks","upcoming free agent"] },
+];
+
+const SIG_MAP = {
+  SUSPENSION:"WATCH", TRADE_DEMAND:"SELL", FREE_AGENT:"WATCH",
+  IR_RETURN:"WATCH",  CAMP_BATTLE:"WATCH", DEPTH_PROMOTED:"BUY",
+  BREAKOUT_ROLE:"BUY",BREAKOUT_YOUNG:"BUY",NEW_OC:"HOLD", CONTRACT_YEAR:"HOLD",
+  AGE_CLIFF:"WATCH",
+};
+
+export const deepAnalyse = (name, headlines, p) => {
+  const sources = [];
+
+  // Layer 1: Sleeper roster data (authoritative)
+  if (p) {
+    if (p.team === "FA" || ["Cut","Inactive","Released"].includes(p.status)) {
+      return { flag:"FREE_AGENT", note:`${name} is a free agent — no team, scheme, or role confirmed`,
+               signal:"WATCH", reasoning:`Sleeper: team="${p.team||"FA"}", status="${p.status||"unknown"}".`,
+               status:"done", approved:false };
+    }
+    if (["IR","PUP"].includes(p.injStatus)) {
+      return { flag:"IR_RETURN", note:`${name} on ${p.injStatus} — timeline and return workload uncertain`,
+               signal:"WATCH", reasoning:`Sleeper injury status: ${p.injStatus}.`,
+               status:"done", approved:false };
+    }
+    if (p.trades >= 1) {
+      sources.push({ flag:"NEW_OC", confidence:p.trades*3,
+        reason:`Dynasty traded ${p.trades}x — new team/scheme, role uncertain` });
+    }
+    if (p.trades === 0 && p.adds >= 3 && p.depthOrder === 1 && p.yrsExp <= 3) {
+      const flag = resolveBreakoutFlag("BREAKOUT_ROLE", p.age);
+      sources.push({ flag, confidence:p.adds, reason:`Depth #1, ${p.adds} FA adds, ${p.yrsExp} yrs exp` });
+    }
+    if (p.depthOrder >= 2 && (p.ppg === 0 || p.ppg == null) && p.gamesStarted === 0) {
+      sources.push({ flag:"CAMP_BATTLE", confidence:1,
+        reason:`Depth #${p.depthOrder} with no starts — role competition likely` });
+    }
+  }
+
+  // Layer 2: Headline scan
+  const normName  = name.toLowerCase().replace(/[^a-z0-9 ]/g,"").trim();
+  const normParts = normName.split(" ").filter(Boolean);
+  const lastName  = normParts[normParts.length-1];
+  const firstName = normParts[0];
+  const relevant  = headlines.filter(h => {
+    const hl = h.toLowerCase().replace(/[^a-z0-9 ]/g,"");
+    return hl.includes(lastName) && hl.includes(firstName.slice(0,2));
+  });
+  const text = relevant.join(" ").toLowerCase().replace(/[^a-z0-9 ]/g,"");
+
+  if (text) {
+    HEADLINE_RULES.forEach(({ flag, terms }) => {
+      const normTerms = terms.map(t => t.toLowerCase().replace(/[^a-z0-9 ]/g,""));
+      const hits = normTerms.filter(t => text.includes(t)).length;
+      if (hits > 0) sources.push({ flag, confidence:hits,
+        reason:`Headline: "${terms.filter((t,i)=>text.includes(normTerms[i]))[0]}"` });
+    });
+  }
+
+  if (!sources.length) return null;
+  sources.sort((a,b) => b.confidence-a.confidence);
+  const top         = sources[0];
+  const resolvedFlag= resolveBreakoutFlag(top.flag, p?.age);
+  const rule        = HEADLINE_RULES.find(r => r.flag===top.flag);
+  const noteSrc     = relevant.find(h => rule?.terms.some(t => h.toLowerCase().includes(t))) || relevant[0];
+  const note        = noteSrc ? (noteSrc.length>100 ? noteSrc.slice(0,97)+"..." : noteSrc) : top.reason;
+
+  return {
+    flag:      resolvedFlag,
+    note,
+    signal:    SIG_MAP[resolvedFlag]||"HOLD",
+    reasoning: top.reason + (sources.length>1?` · ${sources.length-1} other signal(s) detected.`:""),
+    status:    "done",
+    approved:  false,
+  };
+};
