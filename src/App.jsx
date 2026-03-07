@@ -196,6 +196,14 @@ export default function App() {
     const raw    = nflDb[pid]; if (!raw) return;
     const scored = scoreFA(pid, raw); if (!scored) return;
     saveFaWatchlist([...faWatchlist, scored]);
+    // Also push into the main name-based watchlist so the Watchlist tab picks them up
+    const name = scored.name;
+    setWatchlist(prev => {
+      if (prev.includes(name)) return prev;
+      const next = [...prev, name];
+      try { localStorage.setItem("mgg_watchlist", JSON.stringify(next)); } catch {}
+      return next;
+    });
   };
   const removeFromFaWatchlist = (pid) => saveFaWatchlist(faWatchlist.filter(p => p.pid !== pid));
 

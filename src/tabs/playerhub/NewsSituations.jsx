@@ -63,43 +63,60 @@ const fmt = (iso) => {
 };
 
 // ── Name matching helpers ─────────────────────────────────────────────────────
-// Build a lookup map: "firstname lastname" → player for fast matching
+// Normalize: lowercase, strip suffixes, strip periods in initials, trim.
+// "Brian Thomas Jr." → "brian thomas"
+// "J.K. Dobbins"     → "jk dobbins"
+const SUFFIXES = /\s+(jr\.?|sr\.?|ii|iii|iv|v)$/i;
+const normalizeName = (name) =>
+  (name || "")
+    .toLowerCase()
+    .replace(SUFFIXES, "")       // strip Jr. Sr. II III IV
+    .replace(/\./g, "")          // strip periods (J.K. → JK)
+    .replace(/\s+/g, " ")
+    .trim();
+
+// Build lookup: normalizedFullName → player. NO last-name index — too error-prone.
 const buildNameMap = (players) => {
   const m = {};
   players.forEach(p => {
-    m[p.name.toLowerCase()] = p;
-    // also index by last name for loose matches
-    const parts = p.name.toLowerCase().split(" ");
-    if (parts.length >= 2) {
-      const last = parts[parts.length - 1];
-      if (!m[`_last_${last}`]) m[`_last_${last}`] = [];
-      m[`_last_${last}`].push(p);
-    }
+    const norm = normalizeName(p.name);
+    m[norm] = p;
+    // Also store with suffix stripped differently: "brian thomas jr" → "brian thomas"
+    // (already handled by normalizeName, but store original too for safety)
+    const orig = p.name.toLowerCase().trim();
+    if (orig !== norm) m[orig] = p;
   });
   return m;
 };
 
+// Match via ESPN categories array — exact full-name only, no fallback.
 const matchPlayerFromCategories = (categories, nameMap) => {
   if (!Array.isArray(categories)) return null;
   for (const cat of categories) {
     if (cat.type === "athlete" && cat.description) {
-      const key = cat.description.toLowerCase();
-      if (nameMap[key]) return nameMap[key];
-      // try last name
-      const last = key.split(" ").pop();
-      const candidates = nameMap[`_last_${last}`];
-      if (candidates?.length === 1) return candidates[0];
+      const norm = normalizeName(cat.description);
+      if (nameMap[norm]) return nameMap[norm];
     }
   }
   return null;
 };
 
+// Match via text scan — require full normalized name as a word-boundary phrase.
+// "Drake Thomas" will NOT match "Brian Thomas" because full names must match.
 const matchPlayerFromText = (headline, description, nameMap) => {
-  const haystack = `${headline} ${description}`.toLowerCase();
-  // Try full names first (more reliable)
+  const haystack = normalizeName(`${headline} ${description}`);
   for (const [key, p] of Object.entries(nameMap)) {
-    if (key.startsWith("_last_")) continue;
-    if (key.length > 6 && haystack.includes(key)) return p;
+    // Must be at least first + last (no single-word keys)
+    if (!key.includes(" ")) continue;
+    if (key.length < 7) continue;
+    // Word-boundary check: name must appear as a complete phrase
+    // Use a simple boundary: preceded/followed by space, start, end, or punctuation
+    const idx = haystack.indexOf(key);
+    if (idx === -1) continue;
+    const before = idx === 0 ? " " : haystack[idx - 1];
+    const after  = idx + key.length >= haystack.length ? " " : haystack[idx + key.length];
+    const boundaryChars = /[\s,.'"\-\(]/;
+    if (boundaryChars.test(before) && boundaryChars.test(after)) return p;
   }
   return null;
 };
