@@ -41,6 +41,9 @@ const callClaude = async (body, apiKey) => {
 // ─── PICK HELPERS ─────────────────────────────────────────────────────────────
 const pickValue   = (round, yearOffset) => (PICK_VALUES[round]||[10,8,6])[Math.min(yearOffset,2)];
 
+const SEASON_MODES = ["offseason","preseason","inseason","playoffs","complete"];
+
+
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 export default function App() {
 
