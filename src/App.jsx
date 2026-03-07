@@ -333,7 +333,21 @@ export default function App() {
     setClaudeTradeNarrative(null);
   };
 
-// Calls Claude API to get trade analysis narrative based on the current sides and owners
+  // ── API key helpers ──────────────────────────────────────────────────────────
+  const saveKey = () => {
+    try { localStorage.setItem("mgg_anthropic_key", apiKeyInput.trim()); } catch {}
+    setApiKeySaved(true);
+    setTimeout(() => setApiKeySaved(false), 2500);
+  };
+  const clearKey = () => {
+    try { localStorage.removeItem("mgg_anthropic_key"); } catch {}
+    setApiKeyInput("");
+  };
+  const getStoredKey = () => {
+    try { return localStorage.getItem("mgg_anthropic_key") || ""; } catch { return ""; }
+  };
+
+  // ── Claude trade narrative ────────────────────────────────────────────────────
   const requestClaudeTradeNarrative = async () => {
     const key = isProxied() ? null : getStoredKey();
     if (!isProxied() && !key) return;
