@@ -9,6 +9,8 @@ export function Trade({
   tradePickYrB, setTradePickYrB, tradePickRdB, setTradePickRdB,
   tradeSearchResults, addPlayer, addPick, removeItem, setPickCustomVal,
   itemScore, tradeTotal, tradeVerdict, tradeReset,
+  // ── AI props ──────────────────────────────────────────────────────────────
+  claudeTradeNarrative, claudeTradeLoading, requestClaudeTradeNarrative, hasApiKey,
 }) {
   if (phase !== "done") {
     return (
@@ -79,23 +81,66 @@ export function Trade({
                : "Even value"}
             </div>
           </div>
-          <div style={{fontSize:9,color:"#7a95ae",textAlign:"right"}}>
-            {tradeSideA.filter(x => x.type==="player").length > 0 && (
-              <div>GIVING avg age:{" "}
-                <span style={{color:"#e2e8f0",fontWeight:700}}>
-                  {(tradeSideA.filter(x=>x.type==="player").reduce((s,x)=>s+(x.age||0),0) /
-                    tradeSideA.filter(x=>x.type==="player").length).toFixed(1)}
-                </span>
-              </div>
+          <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:6}}>
+            <div style={{fontSize:9,color:"#7a95ae",textAlign:"right"}}>
+              {tradeSideA.filter(x => x.type==="player").length > 0 && (
+                <div>GIVING avg age:{" "}
+                  <span style={{color:"#e2e8f0",fontWeight:700}}>
+                    {(tradeSideA.filter(x=>x.type==="player").reduce((s,x)=>s+(x.age||0),0) /
+                      tradeSideA.filter(x=>x.type==="player").length).toFixed(1)}
+                  </span>
+                </div>
+              )}
+              {tradeSideB.filter(x => x.type==="player").length > 0 && (
+                <div>GETTING avg age:{" "}
+                  <span style={{color:"#e2e8f0",fontWeight:700}}>
+                    {(tradeSideB.filter(x=>x.type==="player").reduce((s,x)=>s+(x.age||0),0) /
+                      tradeSideB.filter(x=>x.type==="player").length).toFixed(1)}
+                  </span>
+                </div>
+              )}
+            </div>
+            {/* Claude AI Analysis button */}
+            {hasApiKey && (
+              <button
+                onClick={requestClaudeTradeNarrative}
+                disabled={claudeTradeLoading || !hasItems}
+                style={{
+                  background: claudeTradeLoading
+                    ? "#1e2d3d"
+                    : "linear-gradient(135deg,#6366f1,#4f46e5)",
+                  color: claudeTradeLoading ? "#4b6580" : "#fff",
+                  border: "none", borderRadius: 5,
+                  padding: "6px 12px", fontFamily: "inherit",
+                  fontWeight: 900, fontSize: 9, letterSpacing: 1,
+                  cursor: claudeTradeLoading ? "not-allowed" : "pointer",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {claudeTradeLoading ? "◌ ANALYSING..." : "⚡ AI ANALYSIS"}
+              </button>
             )}
-            {tradeSideB.filter(x => x.type==="player").length > 0 && (
-              <div>GETTING avg age:{" "}
-                <span style={{color:"#e2e8f0",fontWeight:700}}>
-                  {(tradeSideB.filter(x=>x.type==="player").reduce((s,x)=>s+(x.age||0),0) /
-                    tradeSideB.filter(x=>x.type==="player").length).toFixed(1)}
-                </span>
-              </div>
-            )}
+          </div>
+        </div>
+      )}
+
+      {/* Claude AI Trade Narrative */}
+      {claudeTradeNarrative && (
+        <div style={{
+          background: "linear-gradient(135deg,#13102b,#0f0e24)",
+          border: "1px solid #6366f144",
+          borderRadius: 10, padding: "14px 18px", marginBottom: 18,
+          boxShadow: "0 0 16px rgba(99,102,241,0.15)",
+        }}>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+            <span style={{fontSize:11,color:"#6366f1"}}>⚡</span>
+            <span style={{fontSize:9,fontWeight:700,letterSpacing:2,color:"#6366f1"}}>AI DYNASTY ANALYSIS</span>
+            <span style={{fontSize:7,color:"#4d6880",marginLeft:"auto",letterSpacing:1}}>
+              POWERED BY CLAUDE · DYNASTY CONTEXT
+            </span>
+          </div>
+          <div style={{fontSize:12,color:"#e2e8f0",lineHeight:1.75,fontStyle:"italic"}}>
+            "{claudeTradeNarrative}"
           </div>
         </div>
       )}

@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 
 import { LEAGUE_ID, POS_ORDER, PICK_VALUES, PICK_ROUNDS, PICK_YEARS, MANUAL_SITUATIONS } from "./constants";
 import { calcAge, resolveBreakoutFlag, ageScore, sitMultiplier } from "./scoring";
-import { loadData as apiLoadData, runIntel as apiRunIntel, sf } from "./api";
+import { loadData as apiLoadData, runIntel as apiRunIntel, sf, claudeAnalyse, claudeTradeAnalysis } from "./api";
 import { doExport } from "./export";
 
 import { Btn }            from "./components/Btn";
@@ -13,6 +13,30 @@ import { PlayerHub }      from "./tabs/PlayerHub";
 import { AnalysisTools }  from "./tabs/AnalysisTools";
 import { DraftHub }       from "./tabs/DraftHub";
 import { Log }            from "./tabs/Log";
+
+
+// Detect if running inside claude.ai (API auto-proxied, no key needed)
+const isProxied = () =>
+  typeof window !== "undefined" &&
+  (window.location.hostname.includes("claude.ai") ||
+   window.location.hostname.includes("anthropic.com"));
+
+// Shared Claude API caller — handles proxied vs key-based auth
+const callClaude = async (body, apiKey) => {
+  const headers = { "content-type": "application/json", "anthropic-version": "2023-06-01" };
+  if (!isProxied()) {
+    if (!apiKey) return null;
+    headers["x-api-key"] = apiKey;
+    headers["anthropic-dangerous-direct-browser-access"] = "true";
+  }
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST", headers,
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) return null;
+  return res.json();
+};
+
 
 // ─── PICK HELPERS ─────────────────────────────────────────────────────────────
 const pickValue   = (round, yearOffset) => (PICK_VALUES[round]||[10,8,6])[Math.min(yearOffset,2)];
@@ -244,7 +268,9 @@ export default function App() {
   const [tradePickRdA, setTradePickRdA] = useState("1st");
   const [tradePickYrB, setTradePickYrB] = useState(2026);
   const [tradePickRdB, setTradePickRdB] = useState("1st");
-
+  const [claudeTradeNarrative, setClaudeTradeNarrative] = useState(null);
+  const [claudeTradeLoading,   setClaudeTradeLoading]   = useState(false);
+  
   const owners    = [...new Set(players.map(p => p.owner).filter(Boolean))].sort();
   const rosterOf  = (owner) => players.filter(p => p.owner===owner).sort((a,b)=>b.score-a.score);
 
@@ -287,6 +313,7 @@ export default function App() {
   const itemScore  = (item) => item.customVal ?? item.score ?? 0;
   const tradeTotal = (side) => (side==="A" ? tradeSideA : tradeSideB).reduce((s,x)=>s+itemScore(x),0);
 
+// Simple heuristic verdict based on total score difference — just a starting point for users to interpret, not a final say
   const tradeVerdict = () => {
     const diff = tradeTotal("B") - tradeTotal("A");
     const abs  = Math.abs(diff);
@@ -295,11 +322,25 @@ export default function App() {
     if (abs <= 30) return { label:diff>0?"CLEAR WIN":"CLEAR LOSS",             color:diff>0?"#22c55e":"#ef4444", diff };
     return               { label:diff>0?"STRONG WIN":"LOPSIDED LOSS",          color:diff>0?"#22c55e":"#ef4444", diff };
   };
-
+// More detailed narrative from Claude — goes beyond just the score difference to analyze positional impacts, team contexts, and more
   const tradeReset = () => {
     setTradeSideA([]); setTradeSideB([]);
     setTradeSearchA(""); setTradeSearchB("");
     setTradeOwnerB("");
+    setClaudeTradeNarrative(null);
+  };
+
+// Calls Claude API to get trade analysis narrative based on the current sides and owners
+  const requestClaudeTradeNarrative = async () => {
+    const key = isProxied() ? null : getStoredKey();
+    if (!isProxied() && !key) return;
+    setClaudeTradeLoading(true);
+    setClaudeTradeNarrative(null);
+    try {
+      const text = await claudeTradeAnalysis(tradeSideA, tradeSideB, tradeOwnerA, tradeOwnerB, key);
+      setClaudeTradeNarrative(text);
+    } catch {}
+    setClaudeTradeLoading(false);
   };
 
   // ── Manual Situations ────────────────────────────────────────────────────────
@@ -375,7 +416,7 @@ export default function App() {
   const rejectResult = (name) => {
     setResearchResults(prev => { const n={...prev}; delete n[name]; return n; });
   };
-
+  // Core research function — fetches news, runs analysis, updates results for each player in the watchlist
   const runWatchlistResearch = async () => {
     if (!watchlist.length) return;
     setResearchRunning(true);
@@ -383,8 +424,10 @@ export default function App() {
     const loading = {}; watchlist.forEach(n => { loading[n]={status:"loading"}; });
     setResearchResults(loading);
 
-    // Import deepAnalyse inline to avoid circular deps
     const { deepAnalyse } = await import("./api.js");
+    const key = isProxied() ? "__proxied__" : getStoredKey();
+    const useAI = isProxied() || !!key;
+
     let allArticles = [];
     try {
       const r = await fetch("https://site.api.espn.com/apis/site/v2/sports/football/nfl/news?limit=200",
@@ -407,52 +450,43 @@ export default function App() {
 
     const results = {};
     for (const name of watchlist) {
-      const p      = rosterLookup[name];
-      const result = deepAnalyse(name, allArticles, p);
-      const isTrending = p && trending.includes(p.pid);
-      if (result) {
-        if (isTrending && result.signal==="BUY") result.reasoning+=" Also trending on Sleeper adds.";
-        results[name] = result;
-      } else {
-        results[name] = {
-          flag:null,
-          note:`No notable situation found in ${allArticles.length} recent articles`,
-          signal: isTrending?"WATCH":"HOLD",
-          reasoning: isTrending
-            ? "No news flags detected but player is trending on Sleeper adds this week."
-            : `No situation keywords matched. Player appears stable.`,
-          status:"done", approved:false,
-        };
+      const p           = rosterLookup[name];
+      const isTrending  = p && trending.includes(p.pid);
+
+      // Try AI analysis first if key available
+      let result = null;
+      if (useAI) {
+        result = await claudeAnalyse(name, allArticles, p, isProxied() ? null : key);
+        if (result) {
+          if (isTrending && result.signal === "HOLD") result.signal = "WATCH";
+          if (isTrending) result.reasoning += " Also trending on Sleeper adds.";
+        }
       }
+
+      // Fall back to rule-based deepAnalyse
+      if (!result) {
+        const ruleResult = deepAnalyse(name, allArticles, p);
+        if (ruleResult) {
+          if (isTrending && ruleResult.signal === "BUY") ruleResult.reasoning += " Also trending on Sleeper adds.";
+          result = ruleResult;
+        } else {
+          result = {
+            flag: null,
+            note: `No notable situation found in ${allArticles.length} recent articles`,
+            signal: isTrending ? "WATCH" : "HOLD",
+            reasoning: isTrending
+              ? "No news flags detected but player is trending on Sleeper adds this week."
+              : "No situation keywords matched. Player appears stable.",
+            status: "done", approved: false,
+          };
+        }
+      }
+      results[name] = result;
     }
     setResearchResults(results);
     setResearchRunning(false);
   };
-
-  // ── API key management (kept for future AI features) ────────────────────────
-  const saveKey = () => {
-    try { localStorage.setItem("mgg_anthropic_key", apiKeyInput.trim()); } catch {}
-    setApiKeySaved(true);
-    setTimeout(() => setApiKeySaved(false), 2500);
-  };
-  const clearKey = () => {
-    try { localStorage.removeItem("mgg_anthropic_key"); } catch {}
-    setApiKeyInput("");
-  };
-  const getStoredKey = () => { try { return localStorage.getItem("mgg_anthropic_key")||""; } catch { return ""; } };
-
-  // ── Season override ──────────────────────────────────────────────────────────
-  const SEASON_MODES = ["offseason","preseason","inseason","playoffs","complete"];
-  const overrideSeasonMode = (mode) => {
-    const next = { ...seasonState, mode, _override: true };
-    setSeasonState(next);
-    try { localStorage.setItem("mgg_season_override", JSON.stringify(next)); } catch {}
-  };
-  const clearSeasonOverride = () => {
-    setSeasonState(prev => ({ ...prev, _override: false }));
-    try { localStorage.removeItem("mgg_season_override"); } catch {}
-  };
-
+ 
   // ── Log helper ───────────────────────────────────────────────────────────────
   const log = (msg, type="info") => {
     const entry = { msg, type, ts:new Date().toLocaleTimeString() };
@@ -760,6 +794,10 @@ export default function App() {
             removeItem={removeItem} setPickCustomVal={setPickCustomVal}
             itemScore={itemScore} tradeTotal={tradeTotal}
             tradeVerdict={tradeVerdict} tradeReset={tradeReset}
+            claudeTradeNarrative={claudeTradeNarrative}
+            claudeTradeLoading={claudeTradeLoading}
+            requestClaudeTradeNarrative={requestClaudeTradeNarrative}
+            hasApiKey={isProxied() || !!getStoredKey()}
           />
         )}
 
@@ -841,7 +879,7 @@ export default function App() {
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16}}>
               <div>
                 <div style={{fontSize:12,fontWeight:900,color:"#e2e8f0",letterSpacing:2,marginBottom:4}}>⚙ API KEY SETTINGS</div>
-                <div style={{fontSize:9,color:"#4d6880",letterSpacing:1}}>Required for News Feed · Intel Scan uses ESPN only (no key needed)</div>
+                <div style={{fontSize:9,color:"#4d6880",letterSpacing:1}}>Powers AI Intel analysis + Trade Analyzer narratives · ESPN data always free</div>
               </div>
               <button onClick={()=>setApiKeyOpen(false)} style={{background:"none",border:"none",color:"#4d6680",fontSize:18,cursor:"pointer"}}>✕</button>
             </div>

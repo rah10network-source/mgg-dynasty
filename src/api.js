@@ -86,9 +86,16 @@ export const loadData = async (log, manualSitsRef) => {
   // 2. Fetch traded picks and apply movements
   try {
     const tradedPicks = await sf(`/league/${LEAGUE_ID}/traded_picks`);
+    let appliedCount = 0;
     tradedPicks.forEach(tp => {
       const season = String(tp.season);
       const round  = tp.round;
+
+      // ── FIX: skip current and past season picks ──────────────────────────
+      // Sleeper returns ALL traded picks including already-used ones.
+      // Only future drafts are relevant for the My Picks portfolio view.
+      if (Number(season) <= currentSeason) return;
+
       const origId = tp.roster_id;          // whose pick it originally was
       const newId  = tp.owner_id;           // who now owns it
       const prevId = tp.previous_owner_id;
@@ -118,11 +125,11 @@ export const loadData = async (log, manualSitsRef) => {
             ownerRosterId: newId,
             isTraded:      origId !== newId,
           });
+          appliedCount++;
         }
       }
     });
-    const tradedCount = tradedPicks.length;
-    log(`Draft picks loaded · ${tradedCount} traded picks applied`, "success");
+    log(`Draft picks loaded · ${appliedCount} future traded picks applied`, "success");
   } catch(e) {
     log(`Draft picks: traded picks fetch failed (${e.message}) — showing original allocations`, "info");
   }
@@ -382,8 +389,7 @@ export const runIntel = async (players) => {
 };
 
 // ─── DEEP ANALYSE ─────────────────────────────────────────────────────────────
-// Used by the watchlist research feature in the Hub tab.
-// Analyses a player against a batch of ESPN headlines + Sleeper roster data.
+// Rule-based fallback. Used when no API key is set.
 const HEADLINE_RULES = [
   { flag:"TRADE_DEMAND",  terms:["trade request","requested trade","wants out","unhappy","demands trade"] },
   { flag:"FREE_AGENT",    terms:["released","cut by","waived","terminated contract"] },
@@ -468,4 +474,120 @@ export const deepAnalyse = (name, headlines, p) => {
     status:    "done",
     approved:  false,
   };
+};
+
+// ─── CLAUDE AI ANALYSE ────────────────────────────────────────────────────────
+// AI-powered player situation analysis. Uses Claude Haiku for speed + cost.
+// Falls back gracefully — callers should always have deepAnalyse as a backup.
+export const claudeAnalyse = async (name, headlines, playerData, apiKey) => {
+  if (!apiKey) return null;
+
+  const playerContext = playerData ? [
+    `Position: ${playerData.pos}`,
+    `Team: ${playerData.team}`,
+    `Age: ${playerData.age}`,
+    `Dynasty Score: ${playerData.score}`,
+    `Depth Chart: #${playerData.depthOrder || "?"}`,
+    `Injury Status: ${playerData.injStatus || "Healthy"}`,
+    `Years Experience: ${playerData.yrsExp}`,
+    `FA Adds This Season: ${playerData.adds}`,
+    `Dynasty Trades: ${playerData.trades}`,
+    `PPG: ${playerData.ppg ?? "N/A"}`,
+  ].join("\n") : "No roster data available.";
+
+  const relevant = headlines
+    .filter(h => {
+      const hl = h.toLowerCase();
+      const parts = name.toLowerCase().replace(/[^a-z ]/g,"").split(" ").filter(Boolean);
+      // Require at least first 4 chars of first name AND last name present
+      return parts.length >= 2 && hl.includes(parts[0].slice(0,4)) && hl.includes(parts[parts.length-1]);
+    })
+    .slice(0, 8)
+    .join("\n");
+
+  const prompt = `You are a dynasty fantasy football analyst. Evaluate this player for a dynasty league owner.
+
+PLAYER: ${name}
+${playerContext}
+
+RECENT HEADLINES (ESPN):
+${relevant || "No recent headlines found for this player."}
+
+Respond ONLY with valid JSON — no explanation, no markdown fences:
+{"signal":"BUY"|"SELL"|"HOLD"|"WATCH","flag":"BREAKOUT_YOUNG"|"BREAKOUT_ROLE"|"DEPTH_PROMOTED"|"CAMP_BATTLE"|"IR_RETURN"|"TRADE_DEMAND"|"SUSPENSION"|"AGE_CLIFF"|"FREE_AGENT"|"NEW_OC"|"CONTRACT_YEAR"|null,"note":"One sentence situation summary, max 120 chars","reasoning":"2-3 sentence dynasty analysis. Be specific about age, role, and value."}`;
+
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true",
+      },
+      body: JSON.stringify({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 350,
+        messages: [{ role: "user", content: prompt }],
+      }),
+    });
+    if (!res.ok) {
+      console.warn("claudeAnalyse HTTP error:", res.status);
+      return null;
+    }
+    const data = await res.json();
+    const text = data.content?.[0]?.text || "";
+    const clean = text.replace(/```json|```/g, "").trim();
+    const parsed = JSON.parse(clean);
+    return { ...parsed, status: "done", approved: false, aiPowered: true };
+  } catch(e) {
+    console.warn("claudeAnalyse failed:", e.message);
+    return null;
+  }
+};
+
+// ─── CLAUDE TRADE ANALYSIS ────────────────────────────────────────────────────
+// Generates a plain-English dynasty trade verdict narrative.
+// Returns a string or null on failure.
+export const claudeTradeAnalysis = async (sideA, sideB, ownerA, ownerB, apiKey) => {
+  if (!apiKey || (sideA.length === 0 && sideB.length === 0)) return null;
+
+  const formatSide = (items) => items.map(x =>
+    x.type === "pick"
+      ? `${x.label} draft pick (est. dynasty value: ${x.customVal ?? x.score})`
+      : `${x.name} — ${x.pos}, ${x.team}, age ${x.age}, dynasty score ${x.score}/100`
+  ).join("\n  ") || "  (nothing)";
+
+  const prompt = `You are a dynasty fantasy football expert. Give a direct, specific trade verdict.
+
+${ownerA || "Team A"} gives:
+  ${formatSide(sideA)}
+
+${ownerB || "Team B"} gives:
+  ${formatSide(sideB)}
+
+In 2-3 sentences: state clearly who wins this trade and why. Focus on dynasty value — age curves, position scarcity, role security — not just redraft stats. Be direct, not wishy-washy.`;
+
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true",
+      },
+      body: JSON.stringify({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 220,
+        messages: [{ role: "user", content: prompt }],
+      }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.content?.[0]?.text?.trim() || null;
+  } catch(e) {
+    console.warn("claudeTradeAnalysis failed:", e.message);
+    return null;
+  }
 };

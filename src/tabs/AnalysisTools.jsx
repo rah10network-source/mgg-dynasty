@@ -23,6 +23,8 @@ export function AnalysisTools({
   removeItem, setPickCustomVal,
   itemScore, tradeTotal,
   tradeVerdict, tradeReset,
+  // ── AI props (Batch 1) ──────────────────────────────────────────────────────
+  claudeTradeNarrative, claudeTradeLoading, requestClaudeTradeNarrative, hasApiKey,
 }) {
   const [sub, setSub] = useState("trade");
 
@@ -74,6 +76,10 @@ export function AnalysisTools({
           removeItem={removeItem} setPickCustomVal={setPickCustomVal}
           itemScore={itemScore} tradeTotal={tradeTotal}
           tradeVerdict={tradeVerdict} tradeReset={tradeReset}
+          claudeTradeNarrative={claudeTradeNarrative}
+          claudeTradeLoading={claudeTradeLoading}
+          requestClaudeTradeNarrative={requestClaudeTradeNarrative}
+          hasApiKey={hasApiKey}
         />
       )}
     </div>
