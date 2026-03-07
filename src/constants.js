@@ -1,6 +1,7 @@
 // ─── LEAGUE CONFIG ────────────────────────────────────────────────────────────
 export const LEAGUE_ID = "1178580692040589312";
 export const SLEEPER   = "https://api.sleeper.app/v1";
+export const LEAGUE_API_KEY = import.meta.env.VITE_LEAGUE_API_KEY || "";
 
 // ─── DYNASTY SCORING WEIGHTS ─────────────────────────────────────────────────
 export const SCARCITY = { QB:2.0, RB:1.7, WR:1.3, TE:1.5, DL:1.0, LB:1.0, DB:0.95, K:0.6 };
