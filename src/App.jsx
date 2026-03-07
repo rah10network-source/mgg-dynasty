@@ -129,7 +129,7 @@ export default function App() {
       if(faAgeMax&&age&&age>Number(faAgeMax))return false;
       if(faSearch){const s=faSearch.toLowerCase();const nm=(p.full_name||`${p.first_name||""} ${p.last_name||""}`).toLowerCase();if(!nm.includes(s)&&!(p.team||"").toLowerCase().includes(s))return false;}
       return true;
-    }).map(([pid,p])=>({pid,name:p.full_name||`${p.first_name||""} ${p.last_name||}`.trim(),pos:p.position,team:p.team||"FA",age:calcAge(p.birth_date),depth:p.depth_chart_order||null,inj:p.injury_status||null,yrsExp:p.years_exp,college:p.college||null,height:p.height||null,weight:p.weight||null,status:p.status||null}))
+    }).map(([pid,p])=>({pid,name:p.full_name||`${p.first_name||""} ${p.last_name||""}`.trim(),pos:p.position,team:p.team||"FA",age:calcAge(p.birth_date),depth:p.depth_chart_order||null,inj:p.injury_status||null,yrsExp:p.years_exp,college:p.college||null,height:p.height||null,weight:p.weight||null,status:p.status||null}))
     .sort((a,b)=>(a.depth||99)-(b.depth||99)||(a.age||99)-(b.age||99));
   })():[];
   const faTeams=[...new Set(Object.values(nflDb).map(p=>p.team).filter(Boolean))].sort();
@@ -140,7 +140,7 @@ export default function App() {
     const pos=raw.position;if(!SC[pos])return null;
     const age=calcAge(raw.birth_date),dep=raw.depth_chart_order||null;
     const roleConf=dep===1?1.0:dep===2?0.55:dep>=3?0.25:0.65;
-    const name=raw.full_name||`${raw.first_name||""} ${raw.last_name||}`.trim();
+    const name=raw.full_name||`${raw.first_name||""} ${raw.last_name||""}`.trim();
     const ageRaw=ageScore(age,pos),startPen=dep===1?0.85:dep===2?0.55:0.35;
     const prodProxy=SC[pos]*roleConf*startPen*10,ageGated=ageRaw*Math.min(roleConf,1.0)*startPen;
     const roleStab=dep?Math.max(0,100-(dep-1)*30):40;
