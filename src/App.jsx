@@ -46,6 +46,9 @@ export default function App() {
              leagueName:"", _override:false };
   });
   const logRef = useRef([]);
+  const [apiKeyOpen,  setApiKeyOpen]  = useState(false);
+  const [apiKeySaved, setApiKeySaved] = useState(false);
+  const [apiKeyInput, setApiKeyInput] = useState("");
 
   // ── Owner identity (localStorage) ───────────────────────────────────────────
   const [currentOwner,    setCurrentOwner]    = useState(() => localStorage.getItem("mgg_owner") || "");
@@ -136,16 +139,19 @@ export default function App() {
       })
       .map(([pid, p]) => ({
         pid,
-        name:   p.full_name || `${p.first_name||""} ${p.last_name||""}`.trim(),
-        pos:    p.position,
-        team:   p.team || "FA",
-        age:    calcAge(p.birth_date),
-        depth:  p.depth_chart_order || null,
-        inj:    p.injury_status || null,
-        yrsExp: p.years_exp,
+        name:    p.full_name || `${p.first_name||""} ${p.last_name||""}`.trim(),
+        pos:     p.position,
+        team:    p.team || "FA",
+        age:     calcAge(p.birth_date),
+        depth:   p.depth_chart_order || null,
+        inj:     p.injury_status || null,
+        yrsExp:  p.years_exp,
+        college: p.college   || null,
+        height:  p.height    || null,
+        weight:  p.weight    || null,
+        status:  p.status    || null,
       }))
-      .sort((a,b) => (a.depth||99)-(b.depth||99) || (a.age||99)-(b.age||99))
-      .slice(0, 80);
+      .sort((a,b) => (a.depth||99)-(b.depth||99) || (a.age||99)-(b.age||99));
   })() : [];
 
   const faTeams = [...new Set(Object.values(nflDb).map(p => p.team).filter(Boolean))].sort();
@@ -389,6 +395,18 @@ export default function App() {
     setResearchRunning(false);
   };
 
+  // ── API key management (kept for future AI features) ────────────────────────
+  const saveKey = () => {
+    try { localStorage.setItem("mgg_anthropic_key", apiKeyInput.trim()); } catch {}
+    setApiKeySaved(true);
+    setTimeout(() => setApiKeySaved(false), 2500);
+  };
+  const clearKey = () => {
+    try { localStorage.removeItem("mgg_anthropic_key"); } catch {}
+    setApiKeyInput("");
+  };
+  const getStoredKey = () => { try { return localStorage.getItem("mgg_anthropic_key")||""; } catch { return ""; } };
+
   // ── Season override ──────────────────────────────────────────────────────────
   const SEASON_MODES = ["offseason","preseason","inseason","playoffs","complete"];
   const overrideSeasonMode = (mode) => {
@@ -513,6 +531,15 @@ export default function App() {
                 </button>
               )}
             </div>
+            {/* API Key button — only show warning dot when key missing and not proxied */}
+            <button onClick={() => setApiKeyOpen(o => !o)}
+              title="Settings"
+              style={{background:"none",border:"1px solid #1e2d3d",
+                color:"#4b6580",
+                borderRadius:5,padding:"5px 10px",fontFamily:"inherit",
+                fontSize:11,cursor:"pointer",position:"relative"}}>
+              ⚙
+            </button>
             <Btn onClick={doLoad}    disabled={phase==="loading"}                     grad="linear-gradient(135deg,#22c55e,#16a34a)">
               {phase==="loading" ? "◌ SYNCING..." : "⟳ SYNC DATA"}
             </Btn>
@@ -644,6 +671,8 @@ export default function App() {
 
         {tab === "playerhub" && (
           <PlayerHub
+            currentOwner={currentOwner}
+            owners={owners}
             phase={phase}
             players={players}
             newsMap={newsMap}
@@ -762,6 +791,65 @@ export default function App() {
                   fontSize:9,cursor:"pointer",letterSpacing:1}}>
                 KEEP: {currentOwner}
               </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── API Key Modal ─────────────────────────────────────────────────── */}
+      {apiKeyOpen && (
+        <div onClick={e=>e.target===e.currentTarget&&setApiKeyOpen(false)}
+          style={{position:"fixed",inset:0,zIndex:2000,background:"rgba(0,0,0,0.75)",
+            display:"flex",alignItems:"center",justifyContent:"center"}}>
+          <div style={{background:"#0f1923",border:"1px solid #1e2d3d",borderRadius:12,
+            padding:"28px 32px",width:440,maxWidth:"92vw",
+            boxShadow:"0 0 60px rgba(0,0,0,0.7)"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16}}>
+              <div>
+                <div style={{fontSize:12,fontWeight:900,color:"#e2e8f0",letterSpacing:2,marginBottom:4}}>⚙ API KEY SETTINGS</div>
+                <div style={{fontSize:9,color:"#4d6880",letterSpacing:1}}>Required for News Feed · Intel Scan uses ESPN only (no key needed)</div>
+              </div>
+              <button onClick={()=>setApiKeyOpen(false)} style={{background:"none",border:"none",color:"#4d6680",fontSize:18,cursor:"pointer"}}>✕</button>
+            </div>
+            {isProxied() ? (
+              <div style={{background:"#0f2b1a",border:"1px solid #22c55e44",borderRadius:8,padding:"14px 16px",fontSize:10,color:"#22c55e"}}>
+                ✓ Running in claude.ai — Anthropic API is auto-proxied. No key needed.
+              </div>
+            ) : (
+              <>
+                <div style={{fontSize:10,color:"#7a95ae",lineHeight:1.8,marginBottom:14}}>
+                  The <span style={{color:"#60a5fa",fontWeight:700}}>News + Situations</span> tab uses the Anthropic API with web search to pull real NFL news.<br/>
+                  On GitHub Pages, you need your own key — stored in your browser only, never sent anywhere else.
+                </div>
+                <div style={{marginBottom:10}}>
+                  <div style={{fontSize:9,color:"#4d6880",letterSpacing:1,marginBottom:5}}>ANTHROPIC API KEY</div>
+                  <input type="password" value={apiKeyInput}
+                    onChange={e=>setApiKeyInput(e.target.value)}
+                    onKeyDown={e=>e.key==="Enter"&&saveKey()}
+                    placeholder="sk-ant-api03-..."
+                    style={{width:"100%",boxSizing:"border-box",background:"#080d14",
+                      border:"1px solid #1e2d3d",color:"#e2e8f0",padding:"9px 12px",
+                      borderRadius:6,fontFamily:"monospace",fontSize:11}}/>
+                </div>
+                <div style={{display:"flex",gap:8,marginBottom:14}}>
+                  <button onClick={saveKey}
+                    style={{flex:1,background:apiKeySaved?"#0f2b1a":"linear-gradient(135deg,#22c55e,#16a34a)",
+                      color:apiKeySaved?"#22c55e":"#080d14",
+                      border:apiKeySaved?"1px solid #22c55e":"none",
+                      borderRadius:6,padding:"9px",fontFamily:"inherit",
+                      fontWeight:900,fontSize:10,letterSpacing:1,cursor:"pointer"}}>
+                    {apiKeySaved?"✓ SAVED":"SAVE KEY"}
+                  </button>
+                  {getStoredKey()&&<button onClick={clearKey}
+                    style={{background:"#1a0505",color:"#ef4444",border:"1px solid #ef444433",
+                      borderRadius:6,padding:"9px 14px",fontFamily:"inherit",fontSize:10,cursor:"pointer",letterSpacing:1}}>
+                    CLEAR
+                  </button>}
+                </div>
+                <div style={{fontSize:9,color:"#2a3d52",lineHeight:1.7}}>
+                  Get a key at <span style={{color:"#60a5fa"}}>console.anthropic.com</span> · Stored in browser localStorage only · Never sent anywhere except Anthropic
+                </div>
+              </>
             )}
           </div>
         </div>

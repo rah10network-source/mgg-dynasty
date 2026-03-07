@@ -13,7 +13,7 @@ const SUB_TABS = [
   ["fa",          "⬡ FA DATABASE"],
 ];
 
-export function PlayerHub({
+export function PlayerHub({ currentOwner, owners,
   // shared
   phase, players, newsMap, nflDb,
   // rankings (Board props)
@@ -83,6 +83,8 @@ export function PlayerHub({
           newsMap={newsMap}
           players={players}
           onRunIntel={onRunIntel}
+          currentOwner={currentOwner}
+          owners={owners}
         />
       )}
 
