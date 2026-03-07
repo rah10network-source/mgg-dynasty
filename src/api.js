@@ -47,11 +47,23 @@ export const loadData = async (log, manualSitsRef) => {
 
   log("Loading rosters...");
   const rosters = await sf(`/league/${LEAGUE_ID}/rosters`);
-  const ownerMap = {}, taxiMap = {};
+  const ownerMap = {}, taxiMap = {}, draftPicksByOwner = {}, rosterIdToOwner = {};
   rosters.forEach(r => {
     const name = userMap[r.owner_id] || r.owner_id;
+    rosterIdToOwner[r.roster_id] = name;
     (r.players || []).forEach(pid => { ownerMap[pid] = name; });
     (r.taxi    || []).forEach(pid => { taxiMap[pid]  = true; });
+    // Future draft picks this owner holds
+    (r.draft_picks || []).forEach(pick => {
+      if (!draftPicksByOwner[name]) draftPicksByOwner[name] = [];
+      draftPicksByOwner[name].push({
+        season:        pick.season,
+        round:         pick.round,
+        rosterId:      pick.roster_id,
+        prevRosterId:  pick.previous_owner_id,
+        ownerName:     name,
+      });
+    });
   });
   log(`${Object.keys(ownerMap).length} rostered players`, "success");
 
@@ -224,7 +236,29 @@ export const loadData = async (log, manualSitsRef) => {
   log(`Scores complete · ${tc}`, "success");
   log("Ready — use ◈ INTEL SCAN for news, ⬇ EXPORT XLSX for snapshot", "done");
 
-  return { players: pl.sort((a, b) => b.score - a.score), nflDb: allP };
+  // ── Season state ─────────────────────────────────────────────────────────
+  const lStatus = lg.status || "pre_draft";
+  const leg     = lg.settings?.leg || 0;
+  const lastLeg = lg.settings?.last_scored_leg || 0;
+  const season  = lg.season || new Date().getFullYear();
+  const seasonMode =
+    lStatus === "in_season"   ? (leg > 14 ? "playoffs" : "inseason")
+  : lStatus === "post_season" ? "playoffs"
+  : lStatus === "complete"    ? "complete"
+  : lStatus === "drafting"    ? "preseason"
+  : "offseason";
+  const seasonState = {
+    mode:           seasonMode,
+    currentWeek:    leg  || null,
+    lastScoredWeek: lastLeg || null,
+    hasMatchups:    lStatus === "in_season" && leg > 0,
+    leagueStatus:   lStatus,
+    season:         String(season),
+    leagueName:     lg.name || LEAGUE_ID,
+  };
+  log(`Season: ${seasonState.season} · ${seasonState.mode.toUpperCase()}${seasonState.currentWeek ? " · Week " + seasonState.currentWeek : ""}`, "success");
+
+  return { players: pl.sort((a, b) => b.score - a.score), nflDb: allP, seasonState, draftPicksByOwner, rosterIdToOwner };
 };
 
 // ─── INTEL SCAN ───────────────────────────────────────────────────────────────

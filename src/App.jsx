@@ -11,6 +11,7 @@ import { LeagueHub }      from "./tabs/LeagueHub";
 import { TeamHub }        from "./tabs/TeamHub";
 import { PlayerHub }      from "./tabs/PlayerHub";
 import { AnalysisTools }  from "./tabs/AnalysisTools";
+import { DraftHub }       from "./tabs/DraftHub";
 import { Log }            from "./tabs/Log";
 
 // ─── PICK HELPERS ─────────────────────────────────────────────────────────────
@@ -23,10 +24,27 @@ export default function App() {
   const [phase,     setPhase]    = useState("idle");
   const [progress,  setProgress] = useState([]);
   const [players,   setPlayers]  = useState([]);
-  const [nflDb,     setNflDb]    = useState({});
+  const [nflDb,           setNflDb]           = useState({});
+  const [draftPicksByOwner, setDraftPicksByOwner] = useState({});
+  const [rosterIdToOwner,   setRosterIdToOwner]   = useState({});
+  // Big Board — persisted to localStorage
+  const [bigBoard,     setBigBoard]    = useState(() => {
+    try { return JSON.parse(localStorage.getItem("mgg_bigboard")||"[]"); } catch { return []; }
+  });
+  const [bigBoardMode, setBigBoardMode]= useState("rookies"); // "rookies" | "all"
+  // Draft Room
+  const [draftRoomMode,setDraftRoomMode]= useState("mock");
+  const [mockState,    setMockState]   = useState(null);
+  const [liveDraftId,  setLiveDraftId] = useState(null);
   const [newsMap,   setNewsMap]  = useState({});
   const [newsPhase, setNewsPhase]= useState("idle");
   const [syncedAt,  setSyncedAt] = useState(null);
+  const [seasonState, setSeasonState] = useState(() => {
+    try { const s=localStorage.getItem("mgg_season_override"); if(s) return JSON.parse(s); } catch {}
+    return { mode:"offseason", currentWeek:null, lastScoredWeek:null,
+             hasMatchups:false, leagueStatus:"pre_draft", season:"2025",
+             leagueName:"", _override:false };
+  });
   const logRef = useRef([]);
 
   // ── Owner identity (localStorage) ───────────────────────────────────────────
@@ -69,6 +87,30 @@ export default function App() {
     setFaWatchlist(next);
     try { localStorage.setItem("mgg_fa_watchlist", JSON.stringify(next)); } catch {}
   };
+
+  // ── Big Board helpers ────────────────────────────────────────────────────────
+  const saveBigBoard = (next) => {
+    setBigBoard(next);
+    try { localStorage.setItem("mgg_bigboard", JSON.stringify(next)); } catch {}
+  };
+  const bigBoardAdd = (player) => {
+    if (bigBoard.find(p => p.pid === player.pid)) return;
+    saveBigBoard([...bigBoard, { ...player, note:"", addedAt: Date.now() }]);
+  };
+  const bigBoardRemove = (pid) => saveBigBoard(bigBoard.filter(p => p.pid !== pid));
+  const bigBoardMove   = (pid, dir) => {
+    const idx = bigBoard.findIndex(p => p.pid === pid);
+    if (idx < 0) return;
+    const next = [...bigBoard];
+    const swap = dir === "up" ? idx - 1 : idx + 1;
+    if (swap < 0 || swap >= next.length) return;
+    [next[idx], next[swap]] = [next[swap], next[idx]];
+    saveBigBoard(next);
+  };
+  const bigBoardNote = (pid, note) => {
+    saveBigBoard(bigBoard.map(p => p.pid === pid ? {...p, note} : p));
+  };
+  const bigBoardClear = () => { if (window.confirm("Clear your entire Big Board?")) saveBigBoard([]); };
 
   const rosteredPids = new Set(players.map(p => p.pid));
 
@@ -347,6 +389,18 @@ export default function App() {
     setResearchRunning(false);
   };
 
+  // ── Season override ──────────────────────────────────────────────────────────
+  const SEASON_MODES = ["offseason","preseason","inseason","playoffs","complete"];
+  const overrideSeasonMode = (mode) => {
+    const next = { ...seasonState, mode, _override: true };
+    setSeasonState(next);
+    try { localStorage.setItem("mgg_season_override", JSON.stringify(next)); } catch {}
+  };
+  const clearSeasonOverride = () => {
+    setSeasonState(prev => ({ ...prev, _override: false }));
+    try { localStorage.removeItem("mgg_season_override"); } catch {}
+  };
+
   // ── Log helper ───────────────────────────────────────────────────────────────
   const log = (msg, type="info") => {
     const entry = { msg, type, ts:new Date().toLocaleTimeString() };
@@ -358,9 +412,13 @@ export default function App() {
   const doLoad = useCallback(async () => {
     setPhase("loading"); logRef.current=[]; setProgress([]);
     try {
-      const { players: pl, nflDb: db } = await apiLoadData(log, manualSitsRef);
+      const { players: pl, nflDb: db, seasonState: ss, draftPicksByOwner: dpbo, rosterIdToOwner: rid2o } = await apiLoadData(log, manualSitsRef);
       setPlayers(pl);
       setNflDb(db);
+      setDraftPicksByOwner(dpbo);
+      setRosterIdToOwner(rid2o);
+      // Only apply detected state if user hasn't set a manual override
+      setSeasonState(prev => prev._override ? prev : ss);
       setSyncedAt(new Date().toLocaleTimeString());
       setPhase("done");
       setOwnerPickerOpen(!localStorage.getItem("mgg_owner"));
@@ -429,6 +487,32 @@ export default function App() {
                 ◎ {currentOwner}
               </button>
             )}
+            {/* Season mode pill */}
+            <div style={{display:"flex",alignItems:"center",gap:0,background:"#0a1118",
+              border:"1px solid #1e2d3d",borderRadius:5,overflow:"hidden"}}>
+              {SEASON_MODES.map(m => {
+                const active = seasonState.mode === m;
+                const col    = {offseason:"#4b6580",preseason:"#60a5fa",inseason:"#22c55e",playoffs:"#f59e0b",complete:"#6b7280"}[m];
+                return (
+                  <button key={m} onClick={() => overrideSeasonMode(m)}
+                    title={seasonState._override ? "Manual override active" : "Auto-detected"}
+                    style={{background:active?col+"22":"transparent",color:active?col:"#2a3d52",
+                      border:"none",padding:"4px 8px",fontFamily:"inherit",fontSize:8,
+                      fontWeight:active?900:400,letterSpacing:1,cursor:"pointer",
+                      borderRight:"1px solid #1e2d3d",transition:"all .15s"}}>
+                    {m.slice(0,3).toUpperCase()}
+                  </button>
+                );
+              })}
+              {seasonState._override && (
+                <button onClick={clearSeasonOverride}
+                  title="Clear manual override — revert to auto-detect"
+                  style={{background:"#f59e0b22",color:"#f59e0b",border:"none",
+                    padding:"4px 6px",fontFamily:"inherit",fontSize:8,cursor:"pointer"}}>
+                  AUTO
+                </button>
+              )}
+            </div>
             <Btn onClick={doLoad}    disabled={phase==="loading"}                     grad="linear-gradient(135deg,#22c55e,#16a34a)">
               {phase==="loading" ? "◌ SYNCING..." : "⟳ SYNC DATA"}
             </Btn>
@@ -449,6 +533,7 @@ export default function App() {
             ["teamhub",    "◎ TEAM HUB"],
             ["playerhub",  "◈ PLAYER HUB"],
             ["tools",      "⇄ ANALYSIS TOOLS"],
+            ["drafthub",   "◈ DRAFT HUB"],
             ["log",        "▸ LOG"],
           ].map(([id, lbl]) => (
             <button key={id} onClick={() => setTab(id)} style={{
@@ -525,7 +610,14 @@ export default function App() {
 
         {/* ── TABS ─────────────────────────────────────────────────────────── */}
         {tab === "dashboard" && (
-          <Dashboard phase={phase} players={players} currentOwner={currentOwner}/>
+          <Dashboard
+            phase={phase}
+            players={players}
+            currentOwner={currentOwner}
+            owners={owners}
+            newsMap={newsMap}
+            seasonState={seasonState}
+          />
         )}
 
         {tab === "leaguehub" && (
@@ -537,6 +629,7 @@ export default function App() {
             newsMap={newsMap}
             setDetail={setDetail}
             setActiveTab={setTab}
+          seasonState={seasonState}
           />
         )}
 
@@ -604,6 +697,25 @@ export default function App() {
             removeItem={removeItem} setPickCustomVal={setPickCustomVal}
             itemScore={itemScore} tradeTotal={tradeTotal}
             tradeVerdict={tradeVerdict} tradeReset={tradeReset}
+          />
+        )}
+
+        {tab === "drafthub" && (
+          <DraftHub
+            phase={phase}
+            players={players}
+            nflDb={nflDb}
+            currentOwner={currentOwner}
+            owners={owners}
+            rosterIdToOwner={rosterIdToOwner}
+            draftPicksByOwner={draftPicksByOwner}
+            seasonState={seasonState}
+            bigBoard={bigBoard} bigBoardMode={bigBoardMode} setBigBoardMode={setBigBoardMode}
+            bigBoardAdd={bigBoardAdd} bigBoardRemove={bigBoardRemove}
+            bigBoardMove={bigBoardMove} bigBoardNote={bigBoardNote} bigBoardClear={bigBoardClear}
+            draftRoomMode={draftRoomMode} setDraftRoomMode={setDraftRoomMode}
+            mockState={mockState} setMockState={setMockState}
+            liveDraftId={liveDraftId} setLiveDraftId={setLiveDraftId}
           />
         )}
 
