@@ -1,32 +1,34 @@
 // ─── IDENTITY SYSTEM ─────────────────────────────────────────────────────────
-// Manages Sleeper login, owner-roster mapping, commissioner mode, and view mode.
+// Manages Sleeper login, commissioner mode, and view mode.
 //
-// Identity shape:
-//   { userId, username, displayName, ownerName, avatar, isCommissioner }
+// Identity shape: { userId, username, displayName, ownerName, avatar, isCommissioner }
 //
-// Commissioner mode: unlocked via passphrase stored at module level.
-// View mode: commissioner-only — browse any team read-only without affecting
-//            personal data (watchlist, big board, situations stay as your own).
+// Key design decisions:
+//   - loginOpen starts TRUE if no identity saved — modal shows immediately on load
+//   - Owner matching happens in App.jsx after league data loads, not here
+//   - Lockout check is done in App.jsx post-load so owners list is available
+//   - Passphrase is commissioner-only convenience lock, not a security boundary
 
 import { useState } from "react";
 import { runMigration } from "./storage";
 
-// ── Change this before deploying to production ────────────────────────────────
-export const COMMISSIONER_PASS = "mggedynasty2025";
+export const COMMISSIONER_PASS = "mggedynasty2025"; // ← change before deploying
 
-export function useIdentity({ owners, setTradeOwnerA }) {
+export function useIdentity() {
 
   // ── State ──────────────────────────────────────────────────────────────────
-  const [identity,      setIdentityState] = useState(() => {
+  const [identity, setIdentityState] = useState(() => {
     try { return JSON.parse(localStorage.getItem("mgg_identity")); } catch { return null; }
   });
-  const [viewingOwner,  setViewingOwner]  = useState(null);
-  const [loginOpen,     setLoginOpen]     = useState(false);
+
+  // Auto-open login modal if no identity saved yet
+  const [loginOpen,     setLoginOpen]     = useState(() => !localStorage.getItem("mgg_identity"));
   const [loginInput,    setLoginInput]    = useState("");
   const [loginLoading,  setLoginLoading]  = useState(false);
   const [loginError,    setLoginError]    = useState("");
   const [commPassInput, setCommPassInput] = useState("");
   const [commPassError, setCommPassError] = useState("");
+  const [viewingOwner,  setViewingOwner]  = useState(null);
 
   // ── Derived ────────────────────────────────────────────────────────────────
   const currentOwner   = identity?.ownerName || "";
@@ -34,26 +36,18 @@ export function useIdentity({ owners, setTradeOwnerA }) {
   const activeOwner    = viewingOwner || currentOwner;
   const isViewMode     = !!viewingOwner && viewingOwner !== currentOwner;
 
-  // ── Internal helper ────────────────────────────────────────────────────────
+  // ── Persist helper ─────────────────────────────────────────────────────────
   const persistIdentity = (id) => {
     setIdentityState(id);
-    if (id) {
-      try { localStorage.setItem("mgg_identity", JSON.stringify(id)); } catch {}
-    } else {
-      try { localStorage.removeItem("mgg_identity"); } catch {}
-    }
+    try {
+      if (id) localStorage.setItem("mgg_identity", JSON.stringify(id));
+      else     localStorage.removeItem("mgg_identity");
+    } catch {}
   };
 
-  // ── Fuzzy owner match ──────────────────────────────────────────────────────
-  // Tries to match Sleeper display name → league owner name
-  const matchOwner = (displayName, username) =>
-    owners.find(o =>
-      o.toLowerCase() === displayName.toLowerCase() ||
-      o.toLowerCase().includes(username.toLowerCase()) ||
-      username.toLowerCase().includes(o.toLowerCase().split(" ")[0])
-    ) || displayName;
-
   // ── Sleeper login ──────────────────────────────────────────────────────────
+  // Returns { ok: true, userId, username, displayName } or throws.
+  // Owner matching and lockout are handled in App.jsx after this resolves.
   const doSleeperLogin = async () => {
     const username = loginInput.trim().toLowerCase();
     if (!username) return;
@@ -67,32 +61,34 @@ export function useIdentity({ owners, setTradeOwnerA }) {
       if (!res.ok) throw new Error("Sleeper username not found. Check your spelling.");
       const user = await res.json();
       if (!user?.user_id) throw new Error("Invalid Sleeper response.");
-
-      const displayName = user.metadata?.team_name || user.display_name || user.username || username;
-      const ownerName   = matchOwner(displayName, username);
-
-      const newIdentity = {
-        userId:        user.user_id,
-        username:      user.username || username,
-        displayName,
-        ownerName,
-        avatar:        user.avatar || null,
-        isCommissioner: false,
-      };
-
-      runMigration(user.user_id);
-      persistIdentity(newIdentity);
-      setTradeOwnerA(ownerName);
-      setLoginOpen(false);
-      setLoginInput("");
+      return user; // let App.jsx handle owner matching + lockout
     } catch(e) {
-      setLoginError(e.message || "Login failed. Check username and try again.");
+      setLoginError(e.message || "Login failed. Try again.");
+      setLoginLoading(false);
+      return null;
     }
+  };
+
+  // Called by App.jsx after owner matching + lockout check pass
+  const finaliseLogin = (user, ownerName) => {
+    const newIdentity = {
+      userId:        user.user_id,
+      username:      user.username || user.display_name || loginInput.trim().toLowerCase(),
+      displayName:   user.metadata?.team_name || user.display_name || user.username,
+      ownerName,
+      avatar:        user.avatar || null,
+      isCommissioner: false,
+    };
+    runMigration(user.user_id);
+    // Clear legacy non-namespaced owner key from pre-0.8.0
+    try { localStorage.removeItem("mgg_owner"); } catch {}
+    persistIdentity(newIdentity);
+    setLoginOpen(false);
+    setLoginInput("");
     setLoginLoading(false);
   };
 
-  // ── Manual (no-Sleeper) login ──────────────────────────────────────────────
-  // Used as fallback when league is loaded but user prefers to skip verification
+  // ── Manual login (no Sleeper verification — fallback only) ─────────────────
   const doManualLogin = (ownerName) => {
     const fallback = {
       userId:        `local_${ownerName.replace(/\s+/g, "_").toLowerCase()}`,
@@ -103,8 +99,8 @@ export function useIdentity({ owners, setTradeOwnerA }) {
       isCommissioner: false,
     };
     runMigration(fallback.userId);
+    try { localStorage.removeItem("mgg_owner"); } catch {}
     persistIdentity(fallback);
-    setTradeOwnerA(ownerName);
     setLoginOpen(false);
   };
 
@@ -115,25 +111,22 @@ export function useIdentity({ owners, setTradeOwnerA }) {
     setLoginOpen(true);
   };
 
-  // ── Correct owner→roster mapping ──────────────────────────────────────────
+  // ── Correct owner→roster mapping ───────────────────────────────────────────
   const setOwnerMapping = (ownerName) => {
-    const updated = { ...identity, ownerName };
-    persistIdentity(updated);
-    setTradeOwnerA(ownerName);
+    if (!identity) return;
+    persistIdentity({ ...identity, ownerName });
   };
 
   // ── Commissioner ───────────────────────────────────────────────────────────
   const activateCommissioner = () => {
     if (commPassInput === COMMISSIONER_PASS) {
       persistIdentity({ ...identity, isCommissioner: true });
-      setCommPassInput("");
-      setCommPassError("");
+      setCommPassInput(""); setCommPassError("");
     } else {
       setCommPassError("Incorrect passphrase.");
       setTimeout(() => setCommPassError(""), 2000);
     }
   };
-
   const deactivateCommissioner = () => {
     persistIdentity({ ...identity, isCommissioner: false });
     setViewingOwner(null);
@@ -146,34 +139,16 @@ export function useIdentity({ owners, setTradeOwnerA }) {
   };
   const exitViewMode = () => setViewingOwner(null);
 
-  // ── Public API ─────────────────────────────────────────────────────────────
   return {
-    // Identity state
     identity,
-    currentOwner,
-    isCommissioner,
-    activeOwner,
-    isViewMode,
-    viewingOwner,
-
-    // Login modal state
+    currentOwner, isCommissioner, activeOwner, isViewMode, viewingOwner,
     loginOpen,    setLoginOpen,
-    loginInput,   setLoginInput,
-    loginLoading,
+    loginInput,   setLoginInput,   loginLoading, setLoginLoading,
     loginError,   setLoginError,
-
-    // Commissioner modal state
-    commPassInput, setCommPassInput,
-    commPassError,
-
-    // Actions
-    doSleeperLogin,
-    doManualLogin,
-    doLogout,
-    setOwnerMapping,
-    activateCommissioner,
-    deactivateCommissioner,
-    enterViewMode,
-    exitViewMode,
+    commPassInput, setCommPassInput, commPassError,
+    doSleeperLogin, finaliseLogin,
+    doManualLogin, doLogout, setOwnerMapping,
+    activateCommissioner, deactivateCommissioner,
+    enterViewMode, exitViewMode,
   };
 }

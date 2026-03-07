@@ -77,3 +77,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - API key modal — Anthropic key stored in `mgg_anthropic_key`, warning dot when missing.
 - Sync log tab with colour-coded progress entries.
 - GitHub Pages deployment via `gh-pages` branch, Vite build.
+
+---
+
+## [0.8.1] — 2025-03-07 · Patch — Login + League Key
+
+### Fixed
+- **Login modal never showed on first load** — `loginOpen` was hardcoded to `false` in `useIdentity`. Now initialises to `true` when no `mgg_identity` exists in localStorage, so the Sleeper login prompt appears immediately on first visit.
+- **Old owner picker still visible** — `mgg_owner` key from pre-0.8.0 was persisting in localStorage and causing confusion. `finaliseLogin` and `doManualLogin` now explicitly call `localStorage.removeItem("mgg_owner")` on login.
+- **Owner matching never worked** — `useIdentity` received `owners: []` at hook init time because players hadn't loaded yet. Owner matching + lockout logic moved to `handleSleeperLogin` in App.jsx where the live `owners` array is available.
+- **`loginLoading` not reset on error** — added `setLoginLoading(false)` inside `doSleeperLogin` error path.
+
+### Added
+- **Shared league key** (`LEAGUE_API_KEY` in `constants.js`) — a single Anthropic API key that works for all league members automatically. No per-user key setup needed. Falls back to personal key in Settings if set, falls back to league key if not. Add the constant to `constants.js` alongside `LEAGUE_ID`.
+- **Non-league-member lockout** — after Sleeper verification, if the display name doesn't fuzzy-match any loaded roster owner, login is denied with a clear error message. Only possible to bypass via "skip verification" fallback (collapible, hidden by default).
+- **`getApiKey()` helper** (module-level in App.jsx) — resolves key priority: proxied → personal localStorage key → `LEAGUE_API_KEY` constant → empty string.
+- **League key status banner** in Settings modal — shows "✓ LEAGUE KEY ACTIVE" when `LEAGUE_API_KEY` is set, so users know AI features are enabled without needing to enter anything.
+- **Manual login hidden behind `<details>`** — "skip verification" fallback is collapsed by default so the primary Sleeper verification flow is the obvious path.
