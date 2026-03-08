@@ -33,26 +33,65 @@ export const normalise = (arr, key) => {
 export const calcSleeperPts = (s) => {
   if (!s) return 0;
   return (
-    (s.pass_yd  || 0) * SCORING.pass_yd  + (s.pass_td || 0) * SCORING.pass_td  + (s.pass_int || 0) * SCORING.pass_int +
-    (s.rush_yd  || 0) * SCORING.rush_yd  + (s.rush_td || 0) * SCORING.rush_td  +
-    (s.rec      || 0) * SCORING.rec      + (s.rec_yd  || 0) * SCORING.rec_yd   + (s.rec_td   || 0) * SCORING.rec_td   +
-    (s.def_sack || 0) * SCORING.def_sack + (s.def_tackle_solo || 0) * SCORING.def_tackle_solo +
-    (s.def_tackle_for_loss || 0) * SCORING.def_tackle_for_loss +
-    (s.def_pass_def || 0) * SCORING.def_pass_def + (s.def_int || 0) * SCORING.def_int +
-    (s.def_forced_fumble || 0) * SCORING.def_forced_fumble +
-    (s.def_fumble_rec    || 0) * SCORING.def_fumble_rec + (s.def_safe || 0) * SCORING.def_safe
+    // Offense
+    (s.pass_yd  || 0) * SCORING.pass_yd  +
+    (s.pass_td  || 0) * SCORING.pass_td  +
+    (s.pass_int || 0) * SCORING.pass_int +
+    (s.rush_yd  || 0) * SCORING.rush_yd  +
+    (s.rush_td  || 0) * SCORING.rush_td  +
+    (s.rec      || 0) * SCORING.rec      +
+    (s.rec_yd   || 0) * SCORING.rec_yd   +
+    (s.rec_td   || 0) * SCORING.rec_td   +
+    // IDP — all fields now tracked
+    (s.def_sack             || 0) * SCORING.def_sack             +
+    (s.def_tackle_solo      || 0) * SCORING.def_tackle_solo      +
+    (s.def_tackle_ast       || 0) * SCORING.def_tackle_ast       +
+    (s.def_tackle_for_loss  || 0) * SCORING.def_tackle_for_loss  +
+    (s.def_qb_hit           || 0) * SCORING.def_qb_hit           +
+    (s.def_pass_def         || 0) * SCORING.def_pass_def         +
+    (s.def_int              || 0) * SCORING.def_int              +
+    (s.def_forced_fumble    || 0) * SCORING.def_forced_fumble    +
+    (s.def_fumble_rec       || 0) * SCORING.def_fumble_rec       +
+    (s.def_safe             || 0) * SCORING.def_safe             +
+    (s.def_td               || 0) * SCORING.def_td
   );
 };
 
-// IDP scarcity — dynamic based on actual production
+// IDP scarcity — dynamic multiplier on top of base SCARCITY value.
+// Differentiates elite producers from average depth at the same position.
+// LB: tackle volume is the primary value driver (not INTs — that was wrong)
+// DL: sack production separates pass rushers from run stuffers
+// DB: hybrid safety types (high tackles + INTs) score significantly higher
 export const idpScarcity = (pos, t) => {
   if (!t) return SCARCITY[pos] || 1.0;
-  const sacks   = t.def_sack  || 0;
-  const tackles = t.def_tackle_solo || 0;
-  const ints    = t.def_int   || 0;
-  if (pos === "DL") return sacks   >= 6 ? 1.6 : sacks   >= 3 ? 1.3 : 0.9;
-  if (pos === "LB") return ints    >= 2 ? 1.3 : tackles >= 80 ? 1.2 : 1.0;
-  if (pos === "DB") return ints    >= 3 ? 1.25 : ints   >= 1 ? 1.1 : 0.9;
+  const sacks   = t.def_sack        || 0;
+  const solo    = t.def_tackle_solo || 0;
+  const ast     = t.def_tackle_ast  || 0;
+  const ints    = t.def_int         || 0;
+  const totalTkl = solo + ast * 0.5;   // weighted tackle total
+
+  if (pos === "DL") {
+    // Pure pass rusher tiers — sacks are the differentiator
+    if (sacks >= 10) return 1.40;   // elite pass rusher (Garrett/Parsons tier)
+    if (sacks >= 6)  return 1.20;   // solid starter
+    if (sacks >= 3)  return 1.00;   // rotational rusher
+    return 0.75;                    // run stuffer — limited dynasty value
+  }
+  if (pos === "LB") {
+    // 3-down LB value is in tackle volume + coverage versatility
+    if (totalTkl >= 90) return 1.35;  // Jack Campbell / Roquan Smith tier
+    if (totalTkl >= 70) return 1.15;  // solid every-down starter
+    if (totalTkl >= 50) return 1.00;  // starter-level
+    return 0.80;                      // limited role / spec teams
+  }
+  if (pos === "DB") {
+    // Hybrid safeties (high tackles AND INTs) are the most valuable
+    const hybridSafety = solo >= 65 && ints >= 2;
+    if (hybridSafety || ints >= 4)         return 1.30;  // elite hybrid / ball-hawk
+    if (ints >= 2 || solo >= 60)           return 1.15;  // solid starter
+    if (ints >= 1 || solo >= 45)           return 1.00;  // average DB1
+    return 0.85;                                         // coverage-only / limited
+  }
   return SCARCITY[pos] || 1.0;
 };
 

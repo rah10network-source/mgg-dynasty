@@ -223,7 +223,7 @@ App.jsx        ← api.js, intel.js, trade.js, watchlist.js, roster.js
 
 ---
 
-## [1.1.0] — 2026-03-08 · Team Hub Build + Waiver & Compare Infrastructure
+## [1.0.10] — 2026-03-08 · Team Hub Build + Waiver & Compare Infrastructure
 
 ### Changed
 - **`src/tabs/TeamHub.jsx`** — full build replacing the placeholder. Four tabs:
@@ -255,3 +255,54 @@ App.jsx        ← api.js, intel.js, trade.js, watchlist.js, roster.js
 - **`src/tabs/AnalysisTools.jsx`** — Waiver Tool and Player Compare tabs now active (were disabled placeholders). Props threaded from App.jsx.
 
 - **`src/App.jsx`** — `newsMap`, `setDetail` passed to TeamHub; `players`, `nflDb`, `currentOwner`, `newsMap`, `faWatchlist`, `onAddToFaWatchlist` passed to AnalysisTools.
+
+---
+
+## [1.1.1] — 2026-03-08 · IDP Scoring Fix + Scarcity Recalibration
+
+### Bug Fixes
+
+- **`src/constants.js` — SCORING values corrected** (6 wrong values, 2 missing fields)
+  - `pass_int`: −2 → **−1** (per constitution §7.1)
+  - `def_pass_def`: 2 → **1** (per constitution §7.3)
+  - `def_int`: 6 → **2** (was using Team DEF value, not player IDP)
+  - `def_forced_fumble`: 3 → **1** (same)
+  - `def_fumble_rec`: 4 → **1** (same)
+  - `def_safe`: 8 → **2** (same)
+  - Added `def_tackle_ast: 0.5` — assisted tackle, was missing entirely
+  - Added `def_qb_hit: 0.5` — QB hit, was missing entirely
+  - Added `def_td: 6` — IDP TD, was missing
+
+- **`src/api.js` — STAT_FIELDS** — added `def_tackle_ast`, `def_qb_hit`, `def_safe`, `def_td` to weekly accumulator. These stats were never being summed, so assisted tackles and QB hits were excluded from every IDP player's PPG.
+
+- **`src/api.js` — IDP statLine** — now shows `tkl ast sck qbh int pd` (added assisted tackles + QB hits to the display string).
+
+- **`src/scoring.js` — calcSleeperPts** — now includes all 11 IDP scoring fields. Previously omitted `def_tackle_ast`, `def_qb_hit`, `def_safe`, `def_td`.
+
+### Changed
+
+- **`src/constants.js` — SCARCITY recalibrated for IDP**
+  - `LB`: 1.0 → **2.2** — elite 3-down LBs are ~8-10 in the NFL. Jack Campbell-tier should score in TE1 range.
+  - `DL`: 1.0 → **1.9** — elite pass rushers are equally scarce; run stuffers dilute the pool so base is slightly lower than LB.
+  - `DB`: 0.95 → **1.5** — deeper position, but hybrid safeties are genuinely valuable.
+
+- **`src/constants.js` — PRIME windows updated for IDP**
+  - `DL`: [23,29,33] → **[22,27,31]** — pass rushers peak earlier, cliff sooner
+  - `LB`: [23,28,32] → **[22,27,31]** — physical position, similar to DL
+  - `DB`: [23,28,32] → **[22,29,34]** — safeties age better than corners, cliff extended
+
+- **`src/scoring.js` — idpScarcity() fully rewritten**
+  - LB: now driven by **tackle volume** (was incorrectly using INTs as primary driver). Thresholds: 90+ tkl → 1.35, 70+ → 1.15, 50+ → 1.00, below → 0.80
+  - DL: sack tiers tightened. 10+ sacks → 1.40 (elite pass rusher), 6+ → 1.20, 3+ → 1.00, below → 0.75 (run stuffer)
+  - DB: now detects hybrid safeties (high tackles + INTs). 65+ solo & 2+ int → 1.30, 4+ int → 1.30, lower tiers scaled accordingly.
+
+- **`src/tabs/tools/WaiverTool.jsx`** — position filter now includes DL, LB, DB. Previously only showed QB/RB/WR/TE.
+
+### Pending (league vote required)
+Proposed scoring changes for vote — to further close IDP/offense gap:
+- Solo Tackle: +1 → +1.5
+- Pass Defended: +1 → +2
+- QB Hit: +0.5 → +1
+
+Impact if all three pass: LB Elite 10.5 → 14.0 PPG · DL Elite 9.7 → 11.9 PPG · DB Elite 7.9 → 10.8 PPG.
+Once vote passes, update `SCORING.def_tackle_solo`, `SCORING.def_pass_def`, `SCORING.def_qb_hit` in constants.js.

@@ -4,45 +4,52 @@ export const SLEEPER   = "https://api.sleeper.app/v1";
 export const LEAGUE_API_KEY = import.meta.env.VITE_LEAGUE_API_KEY || "";
 
 // ─── DYNASTY SCORING WEIGHTS ─────────────────────────────────────────────────
-export const SCARCITY = { QB:2.0, RB:1.7, WR:1.3, TE:1.5, DL:1.0, LB:1.0, DB:0.95, K:0.6 };
+// IDP scarcity raised to reflect positional rarity:
+//   LB: elite 3-down LBs are ~8-10 in the NFL — TE1-tier in dynasty value
+//   DL: elite pass rushers comparably scarce; run stuffers dilute the pool
+//   DB: deeper position, but hybrid safeties are genuinely valuable
+export const SCARCITY = { QB:2.0, RB:1.7, WR:1.3, TE:1.5, DL:1.9, LB:2.2, DB:1.5, K:0.6 };
 
 // [rise, peak, cliff] ages by position
+// IDP primes updated: defensive players peak earlier, physical positions cliff sooner
+// DB safeties age better than corners — cliff kept higher
 export const PRIME = {
   QB:[25,34,38], RB:[23,27,30], WR:[23,29,33], TE:[24,31,35],
-  DL:[23,29,33], LB:[23,28,32], DB:[23,28,32], K:[24,35,42],
+  DL:[22,27,31], LB:[22,27,31], DB:[22,29,34], K:[24,35,42],
 };
 
 export const POS_ORDER = ["QB","RB","WR","TE","DL","LB","DB","K"];
 
-// ─── FANTASY SCORING (your league settings) ───────────────────────────────────
+// ─── FANTASY SCORING (MGG Dynasty league settings — verified vs constitution) ──
+// IDP values were previously using Team Defense multipliers — corrected here.
+// Added: def_tackle_ast (+0.5), def_qb_hit (+0.5) — both missing previously.
+// Pending league vote: Solo Tackle +1→+1.5, Pass Defended +1→+2, QB Hit +0.5→+1
 export const SCORING = {
-  pass_yd:0.04, pass_td:4,   pass_int:-2,
+  // Offense
+  pass_yd:0.04, pass_td:4,   pass_int:-1,   // int was wrongly -2
   rush_yd:0.1,  rush_td:6,
   rec:0.5,      rec_yd:0.1,  rec_td:4,
-  def_sack:4,   def_tackle_solo:1, def_tackle_for_loss:2,
-  def_pass_def:2, def_int:6, def_forced_fumble:3,
-  def_fumble_rec:4, def_safe:8,
+  // IDP — individual player values (not team DEF)
+  def_sack:4,
+  def_tackle_solo:1,
+  def_tackle_ast:0.5,          // assisted tackle — was missing entirely
+  def_tackle_for_loss:2,
+  def_qb_hit:0.5,              // QB hit — was missing entirely
+  def_pass_def:1,              // was wrongly 2
+  def_int:2,                   // was wrongly 6
+  def_forced_fumble:1,         // was wrongly 3
+  def_fumble_rec:1,            // was wrongly 4
+  def_safe:2,                  // was wrongly 8
+  def_td:6,
 };
 
-// ─── PICK VALUES — 10-round league ────────────────────────────────────────────
-// Index = years from now (0 = this draft, 1 = next, 2 = two out)
-// Values reflect relative dynasty trade worth, not redraft.
-export const PICK_VALUES  = {
-  "1st": [72,60,48],
-  "2nd": [38,30,24],
-  "3rd": [18,14,10],
-  "4th": [12, 9, 7],
-  "5th": [ 8, 6, 4],
-  "6th": [ 5, 4, 3],
-  "7th": [ 4, 3, 2],
-  "8th": [ 3, 2, 2],
-  "9th": [ 2, 2, 1],
-  "10th":[ 2, 1, 1],
-};
-export const PICK_ROUNDS  = ["1st","2nd","3rd","4th","5th","6th","7th","8th","9th","10th"];
+// ─── PICK VALUES (placeholder — calibrate with simulation data) ───────────────
+// Index = years from now (0 = current, 1 = next, 2 = two years out)
+export const PICK_VALUES  = { "1st":[72,60,48], "2nd":[38,30,24], "3rd":[18,14,10] };
+export const PICK_ROUNDS  = ["1st","2nd","3rd"];
 export const PICK_YEARS   = [2026,2027,2028];
 export const pickValue    = (round, yearOffset) =>
-  (PICK_VALUES[round]||[2,1,1])[Math.min(yearOffset,2)];
+  (PICK_VALUES[round]||[10,8,6])[Math.min(yearOffset,2)];
 
 // ─── VISUAL STYLES ────────────────────────────────────────────────────────────
 export const TIER_STYLE = {

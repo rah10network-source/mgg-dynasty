@@ -33,8 +33,10 @@ const STAT_FIELDS = [
   "pass_yd","pass_td","pass_int",
   "rush_yd","rush_td","rush_att",
   "rec","rec_yd","rec_td","rec_tgt",
-  "def_sack","def_tackle_solo","def_tackle_for_loss",
-  "def_pass_def","def_int","def_forced_fumble","def_fumble_rec",
+  // IDP — def_tackle_ast + def_qb_hit + def_safe were previously missing
+  "def_sack","def_tackle_solo","def_tackle_ast","def_tackle_for_loss",
+  "def_qb_hit","def_pass_def","def_int","def_forced_fumble","def_fumble_rec",
+  "def_safe","def_td",
 ];
 
 // ─── LOAD DATA ────────────────────────────────────────────────────────────────
@@ -223,7 +225,7 @@ export const loadData = async (log, manualSitsRef) => {
     if      (p.pos === "QB")             p.statLine = `${Math.round(t.pass_yd||0)}yds ${t.pass_td||0}td ${t.pass_int||0}int`;
     else if (p.pos === "RB")             p.statLine = `${Math.round(t.rush_yd||0)}ru ${t.rush_td||0}td · ${t.rec||0}rec ${Math.round(t.rec_yd||0)}yds`;
     else if (["WR","TE"].includes(p.pos)) p.statLine = `${t.rec||0}rec ${Math.round(t.rec_yd||0)}yds ${t.rec_td||0}td · ${t.rec_tgt||0}tgt`;
-    else if (["DL","LB","DB"].includes(p.pos)) p.statLine = `${t.def_tackle_solo||0}tkl ${t.def_sack||0}sck ${t.def_int||0}int ${t.def_pass_def||0}pd`;
+    else if (["DL","LB","DB"].includes(p.pos)) p.statLine = `${t.def_tackle_solo||0}tkl ${t.def_tackle_ast||0}ast ${t.def_sack||0}sck ${t.def_qb_hit||0}qbh ${t.def_int||0}int ${t.def_pass_def||0}pd`;
   });
   log(`Stats applied to ${hits}/${pl.length} rostered players`, hits > 0 ? "success" : "info");
 
