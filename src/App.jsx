@@ -2,7 +2,11 @@ import { useState, useCallback, useRef, useEffect } from "react";
 
 import { LEAGUE_ID, PICK_VALUES, MANUAL_SITUATIONS, LEAGUE_API_KEY } from "./constants";
 import { calcAge, resolveBreakoutFlag, ageScore }     from "./scoring";
-import { loadData as apiLoadData, runIntel as apiRunIntel, claudeAnalyse, claudeTradeAnalysis } from "./api";
+import { loadData as apiLoadData } from "./api";
+import { runIntel as apiRunIntel, claudeAnalyse } from "./intel";
+import { claudeTradeAnalysis, pickValue, itemScore, tradeTotal as tradeTotalFn, tradeVerdict as tradeVerdictFn } from "./trade";
+import { runWatchlistResearch } from "./watchlist";
+import { gradeRoster, isSellHigh, weakPositions } from "./roster";
 import { doExport }           from "./export";
 import { lsGet, lsSet }       from "./storage";
 import { useIdentity }         from "./identity";
@@ -25,7 +29,6 @@ const getApiKey = () => {
 };
 const hasApiKey = () => isProxied() || !!getApiKey();
 
-const pickValue    = (round, yo) => (PICK_VALUES[round]||[10,8,6])[Math.min(yo,2)];
 const SEASON_MODES = ["offseason","preseason","inseason","playoffs","complete"];
 
 export default function App() {
@@ -49,7 +52,6 @@ export default function App() {
   const [nflDb,             setNflDb]             = useState({});
   const [draftPicksByOwner, setDraftPicksByOwner] = useState({});
   const [rosterIdToOwner,   setRosterIdToOwner]   = useState({});
-  const [userIdToOwner,     setUserIdToOwner]     = useState({});
   const [newsMap,   setNewsMap]  = useState({});
   const [newsPhase, setNewsPhase]= useState("idle");
   const [syncedAt,  setSyncedAt] = useState(null);
@@ -174,9 +176,8 @@ export default function App() {
   const addPick=(side)=>{const yr=side==="A"?tradePickYrA:tradePickYrB,rd=side==="A"?tradePickRdA:tradePickRdB;const set=side==="A"?setTradeSideA:setTradeSideB;set(prev=>[...prev,{type:"pick",id:`${yr}-${rd}-${Date.now()}`,label:`${yr} ${rd}`,year:yr,round:rd,score:pickValue(rd,yr-2026),customVal:null}]);};
   const removeItem=(side,id)=>{const set=side==="A"?setTradeSideA:setTradeSideB;set(prev=>prev.filter(x=>(x.pid||x.id)!==id));};
   const setPickCustomVal=(side,id,val)=>{const set=side==="A"?setTradeSideA:setTradeSideB;set(prev=>prev.map(x=>x.id===id?{...x,customVal:val===''?null:Number(val)}:x));};
-  const itemScore =(i)=>i.customVal??i.score??0;
-  const tradeTotal=(s)=>(s==="A"?tradeSideA:tradeSideB).reduce((a,x)=>a+itemScore(x),0);
-  const tradeVerdict=()=>{const d=tradeTotal("B")-tradeTotal("A"),a=Math.abs(d);if(a<=5)return{label:"FAIR TRADE",color:"#3b82f6",diff:d};if(a<=15)return{label:d>0?"SLIGHT WIN":"SLIGHT LOSS",color:d>0?"#22c55e":"#f59e0b",diff:d};if(a<=30)return{label:d>0?"CLEAR WIN":"CLEAR LOSS",color:d>0?"#22c55e":"#ef4444",diff:d};return{label:d>0?"STRONG WIN":"LOPSIDED LOSS",color:d>0?"#22c55e":"#ef4444",diff:d};};
+  const tradeTotal=(s)=>tradeTotalFn(s==="A"?tradeSideA:tradeSideB);
+  const tradeVerdict=()=>tradeVerdictFn(tradeSideA,tradeSideB);
   const tradeReset=()=>{setTradeSideA([]);setTradeSideB([]);setTradeSearchA("");setTradeSearchB("");setTradeOwnerB("");setClaudeTradeNarrative(null);};
   const requestClaudeTradeNarrative=async()=>{const k=getApiKey();if(!k&&!isProxied())return;setClaudeTradeLoading(true);setClaudeTradeNarrative(null);try{setClaudeTradeNarrative(await claudeTradeAnalysis(tradeSideA,tradeSideB,tradeOwnerA,tradeOwnerB,k));}catch{}setClaudeTradeLoading(false);};
 
@@ -229,18 +230,13 @@ export default function App() {
   const doLoad=useCallback(async()=>{
     setPhase("loading");logRef.current=[];setProgress([]);
     try{
-      const{players:pl,nflDb:db,seasonState:ss,draftPicksByOwner:dpbo,rosterIdToOwner:rid2o,userIdToOwner:uid2o={}}=await apiLoadData(log,manualSitsRef);
-      setPlayers(pl);setNflDb(db);setDraftPicksByOwner(dpbo);setRosterIdToOwner(rid2o);setUserIdToOwner(uid2o);
+      const{players:pl,nflDb:db,seasonState:ss,draftPicksByOwner:dpbo,rosterIdToOwner:rid2o}=await apiLoadData(log,manualSitsRef);
+      setPlayers(pl);setNflDb(db);setDraftPicksByOwner(dpbo);setRosterIdToOwner(rid2o);
       setSeasonState(prev=>prev._override?prev:ss);setSyncedAt(new Date().toLocaleTimeString());setPhase("done");
-      // Auto-match via direct Sleeper userId → owner name lookup (authoritative)
+      // Re-open login if identity owner no longer matches loaded roster
       if(identity){
-        const directMatch=uid2o[identity.userId];
-        if(directMatch){
-          if(directMatch!==identity.ownerName) setOwnerMapping(directMatch);
-        } else {
-          const loaded=[...new Set(pl.map(p=>p.owner).filter(Boolean))];
-          if(loaded.length>0&&!loaded.includes(identity.ownerName)) setLoginOpen(true);
-        }
+        const loaded=[...new Set(pl.map(p=>p.owner).filter(Boolean))];
+        if(loaded.length>0&&!loaded.includes(identity.ownerName)) setLoginOpen(true);
       }
     }catch(e){log(`Error: ${e.message}`,"error");setPhase("error");}
   },[identity]); // eslint-disable-line
@@ -255,14 +251,6 @@ export default function App() {
   const handleSleeperLogin=async()=>{
     const user=await doSleeperLogin();
     if(!user)return;
-    // 1. Direct match via Sleeper userId → roster owner name (most reliable)
-    const directMatch=userIdToOwner[user.user_id];
-    if(directMatch){
-      finaliseLogin(user, directMatch);
-      setTradeOwnerA(directMatch);
-      return;
-    }
-    // 2. Fuzzy fallback (for pre-sync login)
     const displayName=user.metadata?.team_name||user.display_name||user.username||loginInput.trim();
     const uname=(user.username||loginInput.trim()).toLowerCase();
     const matchedOwner=owners.find(o=>
@@ -376,7 +364,7 @@ export default function App() {
 
         {tab==="dashboard"&&<Dashboard phase={phase} players={players} currentOwner={activeOwner} owners={owners} newsMap={newsMap} seasonState={seasonState} onViewTeam={isCommissioner?enterViewMode:undefined}/>}
         {tab==="leaguehub"&&<LeagueHub phase={phase} players={players} owners={owners} currentOwner={activeOwner} newsMap={newsMap} setDetail={setDetail} setActiveTab={setTab} seasonState={seasonState} onViewTeam={isCommissioner?enterViewMode:undefined}/>}
-        {tab==="teamhub"&&<TeamHub phase={phase} players={players} owners={owners} currentOwner={activeOwner} newsMap={newsMap} draftPicksByOwner={draftPicksByOwner} isViewMode={isViewMode} viewingOwner={viewingOwner} isCommissioner={isCommissioner} onViewTeam={enterViewMode} onExitView={exitViewMode}/>}
+        {tab==="teamhub"&&<TeamHub phase={phase} players={players} owners={owners} currentOwner={activeOwner} isViewMode={isViewMode} viewingOwner={viewingOwner} isCommissioner={isCommissioner} onViewTeam={enterViewMode} onExitView={exitViewMode}/>}
         {tab==="playerhub"&&<PlayerHub
           currentOwner={currentOwner} activeOwner={activeOwner} isViewMode={isViewMode}
           owners={owners} phase={phase} players={players} newsMap={newsMap} nflDb={nflDb} view={view}
@@ -446,33 +434,22 @@ export default function App() {
                     {isCommissioner&&<span style={{color:"#f59e0b",marginLeft:8,fontWeight:700}}>★ COMMISSIONER</span>}
                   </div>
                 </div>
-                {/* Owner mapping — show current team, allow correction behind toggle */}
+                {/* Owner mapping correction */}
                 {owners.length>0&&(
                   <div style={{marginBottom:16}}>
-                    <div style={{background:"#080d14",border:"1px solid #1e2d3d",borderRadius:6,padding:"8px 12px",marginBottom:6,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                      <div>
-                        <div style={{fontSize:8,color:"#4d6880",letterSpacing:1,marginBottom:2}}>YOUR TEAM</div>
-                        <div style={{fontSize:13,fontWeight:700,color:"#22c55e"}}>{identity.ownerName||"—"}</div>
-                        <div style={{fontSize:9,color:"#4d6880",marginTop:1}}>{players.filter(p=>p.owner===identity.ownerName).length} players rostered</div>
-                      </div>
-                      <span style={{fontSize:18,color:"#22c55e"}}>◎</span>
+                    <div style={{fontSize:9,color:"#4d6880",letterSpacing:1,marginBottom:6}}>YOUR TEAM — tap to correct</div>
+                    <div style={{display:"flex",flexDirection:"column",gap:4,maxHeight:200,overflowY:"auto"}}>
+                      {owners.map(o=>(<button key={o} onClick={()=>setOwnerMapping(o)}
+                        style={{background:identity.ownerName===o?"#0f2b1a":"#0a1118",
+                          border:`1px solid ${identity.ownerName===o?"#22c55e":"#1e2d3d"}`,
+                          color:identity.ownerName===o?"#22c55e":"#e2e8f0",borderRadius:6,
+                          padding:"8px 12px",fontFamily:"inherit",fontSize:11,
+                          fontWeight:identity.ownerName===o?700:400,cursor:"pointer",
+                          textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                        <span>{o}</span>
+                        <span style={{fontSize:9,color:"#4d6880"}}>{players.filter(p=>p.owner===o).length} players</span>
+                      </button>))}
                     </div>
-                    <details>
-                      <summary style={{fontSize:9,color:"#4d6880",cursor:"pointer",letterSpacing:1,padding:"2px 0"}}>▸ Wrong team? Correct it</summary>
-                      <div style={{display:"flex",flexDirection:"column",gap:4,marginTop:8,maxHeight:180,overflowY:"auto"}}>
-                        {owners.map(o=>(<button key={o} onClick={()=>setOwnerMapping(o)}
-                          style={{background:identity.ownerName===o?"#0f2b1a":"#0a1118",
-                            border:`1px solid ${identity.ownerName===o?"#22c55e":"#1e2d3d"}`,
-                            color:identity.ownerName===o?"#22c55e":"#e2e8f0",borderRadius:5,
-                            padding:"6px 10px",fontFamily:"inherit",fontSize:10,
-                            fontWeight:identity.ownerName===o?700:400,cursor:"pointer",
-                            textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                          <span>{o}</span>
-                          <span style={{fontSize:9,color:"#4d6880"}}>{players.filter(p=>p.owner===o).length}p {identity.ownerName===o?"✓":""}</span>
-                        </button>))}
-                      </div>
-                      <div style={{fontSize:8,color:"#2a3d52",marginTop:4}}>This permanently updates your identity — use Commissioner 👁 to view other teams</div>
-                    </details>
                   </div>
                 )}
                 {/* Commissioner mode */}

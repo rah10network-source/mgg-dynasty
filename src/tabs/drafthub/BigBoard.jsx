@@ -2,20 +2,8 @@
 // Personal pre-draft ranking board. Persists to localStorage.
 // Toggle: ROOKIES (years_exp===0) | ROOKIES + VETS (all unrostered)
 import { useState, useMemo } from "react";
-import { TIER_STYLE, INJ_COLOR, POS_ORDER } from "../../constants";
-
-const ROUND_COLORS = [
-  "#22c55e", // 1 - green
-  "#60a5fa", // 2 - blue
-  "#f59e0b", // 3 - amber
-  "#f97316", // 4 - orange
-  "#a855f7", // 5 - purple
-  "#06b6d4", // 6 - cyan
-  "#ec4899", // 7 - pink
-  "#84cc16", // 8 - lime
-  "#94a3b8", // 9 - slate
-  "#6b7280", // 10 - gray
-];
+import { INJ_COLOR, POS_ORDER } from "../../constants";
+import { filterDraftPool, ROUND_COLORS, ROUND_LABEL } from "../../draft";
 
 export function BigBoard({
   nflDb, players,            // players = rostered
@@ -31,49 +19,24 @@ export function BigBoard({
 
   const rosteredPids = useMemo(() => new Set(players.map(p => p.pid)), [players]);
 
-  // Available pool based on mode
+  // Available pool — built by draft.js filterDraftPool (single source of truth)
   const pool = useMemo(() => {
     if (Object.keys(nflDb).length === 0) return [];
-    return Object.entries(nflDb)
-      .filter(([pid, p]) => {
-        if (bigBoard.find(b => b.pid === pid)) return false; // already on board
-        if (!p.position || !["QB","RB","WR","TE","DL","LB","DB","K"].includes(p.position)) return false;
-        // ── Active player gate — filters out retired, cut, practice squad, phantom entries ──
-        const INACTIVE_STATUSES = ["Inactive","Retired","Suspended","Cut","Released","PracticeSquad","Practice Squad"];
-        if (INACTIVE_STATUSES.includes(p.status)) return false;
-        // Rookies (years_exp===0) are fine with no team — they haven't been assigned yet
-        // Veterans with no team and >2 years exp are almost certainly cut/retired
-        if (bigBoardMode !== "rookies" && !p.team && (p.years_exp ?? 0) > 2) return false;
-        if (bigBoardMode === "rookies" && (p.years_exp ?? 99) !== 0) return false;
-        // "all" = include vets that are unrostered (FA) — exclude already-rostered
-        if (bigBoardMode === "all" && rosteredPids.has(pid)) return false;
-        if (posF !== "ALL" && p.position !== posF) return false;
-        if (searchQ) {
-          const s  = searchQ.toLowerCase();
-          const nm = (p.full_name || `${p.first_name||""} ${p.last_name||""}`).toLowerCase();
-          if (!nm.includes(s) && !(p.team||"").toLowerCase().includes(s)) return false;
-        }
-        return true;
-      })
-      .map(([pid, p]) => ({
-        pid,
-        name:    p.full_name || `${p.first_name||""} ${p.last_name||""}`.trim(),
-        pos:     p.position,
-        team:    p.team || "FA",
-        age:     p.birth_date ? +((new Date(2026,2,6) - new Date(typeof p.birth_date==="number"?p.birth_date*1000:p.birth_date))/(365.25*86400000)).toFixed(1) : null,
-        depth:   p.depth_chart_order || null,
-        inj:     p.injury_status || null,
-        yrsExp:  p.years_exp ?? null,
-        college: p.college || null,
-      }))
-      .sort((a,b) => {
-        // Rookies: sort by depth chart order (starters first) then age
-        if (a.depth && b.depth) return a.depth - b.depth;
-        if (a.depth) return -1;
-        if (b.depth) return 1;
-        return (a.age||99) - (b.age||99);
-      })
-      .slice(0, 300);
+    const excludePids = new Set(bigBoard.map(b => b.pid));
+    return filterDraftPool(nflDb, {
+      mode:        bigBoardMode,
+      rosteredPids,
+      excludePids,
+      posFilter:   posF,
+      searchQ,
+    })
+    .sort((a, b) => {
+      if (a.depth && b.depth) return a.depth - b.depth;
+      if (a.depth) return -1;
+      if (b.depth) return 1;
+      return (a.age || 99) - (b.age || 99);
+    })
+    .slice(0, 300);
   }, [nflDb, bigBoard, bigBoardMode, posF, searchQ, rosteredPids]);
 
   if (phase !== "done" && Object.keys(nflDb).length === 0) {

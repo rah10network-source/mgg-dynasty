@@ -5,7 +5,20 @@ import {
   calcAge, ageScore, normalise, calcSleeperPts, idpScarcity,
   sitMultiplier, resolveBreakoutFlag, detectSituation, deriveSignal,
 } from "./scoring";
-import { loadMarketValues } from "./ktc";
+
+// ─── RE-EXPORTS FOR BACKWARD COMPAT ──────────────────────────────────────────
+// These functions now live in their dedicated logic modules.
+// Re-exported here so existing import paths continue to work.
+// TODO: Update consumers to import directly from intel.js / trade.js
+export { runIntel, deepAnalyse, claudeAnalyse, fetchIntelSources } from "./intel";
+export { claudeTradeAnalysis } from "./trade";
+
+  LEAGUE_ID, SLEEPER, SCARCITY, PRIME, POS_ORDER, SCORING, SITUATION_PATTERNS,
+} from "./constants";
+import {
+  calcAge, ageScore, normalise, calcSleeperPts, idpScarcity,
+  sitMultiplier, resolveBreakoutFlag, detectSituation, deriveSignal,
+} from "./scoring";
 
 // ─── RAW FETCH ────────────────────────────────────────────────────────────────
 export const sf = async (path) => {
@@ -63,7 +76,7 @@ export const loadData = async (log, manualSitsRef) => {
   // for the next 3 seasons, then apply traded_picks to move picks around.
   log("Loading draft picks...");
   const draftPicksByOwner = {};
-  const draftRounds = lg.settings?.draft_rounds || lg.settings?.rounds || 10;
+  const draftRounds = lg.settings?.draft_rounds || lg.settings?.rounds || 5;
   const currentSeason = Number(lg.season || new Date().getFullYear());
   const futureSeasons = [currentSeason + 1, currentSeason + 2, currentSeason + 3];
 
@@ -282,34 +295,14 @@ export const loadData = async (log, manualSitsRef) => {
     p.roleStab  = p.depthOrder ? Math.max(0, 100 - (p.depthOrder - 1) * 30) : 55;
   });
 
-  // ── Market values (KTC + FantasyCalc) ──────────────────────────────────────
-  // Attaches p.fcValue, p.ktcValue, p.marketValue to each player.
-  // Non-fatal — if both sources fail, falls back to internal scoring only.
-  pl = await loadMarketValues(pl, log);
-
   pl = normalise(pl, "prodProxy");
   pl = normalise(pl, "ageGated");
   pl = normalise(pl, "demandRaw");
   pl = normalise(pl, "roleStab");
-  pl = normalise(pl, "marketValue"); // no-op for players without a match (all→50)
-
   pl.forEach(p => {
-    // If market value was matched, use it as the 50% anchor.
-    // Prod (your league's actual scoring) + ageGated (real-life situation) fine-tune.
-    // demandRaw (what your league values via transactions) rounds it out.
-    // For players with no market match, fall back to the internal-only formula.
-    if (p.marketValue != null) {
-      p.score = Math.round(Math.min(100, Math.max(0,
-        p.marketValue_n * 0.50 +
-        p.prodProxy_n   * 0.25 +
-        p.ageGated_n    * 0.15 +
-        p.demandRaw_n   * 0.10
-      )));
-    } else {
-      p.score = Math.round(Math.min(100, Math.max(0,
-        p.prodProxy_n * 0.45 + p.ageGated_n * 0.30 + p.demandRaw_n * 0.15 + p.roleStab_n * 0.10
-      )));
-    }
+    p.score = Math.round(Math.min(100, Math.max(0,
+      p.prodProxy_n * 0.45 + p.ageGated_n * 0.30 + p.demandRaw_n * 0.15 + p.roleStab_n * 0.10
+    )));
   });
 
   const srt = [...pl].sort((a, b) => b.score - a.score);
@@ -346,269 +339,6 @@ export const loadData = async (log, manualSitsRef) => {
   };
   log(`Season: ${seasonState.season} · ${seasonState.mode.toUpperCase()}${seasonState.currentWeek ? " · Week " + seasonState.currentWeek : ""}`, "success");
 
-  return { players: pl.sort((a, b) => b.score - a.score), nflDb: allP, seasonState, draftPicksByOwner, rosterIdToOwner, userIdToOwner: userMap };
+  return { players: pl.sort((a, b) => b.score - a.score), nflDb: allP, seasonState, draftPicksByOwner, rosterIdToOwner };
 };
 
-// ─── INTEL SCAN ───────────────────────────────────────────────────────────────
-// Rule-based signal derivation from ESPN headlines + Sleeper trending.
-// Returns newsMap { playerName: { status, situation, signal, note, situationFlag, situationNote } }
-export const runIntel = async (players) => {
-  let headlines = [];
-  try {
-    const r = await fetch(
-      "https://site.api.espn.com/apis/site/v2/sports/football/nfl/news?limit=100",
-      { signal: AbortSignal.timeout(6000) }
-    );
-    if (r.ok) {
-      const d = await r.json();
-      headlines = (d.articles || []).map(a => a.headline || a.title || "").filter(Boolean);
-    }
-  } catch {}
-
-  let trending = [];
-  try {
-    const r = await fetch(
-      "https://api.sleeper.app/v1/players/nfl/trending/add?lookback_hours=48&limit=50",
-      { signal: AbortSignal.timeout(6000) }
-    );
-    if (r.ok) {
-      const d = await r.json();
-      trending = d.map(t => t.player_id || t);
-    }
-  } catch {}
-
-  // Auto-detect situations from headlines for players without a manual flag
-  const enrichedPlayers = players.map(p => {
-    if (p.situationFlag) return p;
-    const autoFlag = detectSituation(p.name, headlines);
-    if (autoFlag) {
-      const resolved = resolveBreakoutFlag(autoFlag, p.age);
-      return { ...p, situationFlag: resolved, situationNote: "Auto-detected from news", situationGames: null };
-    }
-    return p;
-  });
-
-  const result = {};
-  enrichedPlayers
-    .filter(p => ["QB","RB","WR","TE"].includes(p.pos))
-    .forEach(p => {
-      const intel = deriveSignal(p, headlines);
-      if (trending.includes(p.pid) && intel.signal === "HOLD") intel.signal = "WATCH";
-      // Situation flag overrides
-      if ((p.situationFlag === "BREAKOUT_YOUNG" || p.situationFlag === "BREAKOUT_ROLE") && intel.signal === "HOLD") intel.signal = "BUY";
-      if (p.situationFlag === "DEPTH_PROMOTED"  && intel.signal === "HOLD") intel.signal = "BUY";
-      if (p.situationFlag === "CAMP_BATTLE"     && intel.signal === "HOLD") intel.signal = "WATCH";
-      if (p.situationFlag === "IR_RETURN"       && intel.signal === "HOLD") intel.signal = "WATCH";
-      if (p.situationFlag === "TRADE_DEMAND")                                intel.signal = "SELL";
-      if (p.situationFlag === "SUSPENSION")                                  intel.signal = "WATCH";
-      if (p.situationFlag === "AGE_CLIFF"       && intel.signal === "HOLD") intel.signal = "WATCH";
-      if (p.situationFlag === "FREE_AGENT")                                  intel.signal = "WATCH";
-      result[p.name] = { ...intel, situationFlag: p.situationFlag, situationNote: p.situationNote };
-    });
-
-  return { newsMap: result, enrichedPlayers };
-};
-
-// ─── DEEP ANALYSE ─────────────────────────────────────────────────────────────
-// Rule-based fallback. Used when no API key is set.
-const HEADLINE_RULES = [
-  { flag:"TRADE_DEMAND",  terms:["trade request","requested trade","wants out","unhappy","demands trade"] },
-  { flag:"FREE_AGENT",    terms:["released","cut by","waived","terminated contract"] },
-  { flag:"SUSPENSION",    terms:["suspended","suspension","banned"] },
-  { flag:"IR_RETURN",     terms:["return from ir","activated from ir","cleared to return","off injured reserve"] },
-  { flag:"CAMP_BATTLE",   terms:["competition","camp battle","depth chart battle","competing for starting","position battle"] },
-  { flag:"DEPTH_PROMOTED",terms:["named starter","takes over as starter","steps in at","starting in place","promoted to starter"] },
-  { flag:"BREAKOUT_ROLE", terms:["lead back","featured back","bell cow","every down back","expanded role","target share increase"] },
-  { flag:"NEW_OC",        terms:["traded to","acquired by","sent to","new team","offensive coordinator","new oc","scheme change"] },
-  { flag:"CONTRACT_YEAR", terms:["contract year","final year of","extension talks","upcoming free agent"] },
-];
-
-const SIG_MAP = {
-  SUSPENSION:"WATCH", TRADE_DEMAND:"SELL", FREE_AGENT:"WATCH",
-  IR_RETURN:"WATCH",  CAMP_BATTLE:"WATCH", DEPTH_PROMOTED:"BUY",
-  BREAKOUT_ROLE:"BUY",BREAKOUT_YOUNG:"BUY",NEW_OC:"HOLD", CONTRACT_YEAR:"HOLD",
-  AGE_CLIFF:"WATCH",
-};
-
-export const deepAnalyse = (name, headlines, p) => {
-  const sources = [];
-
-  // Layer 1: Sleeper roster data (authoritative)
-  if (p) {
-    if (p.team === "FA" || ["Cut","Inactive","Released"].includes(p.status)) {
-      return { flag:"FREE_AGENT", note:`${name} is a free agent — no team, scheme, or role confirmed`,
-               signal:"WATCH", reasoning:`Sleeper: team="${p.team||"FA"}", status="${p.status||"unknown"}".`,
-               status:"done", approved:false };
-    }
-    if (["IR","PUP"].includes(p.injStatus)) {
-      return { flag:"IR_RETURN", note:`${name} on ${p.injStatus} — timeline and return workload uncertain`,
-               signal:"WATCH", reasoning:`Sleeper injury status: ${p.injStatus}.`,
-               status:"done", approved:false };
-    }
-    if (p.trades >= 1) {
-      sources.push({ flag:"NEW_OC", confidence:p.trades*3,
-        reason:`Dynasty traded ${p.trades}x — new team/scheme, role uncertain` });
-    }
-    if (p.trades === 0 && p.adds >= 3 && p.depthOrder === 1 && p.yrsExp <= 3) {
-      const flag = resolveBreakoutFlag("BREAKOUT_ROLE", p.age);
-      sources.push({ flag, confidence:p.adds, reason:`Depth #1, ${p.adds} FA adds, ${p.yrsExp} yrs exp` });
-    }
-    if (p.depthOrder >= 2 && (p.ppg === 0 || p.ppg == null) && p.gamesStarted === 0) {
-      sources.push({ flag:"CAMP_BATTLE", confidence:1,
-        reason:`Depth #${p.depthOrder} with no starts — role competition likely` });
-    }
-  }
-
-  // Layer 2: Headline scan
-  const normName  = name.toLowerCase().replace(/[^a-z0-9 ]/g,"").trim();
-  const normParts = normName.split(" ").filter(Boolean);
-  const lastName  = normParts[normParts.length-1];
-  const firstName = normParts[0];
-  const relevant  = headlines.filter(h => {
-    const hl = h.toLowerCase().replace(/[^a-z0-9 ]/g,"");
-    return hl.includes(lastName) && hl.includes(firstName.slice(0,2));
-  });
-  const text = relevant.join(" ").toLowerCase().replace(/[^a-z0-9 ]/g,"");
-
-  if (text) {
-    HEADLINE_RULES.forEach(({ flag, terms }) => {
-      const normTerms = terms.map(t => t.toLowerCase().replace(/[^a-z0-9 ]/g,""));
-      const hits = normTerms.filter(t => text.includes(t)).length;
-      if (hits > 0) sources.push({ flag, confidence:hits,
-        reason:`Headline: "${terms.filter((t,i)=>text.includes(normTerms[i]))[0]}"` });
-    });
-  }
-
-  if (!sources.length) return null;
-  sources.sort((a,b) => b.confidence-a.confidence);
-  const top         = sources[0];
-  const resolvedFlag= resolveBreakoutFlag(top.flag, p?.age);
-  const rule        = HEADLINE_RULES.find(r => r.flag===top.flag);
-  const noteSrc     = relevant.find(h => rule?.terms.some(t => h.toLowerCase().includes(t))) || relevant[0];
-  const note        = noteSrc ? (noteSrc.length>100 ? noteSrc.slice(0,97)+"..." : noteSrc) : top.reason;
-
-  return {
-    flag:      resolvedFlag,
-    note,
-    signal:    SIG_MAP[resolvedFlag]||"HOLD",
-    reasoning: top.reason + (sources.length>1?` · ${sources.length-1} other signal(s) detected.`:""),
-    status:    "done",
-    approved:  false,
-  };
-};
-
-// ─── CLAUDE AI ANALYSE ────────────────────────────────────────────────────────
-// AI-powered player situation analysis. Uses Claude Haiku for speed + cost.
-// Falls back gracefully — callers should always have deepAnalyse as a backup.
-export const claudeAnalyse = async (name, headlines, playerData, apiKey) => {
-  if (!apiKey) return null;
-
-  const playerContext = playerData ? [
-    `Position: ${playerData.pos}`,
-    `Team: ${playerData.team}`,
-    `Age: ${playerData.age}`,
-    `Dynasty Score: ${playerData.score}`,
-    `Depth Chart: #${playerData.depthOrder || "?"}`,
-    `Injury Status: ${playerData.injStatus || "Healthy"}`,
-    `Years Experience: ${playerData.yrsExp}`,
-    `FA Adds This Season: ${playerData.adds}`,
-    `Dynasty Trades: ${playerData.trades}`,
-    `PPG: ${playerData.ppg ?? "N/A"}`,
-  ].join("\n") : "No roster data available.";
-
-  const relevant = headlines
-    .filter(h => {
-      const hl = h.toLowerCase();
-      const parts = name.toLowerCase().replace(/[^a-z ]/g,"").split(" ").filter(Boolean);
-      // Require at least first 4 chars of first name AND last name present
-      return parts.length >= 2 && hl.includes(parts[0].slice(0,4)) && hl.includes(parts[parts.length-1]);
-    })
-    .slice(0, 8)
-    .join("\n");
-
-  const prompt = `You are a dynasty fantasy football analyst. Evaluate this player for a dynasty league owner.
-
-PLAYER: ${name}
-${playerContext}
-
-RECENT HEADLINES (ESPN):
-${relevant || "No recent headlines found for this player."}
-
-Respond ONLY with valid JSON — no explanation, no markdown fences:
-{"signal":"BUY"|"SELL"|"HOLD"|"WATCH","flag":"BREAKOUT_YOUNG"|"BREAKOUT_ROLE"|"DEPTH_PROMOTED"|"CAMP_BATTLE"|"IR_RETURN"|"TRADE_DEMAND"|"SUSPENSION"|"AGE_CLIFF"|"FREE_AGENT"|"NEW_OC"|"CONTRACT_YEAR"|null,"note":"One sentence situation summary, max 120 chars","reasoning":"2-3 sentence dynasty analysis. Be specific about age, role, and value."}`;
-
-  try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-        "anthropic-dangerous-direct-browser-access": "true",
-      },
-      body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 350,
-        messages: [{ role: "user", content: prompt }],
-      }),
-    });
-    if (!res.ok) {
-      console.warn("claudeAnalyse HTTP error:", res.status);
-      return null;
-    }
-    const data = await res.json();
-    const text = data.content?.[0]?.text || "";
-    const clean = text.replace(/```json|```/g, "").trim();
-    const parsed = JSON.parse(clean);
-    return { ...parsed, status: "done", approved: false, aiPowered: true };
-  } catch(e) {
-    console.warn("claudeAnalyse failed:", e.message);
-    return null;
-  }
-};
-
-// ─── CLAUDE TRADE ANALYSIS ────────────────────────────────────────────────────
-// Generates a plain-English dynasty trade verdict narrative.
-// Returns a string or null on failure.
-export const claudeTradeAnalysis = async (sideA, sideB, ownerA, ownerB, apiKey) => {
-  if (!apiKey || (sideA.length === 0 && sideB.length === 0)) return null;
-
-  const formatSide = (items) => items.map(x =>
-    x.type === "pick"
-      ? `${x.label} draft pick (est. dynasty value: ${x.customVal ?? x.score})`
-      : `${x.name} — ${x.pos}, ${x.team}, age ${x.age}, dynasty score ${x.score}/100`
-  ).join("\n  ") || "  (nothing)";
-
-  const prompt = `You are a dynasty fantasy football expert. Give a direct, specific trade verdict.
-
-${ownerA || "Team A"} gives:
-  ${formatSide(sideA)}
-
-${ownerB || "Team B"} gives:
-  ${formatSide(sideB)}
-
-In 2-3 sentences: state clearly who wins this trade and why. Focus on dynasty value — age curves, position scarcity, role security — not just redraft stats. Be direct, not wishy-washy.`;
-
-  try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-        "anthropic-dangerous-direct-browser-access": "true",
-      },
-      body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 220,
-        messages: [{ role: "user", content: prompt }],
-      }),
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.content?.[0]?.text?.trim() || null;
-  } catch(e) {
-    console.warn("claudeTradeAnalysis failed:", e.message);
-    return null;
-  }
-};

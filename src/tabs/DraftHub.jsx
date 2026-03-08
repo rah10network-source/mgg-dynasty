@@ -87,6 +87,7 @@ export function DraftHub({
           liveDraftId={liveDraftId}
           setLiveDraftId={setLiveDraftId}
           rosterIdToOwner={rosterIdToOwner}
+          seasonState={seasonState}
         />
       )}
     </div>
