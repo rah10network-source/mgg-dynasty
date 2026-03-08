@@ -376,7 +376,7 @@ export default function App() {
 
         {tab==="dashboard"&&<Dashboard phase={phase} players={players} currentOwner={activeOwner} owners={owners} newsMap={newsMap} seasonState={seasonState} onViewTeam={isCommissioner?enterViewMode:undefined}/>}
         {tab==="leaguehub"&&<LeagueHub phase={phase} players={players} owners={owners} currentOwner={activeOwner} newsMap={newsMap} setDetail={setDetail} setActiveTab={setTab} seasonState={seasonState} onViewTeam={isCommissioner?enterViewMode:undefined}/>}
-        {tab==="teamhub"&&<TeamHub phase={phase} players={players} owners={owners} currentOwner={activeOwner} newsMap={newsMap} isViewMode={isViewMode} viewingOwner={viewingOwner} isCommissioner={isCommissioner} onViewTeam={enterViewMode} onExitView={exitViewMode}/>}
+        {tab==="teamhub"&&<TeamHub phase={phase} players={players} owners={owners} currentOwner={activeOwner} newsMap={newsMap} draftPicksByOwner={draftPicksByOwner} isViewMode={isViewMode} viewingOwner={viewingOwner} isCommissioner={isCommissioner} onViewTeam={enterViewMode} onExitView={exitViewMode}/>}
         {tab==="playerhub"&&<PlayerHub
           currentOwner={currentOwner} activeOwner={activeOwner} isViewMode={isViewMode}
           owners={owners} phase={phase} players={players} newsMap={newsMap} nflDb={nflDb} view={view}
@@ -446,22 +446,33 @@ export default function App() {
                     {isCommissioner&&<span style={{color:"#f59e0b",marginLeft:8,fontWeight:700}}>★ COMMISSIONER</span>}
                   </div>
                 </div>
-                {/* Owner mapping correction */}
+                {/* Owner mapping — show current team, allow correction behind toggle */}
                 {owners.length>0&&(
                   <div style={{marginBottom:16}}>
-                    <div style={{fontSize:9,color:"#4d6880",letterSpacing:1,marginBottom:6}}>YOUR TEAM — tap to correct</div>
-                    <div style={{display:"flex",flexDirection:"column",gap:4,maxHeight:200,overflowY:"auto"}}>
-                      {owners.map(o=>(<button key={o} onClick={()=>setOwnerMapping(o)}
-                        style={{background:identity.ownerName===o?"#0f2b1a":"#0a1118",
-                          border:`1px solid ${identity.ownerName===o?"#22c55e":"#1e2d3d"}`,
-                          color:identity.ownerName===o?"#22c55e":"#e2e8f0",borderRadius:6,
-                          padding:"8px 12px",fontFamily:"inherit",fontSize:11,
-                          fontWeight:identity.ownerName===o?700:400,cursor:"pointer",
-                          textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                        <span>{o}</span>
-                        <span style={{fontSize:9,color:"#4d6880"}}>{players.filter(p=>p.owner===o).length} players</span>
-                      </button>))}
+                    <div style={{background:"#080d14",border:"1px solid #1e2d3d",borderRadius:6,padding:"8px 12px",marginBottom:6,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                      <div>
+                        <div style={{fontSize:8,color:"#4d6880",letterSpacing:1,marginBottom:2}}>YOUR TEAM</div>
+                        <div style={{fontSize:13,fontWeight:700,color:"#22c55e"}}>{identity.ownerName||"—"}</div>
+                        <div style={{fontSize:9,color:"#4d6880",marginTop:1}}>{players.filter(p=>p.owner===identity.ownerName).length} players rostered</div>
+                      </div>
+                      <span style={{fontSize:18,color:"#22c55e"}}>◎</span>
                     </div>
+                    <details>
+                      <summary style={{fontSize:9,color:"#4d6880",cursor:"pointer",letterSpacing:1,padding:"2px 0"}}>▸ Wrong team? Correct it</summary>
+                      <div style={{display:"flex",flexDirection:"column",gap:4,marginTop:8,maxHeight:180,overflowY:"auto"}}>
+                        {owners.map(o=>(<button key={o} onClick={()=>setOwnerMapping(o)}
+                          style={{background:identity.ownerName===o?"#0f2b1a":"#0a1118",
+                            border:`1px solid ${identity.ownerName===o?"#22c55e":"#1e2d3d"}`,
+                            color:identity.ownerName===o?"#22c55e":"#e2e8f0",borderRadius:5,
+                            padding:"6px 10px",fontFamily:"inherit",fontSize:10,
+                            fontWeight:identity.ownerName===o?700:400,cursor:"pointer",
+                            textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                          <span>{o}</span>
+                          <span style={{fontSize:9,color:"#4d6880"}}>{players.filter(p=>p.owner===o).length}p {identity.ownerName===o?"✓":""}</span>
+                        </button>))}
+                      </div>
+                      <div style={{fontSize:8,color:"#2a3d52",marginTop:4}}>This permanently updates your identity — use Commissioner 👁 to view other teams</div>
+                    </details>
                   </div>
                 )}
                 {/* Commissioner mode */}
