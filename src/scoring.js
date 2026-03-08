@@ -3,7 +3,7 @@ import { PRIME, SCARCITY, SCORING, SITUATION_FLAGS, SITUATION_PATTERNS } from ".
 // ─── AGE ──────────────────────────────────────────────────────────────────────
 export const calcAge = (bd) => {
   if (!bd) return null;
-  const today = new Date(2026, 2, 6);
+  const today = new Date();
   const b = new Date(typeof bd === "number" ? bd * 1000 : bd);
   if (isNaN(b.getTime())) return null;
   return +((today - b) / (365.25 * 86400000)).toFixed(1);

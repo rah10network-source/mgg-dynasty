@@ -61,6 +61,7 @@ export function Dashboard({ phase, players, currentOwner, owners, newsMap, seaso
   const injured   = myPlayers.filter(p => ["Out","IR","PUP","Doubtful"].includes(p.injStatus)).slice(0, 5);
 
   const weak    = weakPositions(myGrade, players);
+  const weakPos = new Set(weak.filter(w => w.gap < -5).map(w => w.pos));
   const targets = tradeTargets(currentOwner, myGrade, players, newsMap, 5);
 
   const modeInfo  = MODE_LABEL[seasonState?.mode] || MODE_LABEL.offseason;

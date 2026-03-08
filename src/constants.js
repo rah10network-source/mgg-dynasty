@@ -99,11 +99,7 @@ export const SITUATION_FLAGS = {
 // Format: "Player Full Name": { flag:"FLAG_KEY", note:"Brief note", games?:N }
 // SUSPENSION only: add games:N (e.g. games:6) — discount = (17-N)/17
 export const MANUAL_SITUATIONS = {
-  "Kyler Murray":       { flag:"FREE_AGENT",    note:"Released by ARI 3/11 — linked to Vikings, landing spot TBD. $36.8M guaranteed." },
-  "Jacoby Brissett":    { flag:"BREAKOUT_ROLE", note:"3,366yds 23TD in 2025 as ARI starter — now QB1 candidate in free market" },
-  "Bryce Young":        { flag:"CAMP_BATTLE",   note:"Starting job not guaranteed heading into camp" },
-  "Anthony Richardson": { flag:"IR_RETURN",     note:"Returning from shoulder surgery — workload uncertain" },
-  "Christian Kirk":     { flag:"IR_RETURN",     note:"Returning from IR — target share competition expected" },
+  // Intentionally empty — set situations via the UI or let Intel Scan auto-detect.
 };
 
 // ─── AUTO-DETECTION PATTERNS ─────────────────────────────────────────────────

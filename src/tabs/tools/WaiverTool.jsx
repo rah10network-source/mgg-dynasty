@@ -164,7 +164,7 @@ export function WaiverTool({
         {/* Position filter */}
         <div style={{ display:"flex", gap:0, border:"1px solid #1e2d3d",
           borderRadius:6, overflow:"hidden" }}>
-          {["ALL","QB","RB","WR","TE","DL","LB","DB"].map(pos => (
+          {["ALL",...POS_ORDER.filter(p => ["QB","RB","WR","TE"].includes(p))].map(pos => (
             <button key={pos} onClick={() => setPosFilter(pos)}
               style={{ background:posFilter===pos?"#0c1e35":"transparent",
                 color:posFilter===pos?"#60a5fa":"#4d6880",
