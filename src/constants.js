@@ -21,26 +21,33 @@ export const PRIME = {
 export const POS_ORDER = ["QB","RB","WR","TE","DL","LB","DB","K"];
 
 // ─── FANTASY SCORING (MGG Dynasty league settings — verified vs constitution) ──
-// IDP values were previously using Team Defense multipliers — corrected here.
-// Added: def_tackle_ast (+0.5), def_qb_hit (+0.5) — both missing previously.
-// Pending league vote: Solo Tackle +1→+1.5, Pass Defended +1→+2, QB Hit +0.5→+1
+// CRITICAL: Sleeper's stats API uses "idp_" prefix for individual defensive
+// player stats. The old "def_" prefix was for Team DEF — completely wrong.
+// Confirmed from live Sleeper API data (sleeperdata.txt, Leaguedata.txt).
+//
+// Field mapping (Sleeper API → scoring key):
+//   idp_sack, idp_tkl_solo, idp_tkl_ast, idp_tkl_loss, idp_qb_hit,
+//   idp_pass_def, idp_int, idp_ff, idp_fum_rec, idp_safe, idp_def_td, idp_blk_kick
+//
+// Pending league vote: idp_tkl_solo +1→+1.5, idp_pass_def +1→+2, idp_qb_hit +0.5→+1
 export const SCORING = {
   // Offense
-  pass_yd:0.04, pass_td:4,   pass_int:-1,   // int was wrongly -2
+  pass_yd:0.04, pass_td:4,  pass_int:-1,
   rush_yd:0.1,  rush_td:6,
-  rec:0.5,      rec_yd:0.1,  rec_td:4,
-  // IDP — individual player values (not team DEF)
-  def_sack:4,
-  def_tackle_solo:1,
-  def_tackle_ast:0.5,          // assisted tackle — was missing entirely
-  def_tackle_for_loss:2,
-  def_qb_hit:0.5,              // QB hit — was missing entirely
-  def_pass_def:1,              // was wrongly 2
-  def_int:2,                   // was wrongly 6
-  def_forced_fumble:1,         // was wrongly 3
-  def_fumble_rec:1,            // was wrongly 4
-  def_safe:2,                  // was wrongly 8
-  def_td:6,
+  rec:0.5,      rec_yd:0.1, rec_td:4,
+  // IDP — idp_ prefix matches Sleeper's actual API field names
+  idp_sack:       4,
+  idp_tkl_solo:   1,
+  idp_tkl_ast:    0.5,
+  idp_tkl_loss:   2,
+  idp_qb_hit:     0.5,
+  idp_pass_def:   1,
+  idp_int:        2,
+  idp_ff:         1,
+  idp_fum_rec:    1,
+  idp_safe:       2,
+  idp_def_td:     6,
+  idp_blk_kick:   2,
 };
 
 // ─── PICK VALUES (placeholder — calibrate with simulation data) ───────────────

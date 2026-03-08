@@ -42,55 +42,50 @@ export const calcSleeperPts = (s) => {
     (s.rec      || 0) * SCORING.rec      +
     (s.rec_yd   || 0) * SCORING.rec_yd   +
     (s.rec_td   || 0) * SCORING.rec_td   +
-    // IDP — all fields now tracked
-    (s.def_sack             || 0) * SCORING.def_sack             +
-    (s.def_tackle_solo      || 0) * SCORING.def_tackle_solo      +
-    (s.def_tackle_ast       || 0) * SCORING.def_tackle_ast       +
-    (s.def_tackle_for_loss  || 0) * SCORING.def_tackle_for_loss  +
-    (s.def_qb_hit           || 0) * SCORING.def_qb_hit           +
-    (s.def_pass_def         || 0) * SCORING.def_pass_def         +
-    (s.def_int              || 0) * SCORING.def_int              +
-    (s.def_forced_fumble    || 0) * SCORING.def_forced_fumble    +
-    (s.def_fumble_rec       || 0) * SCORING.def_fumble_rec       +
-    (s.def_safe             || 0) * SCORING.def_safe             +
-    (s.def_td               || 0) * SCORING.def_td
+    // IDP — idp_ prefix (Sleeper API confirmed)
+    (s.idp_sack     || 0) * SCORING.idp_sack     +
+    (s.idp_tkl_solo || 0) * SCORING.idp_tkl_solo +
+    (s.idp_tkl_ast  || 0) * SCORING.idp_tkl_ast  +
+    (s.idp_tkl_loss || 0) * SCORING.idp_tkl_loss +
+    (s.idp_qb_hit   || 0) * SCORING.idp_qb_hit   +
+    (s.idp_pass_def || 0) * SCORING.idp_pass_def +
+    (s.idp_int      || 0) * SCORING.idp_int      +
+    (s.idp_ff       || 0) * SCORING.idp_ff       +
+    (s.idp_fum_rec  || 0) * SCORING.idp_fum_rec  +
+    (s.idp_safe     || 0) * SCORING.idp_safe     +
+    (s.idp_def_td   || 0) * SCORING.idp_def_td   +
+    (s.idp_blk_kick || 0) * SCORING.idp_blk_kick
   );
 };
 
 // IDP scarcity — dynamic multiplier on top of base SCARCITY value.
-// Differentiates elite producers from average depth at the same position.
-// LB: tackle volume is the primary value driver (not INTs — that was wrong)
-// DL: sack production separates pass rushers from run stuffers
-// DB: hybrid safety types (high tackles + INTs) score significantly higher
+// Uses idp_ prefixed fields matching Sleeper's actual API.
 export const idpScarcity = (pos, t) => {
   if (!t) return SCARCITY[pos] || 1.0;
-  const sacks   = t.def_sack        || 0;
-  const solo    = t.def_tackle_solo || 0;
-  const ast     = t.def_tackle_ast  || 0;
-  const ints    = t.def_int         || 0;
-  const totalTkl = solo + ast * 0.5;   // weighted tackle total
+  const sacks    = t.idp_sack     || 0;
+  const solo     = t.idp_tkl_solo || 0;
+  const ast      = t.idp_tkl_ast  || 0;
+  const ints     = t.idp_int      || 0;
+  const totalTkl = solo + ast * 0.5;
 
   if (pos === "DL") {
-    // Pure pass rusher tiers — sacks are the differentiator
-    if (sacks >= 10) return 1.40;   // elite pass rusher (Garrett/Parsons tier)
-    if (sacks >= 6)  return 1.20;   // solid starter
-    if (sacks >= 3)  return 1.00;   // rotational rusher
+    if (sacks >= 10) return 1.40;   // elite pass rusher
+    if (sacks >= 6)  return 1.20;
+    if (sacks >= 3)  return 1.00;
     return 0.75;                    // run stuffer — limited dynasty value
   }
   if (pos === "LB") {
-    // 3-down LB value is in tackle volume + coverage versatility
-    if (totalTkl >= 90) return 1.35;  // Jack Campbell / Roquan Smith tier
-    if (totalTkl >= 70) return 1.15;  // solid every-down starter
-    if (totalTkl >= 50) return 1.00;  // starter-level
-    return 0.80;                      // limited role / spec teams
+    if (totalTkl >= 90) return 1.35;
+    if (totalTkl >= 70) return 1.15;
+    if (totalTkl >= 50) return 1.00;
+    return 0.80;
   }
   if (pos === "DB") {
-    // Hybrid safeties (high tackles AND INTs) are the most valuable
     const hybridSafety = solo >= 65 && ints >= 2;
-    if (hybridSafety || ints >= 4)         return 1.30;  // elite hybrid / ball-hawk
-    if (ints >= 2 || solo >= 60)           return 1.15;  // solid starter
-    if (ints >= 1 || solo >= 45)           return 1.00;  // average DB1
-    return 0.85;                                         // coverage-only / limited
+    if (hybridSafety || ints >= 4) return 1.30;
+    if (ints >= 2 || solo >= 60)   return 1.15;
+    if (ints >= 1 || solo >= 45)   return 1.00;
+    return 0.85;
   }
   return SCARCITY[pos] || 1.0;
 };

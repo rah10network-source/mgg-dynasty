@@ -306,3 +306,48 @@ Proposed scoring changes for vote — to further close IDP/offense gap:
 
 Impact if all three pass: LB Elite 10.5 → 14.0 PPG · DL Elite 9.7 → 11.9 PPG · DB Elite 7.9 → 10.8 PPG.
 Once vote passes, update `SCORING.def_tackle_solo`, `SCORING.def_pass_def`, `SCORING.def_qb_hit` in constants.js.
+
+---
+
+## [1.1.2] — 2026-03-08 · IDP Field Prefix Fix (Critical)
+
+### Critical Bug Fix
+
+The Sleeper stats API uses **`idp_`** prefix for individual player defensive stats.
+The app was using **`def_`** prefix throughout — a Team DEF prefix only.
+Result: **every IDP player had 0 PPG for the entire season.** Scoring, dynasty scores,
+tier assignments, sell-high signals, and trade values for all DL/LB/DB were
+calculated on null/fallback values only.
+
+Confirmed from live Sleeper API data (2025 season).
+
+**Files changed: `constants.js`, `api.js`, `scoring.js`**
+
+#### `src/constants.js` — SCORING keys renamed
+| Old (broken) | New (correct) |
+|---|---|
+| `def_sack` | `idp_sack` |
+| `def_tackle_solo` | `idp_tkl_solo` |
+| `def_tackle_ast` | `idp_tkl_ast` |
+| `def_tackle_for_loss` | `idp_tkl_loss` |
+| `def_qb_hit` | `idp_qb_hit` |
+| `def_pass_def` | `idp_pass_def` |
+| `def_int` | `idp_int` |
+| `def_forced_fumble` | `idp_ff` |
+| `def_fumble_rec` | `idp_fum_rec` |
+| `def_safe` | `idp_safe` |
+| `def_td` | `idp_def_td` |
+| *(missing)* | `idp_blk_kick` (+2) |
+
+#### `src/api.js`
+- `STAT_FIELDS` — all 12 IDP fields updated to `idp_` prefix
+- IDP `statLine` builder — updated to `idp_tkl_solo`, `idp_tkl_ast`, `idp_sack`, `idp_qb_hit`, `idp_int`, `idp_pass_def`
+
+#### `src/scoring.js`
+- `calcSleeperPts` — all IDP field references updated to `idp_` prefix
+- `idpScarcity` — `t.def_sack` / `t.def_tackle_solo` / `t.def_int` → `t.idp_sack` / `t.idp_tkl_solo` / `t.idp_int`
+
+### Note
+`pts_idp` returned by Sleeper API is Sleeper's own default scoring, not your
+league's custom settings. Do not use it for dynasty scoring — calculate from
+raw `idp_` fields with your SCORING constants.
