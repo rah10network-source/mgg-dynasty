@@ -1,7 +1,7 @@
 // ─── DASHBOARD ────────────────────────────────────────────────────────────────
 // Primary focus: your team health (grade, alerts, cliff risks)
 // Offseason: dynasty value lens · In-season: adds record + matchup context
-import { TIER_STYLE, INJ_COLOR, SIG_COLORS, POS_ORDER } from "../constants";
+import { TIER_STYLE, INJ_COLOR, SIG_COLORS, POS_ORDER, PRIME } from "../constants";
 import { gradeRoster, isSellHigh, weakPositions, sellHighCandidates, tradeTargets } from "../roster";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
