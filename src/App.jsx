@@ -49,6 +49,7 @@ export default function App() {
   const [nflDb,             setNflDb]             = useState({});
   const [draftPicksByOwner, setDraftPicksByOwner] = useState({});
   const [rosterIdToOwner,   setRosterIdToOwner]   = useState({});
+  const [userIdToOwner,     setUserIdToOwner]     = useState({});
   const [newsMap,   setNewsMap]  = useState({});
   const [newsPhase, setNewsPhase]= useState("idle");
   const [syncedAt,  setSyncedAt] = useState(null);
@@ -228,13 +229,18 @@ export default function App() {
   const doLoad=useCallback(async()=>{
     setPhase("loading");logRef.current=[];setProgress([]);
     try{
-      const{players:pl,nflDb:db,seasonState:ss,draftPicksByOwner:dpbo,rosterIdToOwner:rid2o}=await apiLoadData(log,manualSitsRef);
-      setPlayers(pl);setNflDb(db);setDraftPicksByOwner(dpbo);setRosterIdToOwner(rid2o);
+      const{players:pl,nflDb:db,seasonState:ss,draftPicksByOwner:dpbo,rosterIdToOwner:rid2o,userIdToOwner:uid2o}=await apiLoadData(log,manualSitsRef);
+      setPlayers(pl);setNflDb(db);setDraftPicksByOwner(dpbo);setRosterIdToOwner(rid2o);setUserIdToOwner(uid2o);
       setSeasonState(prev=>prev._override?prev:ss);setSyncedAt(new Date().toLocaleTimeString());setPhase("done");
-      // Re-open login if identity owner no longer matches loaded roster
+      // Auto-match via direct Sleeper userId → owner name lookup (authoritative)
       if(identity){
-        const loaded=[...new Set(pl.map(p=>p.owner).filter(Boolean))];
-        if(loaded.length>0&&!loaded.includes(identity.ownerName)) setLoginOpen(true);
+        const directMatch=uid2o[identity.userId];
+        if(directMatch){
+          if(directMatch!==identity.ownerName) setOwnerMapping(directMatch);
+        } else {
+          const loaded=[...new Set(pl.map(p=>p.owner).filter(Boolean))];
+          if(loaded.length>0&&!loaded.includes(identity.ownerName)) setLoginOpen(true);
+        }
       }
     }catch(e){log(`Error: ${e.message}`,"error");setPhase("error");}
   },[identity]); // eslint-disable-line
@@ -249,6 +255,14 @@ export default function App() {
   const handleSleeperLogin=async()=>{
     const user=await doSleeperLogin();
     if(!user)return;
+    // 1. Direct match via Sleeper userId → roster owner name (most reliable)
+    const directMatch=userIdToOwner[user.user_id];
+    if(directMatch){
+      finaliseLogin(user, directMatch);
+      setTradeOwnerA(directMatch);
+      return;
+    }
+    // 2. Fuzzy fallback (for pre-sync login)
     const displayName=user.metadata?.team_name||user.display_name||user.username||loginInput.trim();
     const uname=(user.username||loginInput.trim()).toLowerCase();
     const matchedOwner=owners.find(o=>
@@ -362,7 +376,7 @@ export default function App() {
 
         {tab==="dashboard"&&<Dashboard phase={phase} players={players} currentOwner={activeOwner} owners={owners} newsMap={newsMap} seasonState={seasonState} onViewTeam={isCommissioner?enterViewMode:undefined}/>}
         {tab==="leaguehub"&&<LeagueHub phase={phase} players={players} owners={owners} currentOwner={activeOwner} newsMap={newsMap} setDetail={setDetail} setActiveTab={setTab} seasonState={seasonState} onViewTeam={isCommissioner?enterViewMode:undefined}/>}
-        {tab==="teamhub"&&<TeamHub phase={phase} players={players} owners={owners} currentOwner={activeOwner} isViewMode={isViewMode} viewingOwner={viewingOwner} isCommissioner={isCommissioner} onViewTeam={enterViewMode} onExitView={exitViewMode}/>}
+        {tab==="teamhub"&&<TeamHub phase={phase} players={players} owners={owners} currentOwner={activeOwner} newsMap={newsMap} isViewMode={isViewMode} viewingOwner={viewingOwner} isCommissioner={isCommissioner} onViewTeam={enterViewMode} onExitView={exitViewMode}/>}
         {tab==="playerhub"&&<PlayerHub
           currentOwner={currentOwner} activeOwner={activeOwner} isViewMode={isViewMode}
           owners={owners} phase={phase} players={players} newsMap={newsMap} nflDb={nflDb} view={view}

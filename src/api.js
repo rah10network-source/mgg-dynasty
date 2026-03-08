@@ -325,7 +325,7 @@ export const loadData = async (log, manualSitsRef) => {
   };
   log(`Season: ${seasonState.season} · ${seasonState.mode.toUpperCase()}${seasonState.currentWeek ? " · Week " + seasonState.currentWeek : ""}`, "success");
 
-  return { players: pl.sort((a, b) => b.score - a.score), nflDb: allP, seasonState, draftPicksByOwner, rosterIdToOwner };
+  return { players: pl.sort((a, b) => b.score - a.score), nflDb: allP, seasonState, draftPicksByOwner, rosterIdToOwner, userIdToOwner: userMap };
 };
 
 // ─── INTEL SCAN ───────────────────────────────────────────────────────────────
