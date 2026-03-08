@@ -2,6 +2,7 @@
 import { useState, useMemo } from "react";
 import { gradeRoster }       from "./Roster";
 import { TIER_STYLE, INJ_COLOR, SIG_COLORS, POS_ORDER, PRIME } from "../constants";
+import { pickEquivLabel }    from "../ktc";
 
 const WIN_COLOR = {
   REBUILD:"#60a5fa", RISING:"#22c55e", CONTEND:"#f59e0b", "WIN NOW":"#ef4444", DECLINING:"#6b7280",
@@ -304,6 +305,9 @@ function MyRoster({ roster, newsMap, notes, setNote }) {
                             {[["Score",p.score],["Tier",p.tier],
                               ["GS/GP",p.gamesStarted!=null?`${p.gamesStarted}/${p.gamesPlayed}`:"No data"],
                               ["PPG",p.ppg!=null?p.ppg:"No data"],["2025 Stats",p.statLine||"—"],
+                              ["Market Val",p.marketValue!=null?`~${p.marketValue.toLocaleString()} (FC/KTC avg)`:"Not matched"],
+                              ["FC Value",p.fcValue!=null?p.fcValue.toLocaleString():"—"],
+                              ["KTC Value",p.ktcValue!=null?p.ktcValue.toLocaleString():"—"],
                               ["Situation",sitMeta||"None"],["Sit. Note",p.situationNote||"—"],
                               ["Trades",p.trades],["FA Adds",p.adds],
                             ].map(([k,v])=>(
@@ -412,8 +416,20 @@ const WINDOW_META = {
 //   CONTENDING (B+, WIN NOW/CONTEND) → will trade picks for proven starters
 //   REBUILDING (≤C+, REBUILD/RISING) → will trade young players for win-now vets
 //   MIDDLE                           → opportunistic — check for positional need
+//
+// KEY: pick round ceiling is now derived from the player's real market value (KTC/FC).
+// A player worth ~350 (Sutton territory) will never generate 1st round pick suggestions.
+function pickRoundCeiling(marketValue) {
+  if (marketValue == null) return 2;  // no market data — conservative guess
+  if (marketValue >= 4500) return 1;  // 1st round talent
+  if (marketValue >= 1500) return 2;  // 2nd round talent
+  if (marketValue >= 700)  return 3;  // 3rd round talent
+  return 4;                           // depth / conditional
+}
+
 function buildReturnSuggestions(p, allPlayers, draftPicksByOwner, ownerGrades) {
-  const myOwner = p.owner;
+  const myOwner  = p.owner;
+  const maxRound = pickRoundCeiling(p.marketValue ?? p.ktcValue ?? p.fcValue);
   const pickSuggestions   = [];
   const playerSuggestions = [];
 
@@ -425,15 +441,14 @@ function buildReturnSuggestions(p, allPlayers, draftPicksByOwner, ownerGrades) {
     const isRebuilding = cs < 50  || win === "REBUILD";
     const isMiddle     = !isContending && !isRebuilding;
 
-    // CONTENDING: will trade picks to win now; may also move surplus youth
+    // CONTENDING: will trade picks to win now; round ceiling anchored to market value
     if (isContending) {
-      const maxRound = p.tier === "Elite" ? 1 : 2;
       (draftPicksByOwner[owner] || [])
         .filter(pk => pk.round <= maxRound)
         .sort((a,b) => a.round - b.round || Number(a.season) - Number(b.season))
         .slice(0, 2)
         .forEach(pk => pickSuggestions.push({ pick:pk, fromOwner:owner, grade:og.grade, window:win, ctx:"contending" }));
-      // Surplus youth at this position on a contending roster
+      // Surplus youth on their roster at this position
       allPlayers
         .filter(q => q.owner===owner && q.pos===p.pos && (q.age||99)<(p.age||99)-2 && q.score>=35)
         .sort((a,b) => b.score - a.score).slice(0,1)
@@ -441,29 +456,34 @@ function buildReturnSuggestions(p, allPlayers, draftPicksByOwner, ownerGrades) {
           note:"surplus youth on contending roster" }));
     }
 
-    // REBUILDING: will trade young talent for a proven win-now piece; picks add-on
+    // REBUILDING: prefer young players + picks as sweetener
     if (isRebuilding) {
       allPlayers
         .filter(q => q.owner===owner && q.pos===p.pos && (q.age||99)<(p.age||99)-1 && q.score>=30)
         .sort((a,b) => b.score - a.score).slice(0,2)
         .forEach(q => playerSuggestions.push({ player:q, fromOwner:owner, grade:og.grade, window:win,
           note:"rebuilding — will move young talent" }));
-      (draftPicksByOwner[owner] || [])
-        .filter(pk => pk.round <= 2)
-        .sort((a,b) => a.round - b.round || Number(a.season) - Number(b.season))
-        .slice(0,1)
-        .forEach(pk => pickSuggestions.push({ pick:pk, fromOwner:owner, grade:og.grade, window:win, ctx:"rebuilding" }));
+      // Only suggest picks from rebuilding teams if the player is actually worth it
+      if (maxRound <= 3) {
+        (draftPicksByOwner[owner] || [])
+          .filter(pk => pk.round <= Math.min(maxRound + 1, 4))
+          .sort((a,b) => a.round - b.round || Number(a.season) - Number(b.season))
+          .slice(0,1)
+          .forEach(pk => pickSuggestions.push({ pick:pk, fromOwner:owner, grade:og.grade, window:win, ctx:"rebuilding" }));
+      }
     }
 
-    // MIDDLE: only surface if they have a clear positional need at this pos
+    // MIDDLE: only if clear positional need
     if (isMiddle) {
-      const theirPP = allPlayers.filter(q => q.owner===owner && q.pos===p.pos);
+      const theirPP  = allPlayers.filter(q => q.owner===owner && q.pos===p.pos);
       const theirAvg = theirPP.length ? theirPP.reduce((s,q)=>s+q.score,0)/theirPP.length : 0;
       if (theirAvg < 45) {
-        (draftPicksByOwner[owner] || [])
-          .filter(pk => pk.round <= 2)
-          .sort((a,b) => a.round - b.round).slice(0,1)
-          .forEach(pk => pickSuggestions.push({ pick:pk, fromOwner:owner, grade:og.grade, window:win, ctx:"need" }));
+        if (maxRound <= 3) {
+          (draftPicksByOwner[owner] || [])
+            .filter(pk => pk.round <= maxRound)
+            .sort((a,b) => a.round - b.round).slice(0,1)
+            .forEach(pk => pickSuggestions.push({ pick:pk, fromOwner:owner, grade:og.grade, window:win, ctx:"need" }));
+        }
         allPlayers
           .filter(q => q.owner===owner && q.pos===p.pos && (q.age||99)<(p.age||99)-1 && q.score>=30)
           .sort((a,b) => b.score-a.score).slice(0,1)
@@ -484,11 +504,11 @@ function buildReturnSuggestions(p, allPlayers, draftPicksByOwner, ownerGrades) {
     if (seenPids.has(s.player.pid)) return false; seenPids.add(s.player.pid); return true;
   });
 
-  // Sort picks: contending 1sts first, then rebuilding, then need; earlier year wins within tier
+  // Sort: contending picks first (most reliable), then by round, then year
   picks.sort((a,b) => {
     const pri = { contending:3, need:2, rebuilding:1 };
-    const pa = (pri[a.ctx]||0)*10 + (3-a.pick.round)*3 - (Number(a.pick.season)-2025)*0.5;
-    const pb = (pri[b.ctx]||0)*10 + (3-b.pick.round)*3 - (Number(b.pick.season)-2025)*0.5;
+    const pa = (pri[a.ctx]||0)*10 + (4-a.pick.round)*3 - (Number(a.pick.season)-2025)*0.5;
+    const pb = (pri[b.ctx]||0)*10 + (4-b.pick.round)*3 - (Number(b.pick.season)-2025)*0.5;
     return pb - pa;
   });
   players.sort((a,b) => b.player.score - a.player.score);
@@ -539,8 +559,28 @@ function SellHigh({ roster, newsMap, allPlayers, draftPicksByOwner, ownerGrades 
               </div>
               <div style={{ flex:1, minWidth:0 }}>
                 <div style={{ fontSize:13, fontWeight:700, color:"#e2e8f0" }}>{p.name}</div>
-                <div style={{ fontSize:10, color:"#7a95ae", marginTop:1 }}>{p.pos} · {p.team} · {p.age}y</div>
+                <div style={{ fontSize:10, color:"#7a95ae", marginTop:1 }}>
+                  {p.pos} · {p.team} · {p.age}y
+                  {p.marketValue != null && (
+                    <span style={{ marginLeft:8 }}>
+                      · <span style={{ color:"#60a5fa" }}>KTC~{p.marketValue.toLocaleString()}</span>
+                    </span>
+                  )}
+                </div>
                 <div style={{ fontSize:9, color:"#f97316", marginTop:3, fontStyle:"italic" }}>{reason}</div>
+                {/* Market value tier — the honest pick equivalent */}
+                {(() => {
+                  const tier = pickEquivLabel(p.marketValue ?? p.ktcValue ?? p.fcValue);
+                  return tier ? (
+                    <div style={{ marginTop:4, display:"flex", alignItems:"center", gap:5 }}>
+                      <span style={{ fontSize:8, color:"#4d6880" }}>Market value ≈</span>
+                      <span style={{ fontSize:8, fontWeight:900, color:tier.color,
+                        background:tier.color+"18", border:`1px solid ${tier.color}44`,
+                        borderRadius:3, padding:"1px 6px" }}>{tier.label}</span>
+                      <span style={{ fontSize:8, color:"#2a3d52", fontStyle:"italic" }}>{tier.note}</span>
+                    </div>
+                  ) : null;
+                })()}
               </div>
               <span style={{ background:news?.signal?SIG_COLORS[news.signal]:"#f97316",
                 color:"#080d14", fontSize:9, fontWeight:900,

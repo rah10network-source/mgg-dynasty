@@ -5,6 +5,7 @@ import {
   calcAge, ageScore, normalise, calcSleeperPts, idpScarcity,
   sitMultiplier, resolveBreakoutFlag, detectSituation, deriveSignal,
 } from "./scoring";
+import { loadMarketValues } from "./ktc";
 
 // ─── RAW FETCH ────────────────────────────────────────────────────────────────
 export const sf = async (path) => {
@@ -281,14 +282,34 @@ export const loadData = async (log, manualSitsRef) => {
     p.roleStab  = p.depthOrder ? Math.max(0, 100 - (p.depthOrder - 1) * 30) : 55;
   });
 
+  // ── Market values (KTC + FantasyCalc) ──────────────────────────────────────
+  // Attaches p.fcValue, p.ktcValue, p.marketValue to each player.
+  // Non-fatal — if both sources fail, falls back to internal scoring only.
+  pl = await loadMarketValues(pl, log);
+
   pl = normalise(pl, "prodProxy");
   pl = normalise(pl, "ageGated");
   pl = normalise(pl, "demandRaw");
   pl = normalise(pl, "roleStab");
+  pl = normalise(pl, "marketValue"); // no-op for players without a match (all→50)
+
   pl.forEach(p => {
-    p.score = Math.round(Math.min(100, Math.max(0,
-      p.prodProxy_n * 0.45 + p.ageGated_n * 0.30 + p.demandRaw_n * 0.15 + p.roleStab_n * 0.10
-    )));
+    // If market value was matched, use it as the 50% anchor.
+    // Prod (your league's actual scoring) + ageGated (real-life situation) fine-tune.
+    // demandRaw (what your league values via transactions) rounds it out.
+    // For players with no market match, fall back to the internal-only formula.
+    if (p.marketValue != null) {
+      p.score = Math.round(Math.min(100, Math.max(0,
+        p.marketValue_n * 0.50 +
+        p.prodProxy_n   * 0.25 +
+        p.ageGated_n    * 0.15 +
+        p.demandRaw_n   * 0.10
+      )));
+    } else {
+      p.score = Math.round(Math.min(100, Math.max(0,
+        p.prodProxy_n * 0.45 + p.ageGated_n * 0.30 + p.demandRaw_n * 0.15 + p.roleStab_n * 0.10
+      )));
+    }
   });
 
   const srt = [...pl].sort((a, b) => b.score - a.score);
@@ -325,7 +346,7 @@ export const loadData = async (log, manualSitsRef) => {
   };
   log(`Season: ${seasonState.season} · ${seasonState.mode.toUpperCase()}${seasonState.currentWeek ? " · Week " + seasonState.currentWeek : ""}`, "success");
 
-  return { players: pl.sort((a, b) => b.score - a.score), nflDb: allP, seasonState, draftPicksByOwner, rosterIdToOwner, userIdToOwner: userMap };
+  return { players: pl.sort((a, b) => b.score - a.score), nflDb: allP, seasonState, draftPicksByOwner, rosterIdToOwner };
 };
 
 // ─── INTEL SCAN ───────────────────────────────────────────────────────────────
