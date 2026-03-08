@@ -1,8 +1,8 @@
 // ─── DASHBOARD ────────────────────────────────────────────────────────────────
 // Primary focus: your team health (grade, alerts, cliff risks)
 // Offseason: dynasty value lens · In-season: adds record + matchup context
-import { TIER_STYLE, INJ_COLOR, SIG_COLORS, POS_ORDER, PRIME } from "../constants";
-import { gradeRoster } from "./Roster";
+import { TIER_STYLE, INJ_COLOR, SIG_COLORS, POS_ORDER } from "../constants";
+import { gradeRoster, isSellHigh, weakPositions, sellHighCandidates, tradeTargets } from "../roster";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 const MODE_LABEL = {
@@ -16,32 +16,6 @@ const MODE_LABEL = {
 const WINDOW_COLOR = {
   REBUILD:"#60a5fa", RISING:"#22c55e",
   CONTEND:"#f59e0b", "WIN NOW":"#ef4444", DECLINING:"#6b7280",
-};
-
-const isSellHigh = (p, newsMap) => {
-  const n = newsMap[p.name];
-  if (n?.signal === "SELL") return true;
-  const [, peak, cliff] = PRIME[p.pos] || [23, 29, 33];
-  if (p.score >= 60 && p.age >= peak + 1 && p.age < cliff + 2) return true;
-  return false;
-};
-
-const weakPositions = (myGrade, players) => {
-  const leagueAvg = {};
-  POS_ORDER.forEach(pos => {
-    const all = players.filter(p => p.pos === pos);
-    leagueAvg[pos] = all.length ? all.reduce((s,p)=>s+p.score,0)/all.length : 0;
-  });
-  return POS_ORDER
-    .filter(pos => myGrade.posDep[pos]?.count > 0 || leagueAvg[pos] > 0)
-    .map(pos => ({
-      pos,
-      mine:   myGrade.posDep[pos]?.avg || 0,
-      league: leagueAvg[pos],
-      gap:    (myGrade.posDep[pos]?.avg || 0) - leagueAvg[pos],
-    }))
-    .sort((a,b) => a.gap - b.gap)
-    .slice(0, 4);
 };
 
 // ── component ─────────────────────────────────────────────────────────────────
@@ -82,20 +56,12 @@ export function Dashboard({ phase, players, currentOwner, owners, newsMap, seaso
     .sort((a,b) => b.contenderScore - a.contenderScore);
   const myRank    = allGrades.findIndex(g => g.owner === currentOwner) + 1;
 
-  const sellHighs = myPlayers.filter(p => isSellHigh(p, newsMap)).slice(0,5);
-  const ageCliffs = myPlayers.filter(p => p.situationFlag === "AGE_CLIFF").slice(0,5);
-  const injured   = myPlayers.filter(p => ["Out","IR","PUP","Doubtful"].includes(p.injStatus)).slice(0,5);
+  const sellHighs = sellHighCandidates(myPlayers, newsMap).slice(0, 5);
+  const ageCliffs = myPlayers.filter(p => p.situationFlag === "AGE_CLIFF").slice(0, 5);
+  const injured   = myPlayers.filter(p => ["Out","IR","PUP","Doubtful"].includes(p.injStatus)).slice(0, 5);
 
   const weak    = weakPositions(myGrade, players);
-  const weakPos = new Set(weak.filter(w => w.gap < -5).map(w => w.pos));
-  const targets = players
-    .filter(p => p.owner !== currentOwner && p.score >= 55)
-    .map(p => ({
-      ...p,
-      _pri: (weakPos.has(p.pos)?20:0) + ((newsMap[p.name]?.signal==="BUY")?15:0) + p.score,
-    }))
-    .sort((a,b) => b._pri - a._pri)
-    .slice(0,5);
+  const targets = tradeTargets(currentOwner, myGrade, players, newsMap, 5);
 
   const modeInfo  = MODE_LABEL[seasonState?.mode] || MODE_LABEL.offseason;
   const isInSzn   = ["inseason","playoffs"].includes(seasonState?.mode);

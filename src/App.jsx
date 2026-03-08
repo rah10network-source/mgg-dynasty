@@ -385,7 +385,9 @@ export default function App() {
           addToFaWatchlist={addToFaWatchlist} removeFromFaWatchlist={removeFromFaWatchlist}
         />}
         {tab==="tools"&&<AnalysisTools
-          phase={phase} owners={owners}
+          phase={phase} owners={owners} players={players} nflDb={nflDb}
+          currentOwner={currentOwner} newsMap={newsMap}
+          faWatchlist={faWatchlist} onAddToFaWatchlist={addToFaWatchlist}
           tradeOwnerA={tradeOwnerA} setTradeOwnerA={setTradeOwnerA}
           tradeOwnerB={tradeOwnerB} setTradeOwnerB={setTradeOwnerB}
           tradeSideA={tradeSideA} tradeSideB={tradeSideB}

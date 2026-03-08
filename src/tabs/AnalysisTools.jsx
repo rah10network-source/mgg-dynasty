@@ -1,14 +1,17 @@
 import { useState } from "react";
 import { Trade } from "./Trade";
+import { WaiverTool } from "./tools/WaiverTool";
+import { PlayerCompare } from "./tools/PlayerCompare";
 
 const SUB_TABS = [
   ["trade",   "⇄ TRADE ANALYZER"],
-  // ["waiver",  "◎ WAIVER TOOL"],    // v1.0.0
-  // ["compare", "⬡ PLAYER COMPARE"], // v1.0.0
+  ["waiver",  "◎ WAIVER TOOL"],
+  ["compare", "⬡ PLAYER COMPARE"],
 ];
 
 export function AnalysisTools({
-  phase, owners,
+  phase, owners, players, nflDb, currentOwner, newsMap,
+  faWatchlist, onAddToFaWatchlist,
   tradeOwnerA, setTradeOwnerA,
   tradeOwnerB, setTradeOwnerB,
   tradeSideA, tradeSideB,
@@ -47,18 +50,22 @@ export function AnalysisTools({
       {/* Sub-tab bar */}
       <div style={{display:"flex",gap:0,borderBottom:"1px solid #1e2d3d",marginBottom:20}}>
         {tabBtn("trade", "⇄ TRADE ANALYZER")}
-        <button disabled style={{
-          background:"none",border:"none",borderBottom:"2px solid transparent",
-          color:"#2a3d52",padding:"6px 16px",fontFamily:"inherit",
-          fontSize:10,letterSpacing:2,fontWeight:700,cursor:"not-allowed",
-        }}>◎ WAIVER TOOL <span style={{fontSize:7}}>v1.0</span></button>
-        <button disabled style={{
-          background:"none",border:"none",borderBottom:"2px solid transparent",
-          color:"#2a3d52",padding:"6px 16px",fontFamily:"inherit",
-          fontSize:10,letterSpacing:2,fontWeight:700,cursor:"not-allowed",
-        }}>⬡ PLAYER COMPARE <span style={{fontSize:7}}>v1.0</span></button>
+        {tabBtn("waiver",  "◎ WAIVER TOOL")}
+        {tabBtn("compare", "⬡ PLAYER COMPARE")}
       </div>
 
+      {sub === "waiver" && (
+        <WaiverTool
+          phase={phase} players={players} nflDb={nflDb}
+          currentOwner={currentOwner} newsMap={newsMap}
+          faWatchlist={faWatchlist} onAddToWatchlist={onAddToFaWatchlist}
+        />
+      )}
+      {sub === "compare" && (
+        <PlayerCompare
+          phase={phase} players={players} nflDb={nflDb} newsMap={newsMap}
+        />
+      )}
       {sub === "trade" && (
         <Trade
           phase={phase} owners={owners}
