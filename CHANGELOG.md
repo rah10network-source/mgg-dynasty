@@ -115,3 +115,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Five-tier system — Elite / Starter / Flex / Depth / Stash.
 - Dashboard, League Hub, Player Hub (big board + IDP), Trade Analyzer, Draft Hub (mock + live), Intel Scan, XLSX Export.
 - GitHub Pages deployment via Vite + gh-pages.
+
+---
+
+## [1.0.8b] — 2026-03-07 · 10-Round Draft Fix
+
+### Fixed
+- **Draft rounds hardcoded to 3–5 throughout** — league runs 10 rounds but pick seeding, trade picker, My Picks tab, and league comparison all capped at 3 or 5 rounds.
+
+### Changed
+- **`constants.js`** — `PICK_VALUES` extended to all 10 rounds with calibrated dynasty values (rounds 4–10 carry progressively lower value as expected). `PICK_ROUNDS` dropdown now lists 1st through 10th. Fallback `pickValue` updated.
+- **`api.js`** — `draftRounds` fallback raised from 5 → 10. Sleeper's `lg.settings.draft_rounds` is now the authoritative source; 10 is the safe default if the field is missing.
+- **`MyPicks.jsx`** — `ROUND_LABEL` and `ROUND_COLOR` extended to round 10. `byRound` array covers all 10 rounds. Portfolio summary now shows 1st/2nd/3rd prominently plus a combined "4TH–10TH" count. League comparison round breakdown shows all 10 rounds.
+- **`ktc.js`** — `pickEquivLabel` and `pickRoundCeiling` updated to cover the full 10-round range. Low market-value players now correctly map to 6th–8th or 9th–10th round equivalents rather than capping at 4th.
+- **`TeamHub.jsx`** — Sell-High suggestion engine `pickRoundCeiling` updated to use the full 10-round scale.

@@ -90,13 +90,14 @@ async function fetchKTC() {
 // Used by TeamHub SellHigh to tell you what a player is realistically worth.
 export function pickEquivLabel(marketValue) {
   if (marketValue == null) return null;
-  if (marketValue >= 7000) return { label:"Franchise piece",      color:"#22c55e", note:"Don't sell without a king's ransom" };
-  if (marketValue >= 4500) return { label:"1st (top 3)",          color:"#22c55e", note:"Top of class 1st round pick"        };
-  if (marketValue >= 2800) return { label:"1st (mid/late)",       color:"#60a5fa", note:"Mid to late 1st round"              };
-  if (marketValue >= 1500) return { label:"2nd round pick",       color:"#0ea5e9", note:"Early to mid 2nd"                   };
-  if (marketValue >=  700) return { label:"3rd round pick",       color:"#f59e0b", note:"Solid 3rd, maybe 2nd late"          };
-  if (marketValue >=  300) return { label:"4th round / depth",    color:"#f97316", note:"Late pick or depth player"          };
-  return                          { label:"Conditional / stash",  color:"#6b7280", note:"Low market value — buy-low target"  };
+  if (marketValue >= 7000) return { label:"Franchise piece",        color:"#22c55e", note:"Don't sell without a king's ransom" };
+  if (marketValue >= 4500) return { label:"1st (top 3)",            color:"#22c55e", note:"Top of class 1st round pick"        };
+  if (marketValue >= 2800) return { label:"1st (mid/late)",         color:"#60a5fa", note:"Mid to late 1st round"              };
+  if (marketValue >= 1500) return { label:"2nd round pick",         color:"#0ea5e9", note:"Early to mid 2nd"                   };
+  if (marketValue >=  700) return { label:"3rd round pick",         color:"#f59e0b", note:"Solid 3rd, maybe 2nd late"          };
+  if (marketValue >=  300) return { label:"4th–5th round pick",     color:"#f97316", note:"Late-round flier or depth"          };
+  if (marketValue >=  100) return { label:"6th–8th round pick",     color:"#94a3b8", note:"Low-end filler pick"                };
+  return                          { label:"9th–10th / conditional", color:"#4d6880", note:"Minimal standalone value"           };
 }
 
 // ── Main export ───────────────────────────────────────────────────────────────

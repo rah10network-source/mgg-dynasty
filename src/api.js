@@ -63,7 +63,7 @@ export const loadData = async (log, manualSitsRef) => {
   // for the next 3 seasons, then apply traded_picks to move picks around.
   log("Loading draft picks...");
   const draftPicksByOwner = {};
-  const draftRounds = lg.settings?.draft_rounds || lg.settings?.rounds || 5;
+  const draftRounds = lg.settings?.draft_rounds || lg.settings?.rounds || 10;
   const currentSeason = Number(lg.season || new Date().getFullYear());
   const futureSeasons = [currentSeason + 1, currentSeason + 2, currentSeason + 3];
 

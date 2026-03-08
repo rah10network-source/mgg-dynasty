@@ -24,13 +24,25 @@ export const SCORING = {
   def_fumble_rec:4, def_safe:8,
 };
 
-// ─── PICK VALUES (placeholder — calibrate with simulation data) ───────────────
-// Index = years from now (0 = current, 1 = next, 2 = two years out)
-export const PICK_VALUES  = { "1st":[72,60,48], "2nd":[38,30,24], "3rd":[18,14,10] };
-export const PICK_ROUNDS  = ["1st","2nd","3rd"];
+// ─── PICK VALUES — 10-round league ────────────────────────────────────────────
+// Index = years from now (0 = this draft, 1 = next, 2 = two out)
+// Values reflect relative dynasty trade worth, not redraft.
+export const PICK_VALUES  = {
+  "1st": [72,60,48],
+  "2nd": [38,30,24],
+  "3rd": [18,14,10],
+  "4th": [12, 9, 7],
+  "5th": [ 8, 6, 4],
+  "6th": [ 5, 4, 3],
+  "7th": [ 4, 3, 2],
+  "8th": [ 3, 2, 2],
+  "9th": [ 2, 2, 1],
+  "10th":[ 2, 1, 1],
+};
+export const PICK_ROUNDS  = ["1st","2nd","3rd","4th","5th","6th","7th","8th","9th","10th"];
 export const PICK_YEARS   = [2026,2027,2028];
 export const pickValue    = (round, yearOffset) =>
-  (PICK_VALUES[round]||[10,8,6])[Math.min(yearOffset,2)];
+  (PICK_VALUES[round]||[2,1,1])[Math.min(yearOffset,2)];
 
 // ─── VISUAL STYLES ────────────────────────────────────────────────────────────
 export const TIER_STYLE = {

@@ -420,11 +420,13 @@ const WINDOW_META = {
 // KEY: pick round ceiling is now derived from the player's real market value (KTC/FC).
 // A player worth ~350 (Sutton territory) will never generate 1st round pick suggestions.
 function pickRoundCeiling(marketValue) {
-  if (marketValue == null) return 2;  // no market data — conservative guess
+  if (marketValue == null) return 3;  // no market data — conservative
   if (marketValue >= 4500) return 1;  // 1st round talent
   if (marketValue >= 1500) return 2;  // 2nd round talent
   if (marketValue >= 700)  return 3;  // 3rd round talent
-  return 4;                           // depth / conditional
+  if (marketValue >= 300)  return 5;  // 4th–5th round
+  if (marketValue >= 100)  return 8;  // 6th–8th round
+  return 10;                          // 9th–10th / conditional
 }
 
 function buildReturnSuggestions(p, allPlayers, draftPicksByOwner, ownerGrades) {
