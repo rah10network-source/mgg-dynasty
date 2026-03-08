@@ -13,13 +13,6 @@ import {
 export { runIntel, deepAnalyse, claudeAnalyse, fetchIntelSources } from "./intel";
 export { claudeTradeAnalysis } from "./trade";
 
-  LEAGUE_ID, SLEEPER, SCARCITY, PRIME, POS_ORDER, SCORING, SITUATION_PATTERNS,
-} from "./constants";
-import {
-  calcAge, ageScore, normalise, calcSleeperPts, idpScarcity,
-  sitMultiplier, resolveBreakoutFlag, detectSituation, deriveSignal,
-} from "./scoring";
-
 // ─── RAW FETCH ────────────────────────────────────────────────────────────────
 export const sf = async (path) => {
   const ctrl = new AbortController();
