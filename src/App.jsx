@@ -229,7 +229,7 @@ export default function App() {
   const doLoad=useCallback(async()=>{
     setPhase("loading");logRef.current=[];setProgress([]);
     try{
-      const{players:pl,nflDb:db,seasonState:ss,draftPicksByOwner:dpbo,rosterIdToOwner:rid2o,userIdToOwner:uid2o}=await apiLoadData(log,manualSitsRef);
+      const{players:pl,nflDb:db,seasonState:ss,draftPicksByOwner:dpbo,rosterIdToOwner:rid2o,userIdToOwner:uid2o={}}=await apiLoadData(log,manualSitsRef);
       setPlayers(pl);setNflDb(db);setDraftPicksByOwner(dpbo);setRosterIdToOwner(rid2o);setUserIdToOwner(uid2o);
       setSeasonState(prev=>prev._override?prev:ss);setSyncedAt(new Date().toLocaleTimeString());setPhase("done");
       // Auto-match via direct Sleeper userId → owner name lookup (authoritative)
