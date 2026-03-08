@@ -86,6 +86,7 @@ export function DraftHub({
           setMockState={setMockState}
           liveDraftId={liveDraftId}
           setLiveDraftId={setLiveDraftId}
+          rosterIdToOwner={rosterIdToOwner}
         />
       )}
     </div>

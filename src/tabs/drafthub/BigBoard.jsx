@@ -4,7 +4,18 @@
 import { useState, useMemo } from "react";
 import { TIER_STYLE, INJ_COLOR, POS_ORDER } from "../../constants";
 
-const ROUND_COLORS = ["#22c55e","#60a5fa","#f59e0b","#f97316","#a855f7"];
+const ROUND_COLORS = [
+  "#22c55e", // 1 - green
+  "#60a5fa", // 2 - blue
+  "#f59e0b", // 3 - amber
+  "#f97316", // 4 - orange
+  "#a855f7", // 5 - purple
+  "#06b6d4", // 6 - cyan
+  "#ec4899", // 7 - pink
+  "#84cc16", // 8 - lime
+  "#94a3b8", // 9 - slate
+  "#6b7280", // 10 - gray
+];
 
 export function BigBoard({
   nflDb, players,            // players = rostered
@@ -27,6 +38,12 @@ export function BigBoard({
       .filter(([pid, p]) => {
         if (bigBoard.find(b => b.pid === pid)) return false; // already on board
         if (!p.position || !["QB","RB","WR","TE","DL","LB","DB","K"].includes(p.position)) return false;
+        // ── Active player gate — filters out retired, cut, practice squad, phantom entries ──
+        const INACTIVE_STATUSES = ["Inactive","Retired","Suspended","Cut","Released","PracticeSquad","Practice Squad"];
+        if (INACTIVE_STATUSES.includes(p.status)) return false;
+        // Rookies (years_exp===0) are fine with no team — they haven't been assigned yet
+        // Veterans with no team and >2 years exp are almost certainly cut/retired
+        if (bigBoardMode !== "rookies" && !p.team && (p.years_exp ?? 0) > 2) return false;
         if (bigBoardMode === "rookies" && (p.years_exp ?? 99) !== 0) return false;
         // "all" = include vets that are unrostered (FA) — exclude already-rostered
         if (bigBoardMode === "all" && rosteredPids.has(pid)) return false;
@@ -56,7 +73,7 @@ export function BigBoard({
         if (b.depth) return 1;
         return (a.age||99) - (b.age||99);
       })
-      .slice(0, 120);
+      .slice(0, 300);
   }, [nflDb, bigBoard, bigBoardMode, posF, searchQ, rosteredPids]);
 
   if (phase !== "done" && Object.keys(nflDb).length === 0) {

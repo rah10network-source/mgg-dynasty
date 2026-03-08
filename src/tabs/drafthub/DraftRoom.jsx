@@ -41,10 +41,10 @@ const scoreForDraft = (p, bigBoard, players) => {
 // ── MOCK DRAFT ────────────────────────────────────────────────────────────────
 function MockDraft({ owners, players, nflDb, bigBoard, bigBoardMode, currentOwner }) {
   const [cfg, setCfg] = useState({
-    teams:  owners.length || 12,
-    rounds: 5,
+    teams:    owners.length || 12,
+    rounds:   10,
     yourSlot: 1,
-    mode:   "rookies",
+    mode:     "rookies",
   });
   const [started, setStarted] = useState(false);
   const [picks,   setPicks]   = useState([]); // [{pick, round, slot, pid, name, pos, team, auto}]
@@ -59,11 +59,15 @@ function MockDraft({ owners, players, nflDb, bigBoard, bigBoardMode, currentOwne
   const isDone   = donePick >= order.length;
 
   // Build available pool
+  const INACTIVE_STATUSES = ["Inactive","Retired","Suspended","Cut","Released","PracticeSquad","Practice Squad"];
   const pool = Object.entries(nflDb)
     .filter(([pid, p]) => {
       if (drafted.has(pid)) return false;
       if (!p.position || !["QB","RB","WR","TE","DL","LB","DB","K"].includes(p.position)) return false;
-      if (cfg.mode==="rookies" && (p.years_exp??99) !== 0) return false;
+      // Active player gate — same logic as BigBoard
+      if (INACTIVE_STATUSES.includes(p.status)) return false;
+      if (cfg.mode !== "rookies" && !p.team && (p.years_exp ?? 0) > 2) return false;
+      if (cfg.mode === "rookies" && (p.years_exp ?? 99) !== 0) return false;
       return true;
     })
     .map(([pid, p]) => ({
@@ -116,7 +120,7 @@ function MockDraft({ owners, players, nflDb, bigBoard, bigBoardMode, currentOwne
         <div style={{display:"flex",flexDirection:"column",gap:14}}>
           {[
             ["Teams", "teams", [8,10,12,14,16]],
-            ["Rounds","rounds",[3,4,5,6,7,8]],
+            ["Rounds","rounds",[5,6,7,8,9,10]],
             ["Your Slot","yourSlot",Array.from({length:cfg.teams},(_,i)=>i+1)],
           ].map(([label,key,opts])=>(
             <div key={key} style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
@@ -326,7 +330,7 @@ function MockDraft({ owners, players, nflDb, bigBoard, bigBoardMode, currentOwne
 }
 
 // ── LIVE DRAFT ────────────────────────────────────────────────────────────────
-function LiveDraft({ liveDraftId, setLiveDraftId, players, bigBoard, owners, currentOwner }) {
+function LiveDraft({ liveDraftId, setLiveDraftId, players, bigBoard, owners, currentOwner, rosterIdToOwner }) {
   const [drafts,    setDrafts]    = useState([]);
   const [draft,     setDraft]     = useState(null);
   const [picks,     setPicks]     = useState([]);
@@ -468,7 +472,16 @@ function LiveDraft({ liveDraftId, setLiveDraftId, players, bigBoard, owners, cur
                       </td>
                       <td style={{padding:"6px 8px",textAlign:"center",borderBottom:"1px solid #0f1923",fontSize:10,color:"#60a5fa"}}>{pk.metadata?.position}</td>
                       <td style={{padding:"6px 8px",textAlign:"center",borderBottom:"1px solid #0f1923",fontSize:10,color:"#7a95ae"}}>{pk.metadata?.team}</td>
-                      <td style={{padding:"6px 10px",borderBottom:"1px solid #0f1923",fontSize:10,color:"#a8bccf"}}>{pk.picked_by||"—"}</td>
+                      <td style={{padding:"6px 10px",borderBottom:"1px solid #0f1923",fontSize:10,color:"#a8bccf"}}>
+                        {/* picked_by is a roster_id — map via draft slot order if available */}
+                        {draft?.slot_to_roster_id
+                          ? (() => {
+                              const slot = Object.entries(draft.slot_to_roster_id||{}).find(([,rid])=>String(rid)===String(pk.roster_id))?.[0];
+                              return slot ? (owners[Number(slot)-1] || `Slot ${slot}`) : (pk.metadata?.team || pk.picked_by || "—");
+                            })()
+                          : (pk.metadata?.team || pk.picked_by || "—")
+                        }
+                      </td>
                     </tr>
                   );
                 })}
@@ -492,6 +505,7 @@ export function DraftRoom({
   bigBoard, bigBoardMode,
   draftRoomMode, setDraftRoomMode,
   liveDraftId, setLiveDraftId,
+  rosterIdToOwner,
 }) {
   if (phase !== "done") {
     return (
@@ -537,6 +551,7 @@ export function DraftRoom({
           bigBoard={bigBoard}
           owners={owners}
           currentOwner={currentOwner}
+          rosterIdToOwner={rosterIdToOwner}
         />
       )}
     </div>

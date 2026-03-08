@@ -118,14 +118,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [1.0.8b] — 2026-03-07 · 10-Round Draft Fix
+## [1.0.8c] — 2026-03-08 · Draft Hub Bug Fixes
 
 ### Fixed
-- **Draft rounds hardcoded to 3–5 throughout** — league runs 10 rounds but pick seeding, trade picker, My Picks tab, and league comparison all capped at 3 or 5 rounds.
+- **Big Board fake/retired players** — pool filter now applies an active player gate. Filters out any player with status `Inactive`, `Retired`, `Suspended`, `Cut`, `Released`, or `PracticeSquad`. Veterans with no team and more than 2 years experience (almost certainly cut or retired) are also excluded. Rookies (`years_exp === 0`) with no team are kept — they haven't been assigned yet.
+- **Mock Draft capped at 8 rounds** — rounds options extended to `[5,6,7,8,9,10]`, default set to 10 to match league settings.
+- **Mock Draft pool had same fake player problem** — same active player gate applied to the MockDraft pool in `DraftRoom.jsx`.
+- **Big Board round colors recycled after round 5** — `ROUND_COLORS` extended to 10 distinct colors (green, blue, amber, orange, purple, cyan, pink, lime, slate, gray). No more confusing color repetition in a 10-round board.
+- **Big Board pool cap too low** — raised from 120 to 300 players to ensure `ROOKIES + VETS` mode doesn't truncate the available pool.
+- **LiveDraft `picked_by` showed raw user ID** — now maps through `draft.slot_to_roster_id` to show team name, with `pk.metadata.team` as fallback.
+- **`rosterIdToOwner` not passed to DraftRoom/LiveDraft** — prop now threaded from `DraftHub` → `DraftRoom` → `LiveDraft` for owner name resolution.
 
-### Changed
-- **`constants.js`** — `PICK_VALUES` extended to all 10 rounds with calibrated dynasty values (rounds 4–10 carry progressively lower value as expected). `PICK_ROUNDS` dropdown now lists 1st through 10th. Fallback `pickValue` updated.
-- **`api.js`** — `draftRounds` fallback raised from 5 → 10. Sleeper's `lg.settings.draft_rounds` is now the authoritative source; 10 is the safe default if the field is missing.
-- **`MyPicks.jsx`** — `ROUND_LABEL` and `ROUND_COLOR` extended to round 10. `byRound` array covers all 10 rounds. Portfolio summary now shows 1st/2nd/3rd prominently plus a combined "4TH–10TH" count. League comparison round breakdown shows all 10 rounds.
-- **`ktc.js`** — `pickEquivLabel` and `pickRoundCeiling` updated to cover the full 10-round range. Low market-value players now correctly map to 6th–8th or 9th–10th round equivalents rather than capping at 4th.
-- **`TeamHub.jsx`** — Sell-High suggestion engine `pickRoundCeiling` updated to use the full 10-round scale.
+### Planned for 1.0.9
+- Extract `src/draft.js` — snake order, pool filtering, player scoring as standalone logic module
+- Mock Draft opponent archetypes (RB Needy, Win Now, Trade Heavy, BPA, Rebuilder)
+- Big Board Intel Scan — news briefings on players you've added to your board
+- `src/trade.js` extraction from App.jsx
