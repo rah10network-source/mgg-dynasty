@@ -364,7 +364,7 @@ export default function App() {
 
         {tab==="dashboard"&&<Dashboard phase={phase} players={players} currentOwner={activeOwner} owners={owners} newsMap={newsMap} seasonState={seasonState} onViewTeam={isCommissioner?enterViewMode:undefined}/>}
         {tab==="leaguehub"&&<LeagueHub phase={phase} players={players} owners={owners} currentOwner={activeOwner} newsMap={newsMap} setDetail={setDetail} setActiveTab={setTab} seasonState={seasonState} onViewTeam={isCommissioner?enterViewMode:undefined}/>}
-        {tab==="teamhub"&&<TeamHub phase={phase} players={players} owners={owners} currentOwner={activeOwner} isViewMode={isViewMode} viewingOwner={viewingOwner} isCommissioner={isCommissioner} onViewTeam={enterViewMode} onExitView={exitViewMode}/>}
+        {tab==="teamhub"&&<TeamHub phase={phase} players={players} owners={owners} currentOwner={activeOwner} newsMap={newsMap} setDetail={setDetail} isViewMode={isViewMode} viewingOwner={viewingOwner} isCommissioner={isCommissioner} onViewTeam={enterViewMode} onExitView={exitViewMode}/>}
         {tab==="playerhub"&&<PlayerHub
           currentOwner={currentOwner} activeOwner={activeOwner} isViewMode={isViewMode}
           owners={owners} phase={phase} players={players} newsMap={newsMap} nflDb={nflDb} view={view}
