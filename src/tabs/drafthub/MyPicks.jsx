@@ -1,18 +1,10 @@
 // ─── MY PICKS ─────────────────────────────────────────────────────────────────
 // Shows all future draft picks owned by currentOwner with estimated values.
 // Data comes from Sleeper rosters[n].draft_picks — extracted during sync.
-import { PICK_VALUES } from "../../constants";
+import { PICK_VALUES, PICK_ROUNDS } from "../../constants";
 
-const ROUND_COLOR = {
-  "1st":"#22c55e", "2nd":"#60a5fa", "3rd":"#f59e0b",
-  "4th":"#f97316", "5th":"#94a3b8", "6th":"#64748b",
-  "7th":"#475569", "8th":"#374151", "9th":"#2d3748", "10th":"#1e2d3d",
-};
-const ROUND_LABEL = {
-  1:"1st", 2:"2nd", 3:"3rd", 4:"4th", 5:"5th",
-  6:"6th", 7:"7th", 8:"8th", 9:"9th", 10:"10th",
-};
-const ALL_ROUNDS = [1,2,3,4,5,6,7,8,9,10];
+const ROUND_COLOR = { "1st":"#22c55e", "2nd":"#60a5fa", "3rd":"#f59e0b", "4th":"#f97316", "5th":"#6b7280" };
+const ROUND_LABEL = { 1:"1st", 2:"2nd", 3:"3rd", 4:"4th", 5:"5th" };
 
 // Estimate pick value: round 1 = highest, later years = discounted
 const estimateValue = (round, season) => {
@@ -53,7 +45,7 @@ export function MyPicks({ currentOwner, draftPicksByOwner, rosterIdToOwner, play
       isMe: owner === currentOwner,
       picks,
       totalValue: picks.reduce((s,pk) => s + estimateValue(pk.round, pk.season), 0),
-      byRound: ALL_ROUNDS.map(r => picks.filter(pk => pk.round === r).length),
+      byRound: [1,2,3,4,5].map(r => picks.filter(pk => pk.round === r).length),
     }))
     .sort((a,b) => b.totalValue - a.totalValue);
 
@@ -97,13 +89,6 @@ export function MyPicks({ currentOwner, draftPicksByOwner, rosterIdToOwner, play
                 </div>
               );
             })}
-            {/* Rounds 4-10 grouped */}
-            <div style={{textAlign:"center"}}>
-              <div style={{fontSize:28,fontWeight:900,color:"#64748b",lineHeight:1}}>
-                {myPicks.filter(pk => pk.round >= 4).length}
-              </div>
-              <div style={{fontSize:8,color:"#4d6880",letterSpacing:1,marginTop:2}}>4TH–10TH</div>
-            </div>
           </div>
 
           {myPicks.length === 0 ? (
@@ -182,7 +167,7 @@ export function MyPicks({ currentOwner, draftPicksByOwner, rosterIdToOwner, play
                   </div>
                   {/* Round breakdown dots */}
                   <div style={{display:"flex",gap:3,paddingLeft:20}}>
-                    {ALL_ROUNDS.map(r => {
+                    {[1,2,3,4,5].map(r => {
                       const cnt = o.byRound[r-1];
                       const col = ROUND_COLOR[ROUND_LABEL[r]] || "#6b7280";
                       return cnt > 0 ? (
