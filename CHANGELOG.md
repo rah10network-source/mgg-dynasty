@@ -1,6 +1,6 @@
 # MGG Dynasty Changelog
 
-## [1.2.0] — 2026-03-08 · BigBoard Intel Scan + Draft Prep + PlayerCompare Fix
+## [1.2.1] — 2026-03-08 · BigBoard Intel Scan + Draft Prep + PlayerCompare Fix
 
 ### Added
 

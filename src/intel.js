@@ -16,6 +16,7 @@ import { resolveBreakoutFlag, detectSituation, deriveSignal } from "./scoring";
 // Ordered by priority — first match wins in deepAnalyse.
 
 export const HEADLINE_RULES = [
+  // ── In-season / roster flags ─────────────────────────────────────────────
   { flag: "TRADE_DEMAND",   terms: ["trade request", "requested trade", "wants out", "unhappy", "demands trade"] },
   { flag: "FREE_AGENT",     terms: ["released", "cut by", "waived", "terminated contract"] },
   { flag: "SUSPENSION",     terms: ["suspended", "suspension", "banned"] },
@@ -25,6 +26,15 @@ export const HEADLINE_RULES = [
   { flag: "BREAKOUT_ROLE",  terms: ["lead back", "featured back", "bell cow", "every down back", "expanded role", "target share increase"] },
   { flag: "NEW_OC",         terms: ["traded to", "acquired by", "sent to", "new team", "offensive coordinator", "new oc", "scheme change"] },
   { flag: "CONTRACT_YEAR",  terms: ["contract year", "final year of", "extension talks", "upcoming free agent"] },
+  // ── Draft / combine / prospect flags ────────────────────────────────────
+  { flag: "BREAKOUT_ROLE",  terms: ["first round pick", "top prospect", "elite prospect", "projected first round", "round one talent", "top 10 pick", "top 5 pick", "number one overall"] },
+  { flag: "BREAKOUT_ROLE",  terms: ["scheme fit", "ideal landing spot", "best fit", "plug-and-play", "immediate starter", "day one starter"] },
+  { flag: "DEPTH_PROMOTED", terms: ["signed by", "rookie contract", "undrafted free agent", "udfa", "signed as udfa", "practice squad signing"] },
+  { flag: "CAMP_BATTLE",    terms: ["combine workout", "pro day", "draft visit", "pre-draft visit", "top 30 visit", "private workout", "on-field workout"] },
+  { flag: "IR_RETURN",      terms: ["medicals cleared", "passed physical", "clean bill of health", "cleared medicals", "injury concern cleared"] },
+  { flag: "SUSPENSION",     terms: ["character concerns", "off-field issues", "conduct flag", "red flag", "do not draft"] },
+  { flag: "FREE_AGENT",     terms: ["going undrafted", "draft stock falling", "sliding in draft", "dropping in rankings", "fell out of draft"] },
+  { flag: "BREAKOUT_ROLE",  terms: ["combine standout", "pro day standout", "raised draft stock", "stock rising", "rocketed up boards"] },
 ];
 
 // ─── SIGNAL MAP ───────────────────────────────────────────────────────────────
@@ -212,23 +222,107 @@ Return ONLY valid JSON — no explanation, no markdown:
 
 // ─── FETCH HEADLINES ─────────────────────────────────────────────────────────
 // Shared headline + trending fetch used by runIntel and watchlist research.
+// Sources:
+//   1. ESPN NFL news         — in-season player news, injuries, transactions
+//   2. ESPN CFB news         — college player news, pre-draft coverage, pro days
+//   3. ESPN NFL draft news   — combine, draft stock, prospect rankings
+//   4. NFL.com RSS           — official league news, signings, transactions
+//   5. Yahoo Sports NFL RSS  — broader NFL coverage, fantasy-focused angles
+//   6. Fox Sports NFL RSS    — transactions, injuries, roster news
+//   7. Sleeper trending      — community add trends (dynasty/redraft signal)
 // Returns { headlines, trending } — both non-fatal (return empty on failure).
 
 export const fetchIntelSources = async () => {
   let headlines = [];
   let trending  = [];
 
-  try {
-    const r = await fetch(
-      "https://site.api.espn.com/apis/site/v2/sports/football/nfl/news?limit=100",
-      { signal: AbortSignal.timeout(6000) }
-    );
-    if (r.ok) {
-      const d = await r.json();
-      headlines = (d.articles || []).map(a => a.headline || a.title || "").filter(Boolean);
-    }
-  } catch {}
+  const fetchHeadlines = async (url, parser) => {
+    try {
+      const r = await fetch(url, { signal: AbortSignal.timeout(6000) });
+      if (r.ok) {
+        const d = await parser(r);
+        headlines = [...headlines, ...d];
+      }
+    } catch {}
+  };
 
+  // 1. ESPN NFL — primary in-season source
+  await fetchHeadlines(
+    "https://site.api.espn.com/apis/site/v2/sports/football/nfl/news?limit=100",
+    async r => {
+      const d = await r.json();
+      return (d.articles || []).map(a => a.headline || a.title || "").filter(Boolean);
+    }
+  );
+
+  // 2. ESPN College Football — pro days, combine, prospect news, senior bowl
+  await fetchHeadlines(
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/news?limit=80",
+    async r => {
+      const d = await r.json();
+      return (d.articles || []).map(a => a.headline || a.title || "").filter(Boolean);
+    }
+  );
+
+  // 3. ESPN NFL Draft — draft stock, combine workouts, team visits, mocks
+  await fetchHeadlines(
+    "https://site.api.espn.com/apis/site/v2/sports/football/nfl/news?limit=60&topic=nfl-draft",
+    async r => {
+      const d = await r.json();
+      return (d.articles || []).map(a => a.headline || a.title || "").filter(Boolean);
+    }
+  );
+
+  // 4. NFL.com RSS — official signings, transactions, roster moves
+  await fetchHeadlines(
+    "https://www.nfl.com/feeds/news/en_US/nfl_news_feed.rss",
+    async r => {
+      const text = await r.text();
+      // Parse RSS <title> tags — lightweight, no DOM parser needed
+      const titles = [];
+      const re = /<title><!\[CDATA\[(.*?)\]\]><\/title>|<title>(.*?)<\/title>/g;
+      let m;
+      while ((m = re.exec(text)) !== null) {
+        const t = (m[1] || m[2] || "").trim();
+        if (t && !t.toLowerCase().includes("nfl.com")) titles.push(t);
+      }
+      return titles;
+    }
+  );
+
+  // 5. Yahoo Sports NFL RSS — fantasy-focused angles, injuries, transactions
+  await fetchHeadlines(
+    "https://sports.yahoo.com/nfl/rss.xml",
+    async r => {
+      const text = await r.text();
+      const titles = [];
+      const re = /<title><!\[CDATA\[(.*?)\]\]><\/title>|<title>(.*?)<\/title>/g;
+      let m;
+      while ((m = re.exec(text)) !== null) {
+        const t = (m[1] || m[2] || "").trim();
+        if (t && !t.toLowerCase().includes("yahoo sports")) titles.push(t);
+      }
+      return titles;
+    }
+  );
+
+  // 6. Fox Sports NFL RSS — transactions, injuries, roster moves
+  await fetchHeadlines(
+    "https://api.foxsports.com/v2/content/optimized-rss?partnerKey=MB0Wehpmuj2lUhuRhQaafhBjAJfteDze&size=50&tags=fs/nfl",
+    async r => {
+      const text = await r.text();
+      const titles = [];
+      const re = /<title><!\[CDATA\[(.*?)\]\]><\/title>|<title>(.*?)<\/title>/g;
+      let m;
+      while ((m = re.exec(text)) !== null) {
+        const t = (m[1] || m[2] || "").trim();
+        if (t && !t.toLowerCase().includes("fox sports")) titles.push(t);
+      }
+      return titles;
+    }
+  );
+
+  // 7. Sleeper trending adds — dynasty community signal
   try {
     const r = await fetch(
       "https://api.sleeper.app/v1/players/nfl/trending/add?lookback_hours=48&limit=50",
@@ -239,6 +333,9 @@ export const fetchIntelSources = async () => {
       trending = d.map(t => t.player_id || t);
     }
   } catch {}
+
+  // Deduplicate headlines
+  headlines = [...new Set(headlines)];
 
   return { headlines, trending };
 };

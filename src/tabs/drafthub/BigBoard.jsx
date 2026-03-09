@@ -353,7 +353,8 @@ export function BigBoard({
               const roundCol     = ROUND_COLORS[(round-1) % ROUND_COLORS.length];
               const isEditing    = editingNote === p.pid;
               const intel        = intelResults[p.pid];
-              const prospectScore = scoreDraftPlayer(p, bigBoard, players, "BPA");
+              // Pass empty bigBoard so we get the base estimate, not the 1000-rank formula
+              const prospectScore = scoreDraftPlayer(p, [], players, "BPA");
 
               return (
                 <div key={p.pid}>
