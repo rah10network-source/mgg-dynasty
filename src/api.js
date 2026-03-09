@@ -36,10 +36,14 @@ const STAT_FIELDS = [
   "pass_yd","pass_td","pass_int",
   "rush_yd","rush_td","rush_att",
   "rec","rec_yd","rec_td","rec_tgt",
+  // Special teams returns (constitution §7.2)
+  "pr_yd","kr_yd","pr_td","kr_td","st_td",
+  "int_ret_yd","fum_ret_yd",
   // IDP — idp_ prefix confirmed from live Sleeper API data
   "idp_sack","idp_tkl_solo","idp_tkl_ast","idp_tkl_loss",
   "idp_qb_hit","idp_pass_def","idp_int","idp_ff","idp_fum_rec",
   "idp_safe","idp_def_td","idp_blk_kick",
+  "idp_int_ret_yd","idp_fum_ret_yd",
 ];
 
 // ─── LOAD DATA ────────────────────────────────────────────────────────────────
@@ -184,6 +188,13 @@ export const loadData = async (log, manualSitsRef) => {
       roleConf, yrsExp: p.years_exp, height: p.height, weight: p.weight, status: p.status,
       trades: tradeCnt[pid] || 0, adds: faAdd[pid] || 0, drops: dropCnt[pid] || 0,
       gamesStarted: null, gamesPlayed: null, ppg: null, statLine: null, seasonTotals: null,
+      // Dual-position flag: player eligible at both offense and defense (e.g. Travis Hunter WR/DB)
+      dualPos: (() => {
+        const fp = p.fantasy_positions || [];
+        const hasOff = fp.some(x => ["QB","RB","WR","TE"].includes(x));
+        const hasDef = fp.some(x => ["DL","LB","DB"].includes(x));
+        return hasOff && hasDef ? fp : null;
+      })(),
     };
   }).filter(Boolean);
 
@@ -226,8 +237,17 @@ export const loadData = async (log, manualSitsRef) => {
     p.seasonTotals = t;
     hits++;
     if      (p.pos === "QB")             p.statLine = `${Math.round(t.pass_yd||0)}yds ${t.pass_td||0}td ${t.pass_int||0}int`;
-    else if (p.pos === "RB")             p.statLine = `${Math.round(t.rush_yd||0)}ru ${t.rush_td||0}td · ${t.rec||0}rec ${Math.round(t.rec_yd||0)}yds`;
-    else if (["WR","TE"].includes(p.pos)) p.statLine = `${t.rec||0}rec ${Math.round(t.rec_yd||0)}yds ${t.rec_td||0}td · ${t.rec_tgt||0}tgt`;
+    else if (p.pos === "RB") {
+      const retYds = Math.round((t.kr_yd||0) + (t.pr_yd||0));
+      p.statLine = `${Math.round(t.rush_yd||0)}ru ${t.rush_td||0}td · ${t.rec||0}rec ${Math.round(t.rec_yd||0)}yds`
+        + (retYds > 0 ? ` · ${retYds}ret` : "");
+    }
+    else if (["WR","TE"].includes(p.pos)) {
+      const retYds = Math.round((t.kr_yd||0) + (t.pr_yd||0));
+      const idpLine = p.dualPos ? ` · ${t.idp_tkl_solo||0}tkl ${t.idp_int||0}int ${t.idp_pass_def||0}pd` : "";
+      p.statLine = `${t.rec||0}rec ${Math.round(t.rec_yd||0)}yds ${t.rec_td||0}td · ${t.rec_tgt||0}tgt`
+        + (retYds > 0 ? ` · ${retYds}ret` : "") + idpLine;
+    }
     else if (["DL","LB","DB"].includes(p.pos)) p.statLine = `${t.idp_tkl_solo||0}tkl ${t.idp_tkl_ast||0}ast ${t.idp_sack||0}sck ${t.idp_qb_hit||0}qbh ${t.idp_int||0}int ${t.idp_pass_def||0}pd`;
   });
   log(`Stats applied to ${hits}/${pl.length} rostered players`, hits > 0 ? "success" : "info");
@@ -258,7 +278,9 @@ export const loadData = async (log, manualSitsRef) => {
     const sc = ["DL","LB","DB"].includes(p.pos)
       ? idpScarcity(p.pos, p.seasonTotals)
       : SCARCITY[p.pos] || 1.0;
-    p.scarcityUsed = sc;
+    // Dual-position bonus: player eligible at both offense and defense (e.g. Travis Hunter)
+    // Gets a 15% scarcity boost — unique two-way contributors are extremely rare
+    p.scarcityUsed = p.dualPos ? Math.min(sc * 1.15, 2.5) : sc;
 
     const baseProd = p.ppg != null
       ? p.ppg * sc
@@ -286,6 +308,23 @@ export const loadData = async (log, manualSitsRef) => {
     }
     if (p.situationFlag === "BREAKOUT_ROLE" && (p.age || 99) <= 23) {
       p.situationFlag = "BREAKOUT_YOUNG";
+    }
+
+    // Auto DUAL_POS — two-way player (e.g. Travis Hunter WR/DB)
+    // Takes priority over AGE_CLIFF/BREAKOUT since it's structurally unique
+    if (p.dualPos) {
+      p.situationFlag = "DUAL_POS";
+      p.situationNote = `Two-way eligible: ${p.dualPos.join("/")} — scores on both sides of the ball`;
+    }
+
+    // Auto RETURN_THREAT — player accumulating meaningful return yards
+    // Only set if no other flag already present (don't override DUAL_POS etc.)
+    if (!p.situationFlag && p.seasonTotals) {
+      const retYds = (p.seasonTotals.pr_yd || 0) + (p.seasonTotals.kr_yd || 0);
+      if (retYds >= 200) {
+        p.situationFlag = "RETURN_THREAT";
+        p.situationNote = `${Math.round(retYds)} return yards this season — adds meaningful PPG floor`;
+      }
     }
 
     p.prodProxy = baseProd * sitMultiplier(p);

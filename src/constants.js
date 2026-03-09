@@ -25,9 +25,8 @@ export const POS_ORDER = ["QB","RB","WR","TE","DL","LB","DB","K"];
 // player stats. The old "def_" prefix was for Team DEF — completely wrong.
 // Confirmed from live Sleeper API data (sleeperdata.txt, Leaguedata.txt).
 //
-// Field mapping (Sleeper API → scoring key):
-//   idp_sack, idp_tkl_solo, idp_tkl_ast, idp_tkl_loss, idp_qb_hit,
-//   idp_pass_def, idp_int, idp_ff, idp_fum_rec, idp_safe, idp_def_td, idp_blk_kick
+// Return scoring from constitution §7.2:
+//   Punt return: +1/10 yds | Kick return: +1/30 yds | INT/Fum return: +1/10 yds
 //
 // Pending league vote: idp_tkl_solo +1→+1.5, idp_pass_def +1→+2, idp_qb_hit +0.5→+1
 export const SCORING = {
@@ -35,6 +34,14 @@ export const SCORING = {
   pass_yd:0.04, pass_td:4,  pass_int:-1,
   rush_yd:0.1,  rush_td:6,
   rec:0.5,      rec_yd:0.1, rec_td:4,
+  // Special teams returns (constitution §7.2)
+  pr_yd:       0.1,      // punt return yards: +1 per 10
+  kr_yd:       0.0333,   // kick return yards: +1 per 30
+  pr_td:       6,        // punt return TD
+  kr_td:       6,        // kick return TD
+  st_td:       6,        // generic ST TD (Sleeper fallback field)
+  int_ret_yd:  0.1,      // INT return yards (skill/ST players): +1 per 10
+  fum_ret_yd:  0.1,      // fumble return yards: +1 per 10
   // IDP — idp_ prefix matches Sleeper's actual API field names
   idp_sack:       4,
   idp_tkl_solo:   1,
@@ -48,6 +55,8 @@ export const SCORING = {
   idp_safe:       2,
   idp_def_td:     6,
   idp_blk_kick:   2,
+  idp_int_ret_yd: 0.1,   // IDP INT return yards: +1 per 10
+  idp_fum_ret_yd: 0.1,   // IDP fumble return yards: +1 per 10
 };
 
 // ─── PICK VALUES (placeholder — calibrate with simulation data) ───────────────
@@ -82,6 +91,8 @@ export const SITUATION_FLAGS = {
   BREAKOUT_ROLE:   { label:"BREAKOUT↑", color:"#4ade80", impact: 0.08, desc:"Role expansion, 24+ — sell-high window in 12 months" },
   DEPTH_PROMOTED:  { label:"PROMOTED",  color:"#0ea5e9", impact: 0.12, desc:"Moved to starter due to injury ahead of them" },
   CONTRACT_YEAR:   { label:"CONTRACT",  color:"#f59e0b", impact: 0.05, desc:"Playing for next deal — historically outperform" },
+  DUAL_POS:        { label:"TWO-WAY",   color:"#a78bfa", impact: 0.10, desc:"Eligible at both offense and defense — unique scoring upside (e.g. Travis Hunter)" },
+  RETURN_THREAT:   { label:"RETURNER",  color:"#38bdf8", impact: 0.06, desc:"Significant return yards — punt/kick returns add meaningful PPG floor" },
   // Risk
   NEW_OC:          { label:"NEW OC",    color:"#a855f7", impact: 0.00, desc:"Coordinator/scheme change — direction unknown" },
   CAMP_BATTLE:     { label:"CAMP ⚔",   color:"#f59e0b", impact:-0.08, desc:"Depth chart competition ongoing" },

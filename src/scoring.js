@@ -42,19 +42,29 @@ export const calcSleeperPts = (s) => {
     (s.rec      || 0) * SCORING.rec      +
     (s.rec_yd   || 0) * SCORING.rec_yd   +
     (s.rec_td   || 0) * SCORING.rec_td   +
+    // Special teams returns
+    (s.pr_yd       || 0) * SCORING.pr_yd       +
+    (s.kr_yd       || 0) * SCORING.kr_yd       +
+    (s.pr_td       || 0) * SCORING.pr_td       +
+    (s.kr_td       || 0) * SCORING.kr_td       +
+    (s.st_td       || 0) * SCORING.st_td       +
+    (s.int_ret_yd  || 0) * SCORING.int_ret_yd  +
+    (s.fum_ret_yd  || 0) * SCORING.fum_ret_yd  +
     // IDP — idp_ prefix (Sleeper API confirmed)
-    (s.idp_sack     || 0) * SCORING.idp_sack     +
-    (s.idp_tkl_solo || 0) * SCORING.idp_tkl_solo +
-    (s.idp_tkl_ast  || 0) * SCORING.idp_tkl_ast  +
-    (s.idp_tkl_loss || 0) * SCORING.idp_tkl_loss +
-    (s.idp_qb_hit   || 0) * SCORING.idp_qb_hit   +
-    (s.idp_pass_def || 0) * SCORING.idp_pass_def +
-    (s.idp_int      || 0) * SCORING.idp_int      +
-    (s.idp_ff       || 0) * SCORING.idp_ff       +
-    (s.idp_fum_rec  || 0) * SCORING.idp_fum_rec  +
-    (s.idp_safe     || 0) * SCORING.idp_safe     +
-    (s.idp_def_td   || 0) * SCORING.idp_def_td   +
-    (s.idp_blk_kick || 0) * SCORING.idp_blk_kick
+    (s.idp_sack        || 0) * SCORING.idp_sack        +
+    (s.idp_tkl_solo    || 0) * SCORING.idp_tkl_solo    +
+    (s.idp_tkl_ast     || 0) * SCORING.idp_tkl_ast     +
+    (s.idp_tkl_loss    || 0) * SCORING.idp_tkl_loss    +
+    (s.idp_qb_hit      || 0) * SCORING.idp_qb_hit      +
+    (s.idp_pass_def    || 0) * SCORING.idp_pass_def    +
+    (s.idp_int         || 0) * SCORING.idp_int         +
+    (s.idp_ff          || 0) * SCORING.idp_ff          +
+    (s.idp_fum_rec     || 0) * SCORING.idp_fum_rec     +
+    (s.idp_safe        || 0) * SCORING.idp_safe        +
+    (s.idp_def_td      || 0) * SCORING.idp_def_td      +
+    (s.idp_blk_kick    || 0) * SCORING.idp_blk_kick    +
+    (s.idp_int_ret_yd  || 0) * SCORING.idp_int_ret_yd  +
+    (s.idp_fum_ret_yd  || 0) * SCORING.idp_fum_ret_yd
   );
 };
 
