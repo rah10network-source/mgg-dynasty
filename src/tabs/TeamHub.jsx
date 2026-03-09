@@ -2,8 +2,9 @@
 // Your team's command centre — grade, sell-high alerts, trade targets,
 // positional depth vs league, and your full roster breakdown.
 import { useState, useMemo } from "react";
-import { TIER_STYLE, INJ_COLOR, SIG_COLORS, POS_ORDER } from "../constants";
+import { TIER_STYLE, INJ_COLOR, SIG_COLORS, POS_ORDER, SCARCITY, SITUATION_FLAGS } from "../constants";
 import { gradeRoster, isSellHigh, sellHighCandidates, tradeTargets, weakPositions } from "../roster";
+import { sitMultiplier } from "../scoring";
 
 const TABS = [
   ["overview",  "◎ OVERVIEW"],
@@ -21,39 +22,141 @@ function Stat({ label, value, color = "#e2e8f0", size = 18 }) {
   );
 }
 
-function PlayerRow({ p, newsMap, onClick }) {
-  const n  = newsMap?.[p.name];
-  const ts = TIER_STYLE[p.tier] || TIER_STYLE.Stash;
+function PlayerRow({ p, newsMap }) {
+  const [expanded, setExpanded] = useState(false);
+  const n   = newsMap?.[p.name];
+  const ts  = TIER_STYLE[p.tier] || TIER_STYLE.Stash;
   const inj = p.injStatus && INJ_COLOR[p.injStatus];
+  const sf  = p.situationFlag ? SITUATION_FLAGS[p.situationFlag] : null;
+
   return (
-    <div onClick={() => onClick?.(p)}
-      style={{ display:"flex", alignItems:"center", gap:10, padding:"7px 10px",
-        background:"#080d14", borderBottom:"1px solid #0f1923",
-        cursor: onClick ? "pointer" : "default" }}
-      onMouseOver={e => e.currentTarget.style.background = "#0a1118"}
-      onMouseOut={e  => e.currentTarget.style.background = "#080d14"}>
-      <div style={{ width:38, textAlign:"center", flexShrink:0 }}>
-        <div style={{ fontSize:15, fontWeight:900, color:ts.text,
-          textShadow:`0 0 8px ${ts.glow}` }}>{p.score}</div>
-        <div style={{ fontSize:7, color:ts.text, letterSpacing:1 }}>{p.tier}</div>
-      </div>
-      <div style={{ flex:1, minWidth:0 }}>
-        <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
-          <span style={{ fontSize:12, fontWeight:700, color:"#e2e8f0" }}>{p.name}</span>
-          {p.onTaxi && <span style={{ fontSize:7, background:"#0c1e35", color:"#60a5fa",
-            border:"1px solid #3b82f644", borderRadius:3, padding:"1px 5px" }}>TAXI</span>}
-          {inj && <span style={{ fontSize:7, background:inj+"22", color:inj,
-            border:`1px solid ${inj}44`, borderRadius:3, padding:"1px 5px" }}>{p.injStatus}</span>}
-          {n?.signal && <span style={{ fontSize:7, background:SIG_COLORS[n.signal],
-            color:"#080d14", borderRadius:3, padding:"1px 5px", fontWeight:900 }}>{n.signal}</span>}
+    <div style={{ borderBottom:"1px solid #0f1923" }}>
+      {/* ── Summary row ── */}
+      <div onClick={() => setExpanded(x => !x)}
+        style={{ display:"flex", alignItems:"center", gap:10, padding:"7px 10px",
+          background: expanded ? ts.bg : "#080d14",
+          cursor:"pointer", transition:"background .15s" }}
+        onMouseOver={e => { if (!expanded) e.currentTarget.style.background = "#0a1118"; }}
+        onMouseOut={e  => { if (!expanded) e.currentTarget.style.background = "#080d14"; }}>
+
+        {/* Score + tier */}
+        <div style={{ width:38, textAlign:"center", flexShrink:0 }}>
+          <div style={{ fontSize:15, fontWeight:900, color:ts.text,
+            textShadow:`0 0 8px ${ts.glow}` }}>{p.score}</div>
+          <div style={{ fontSize:7, color:ts.text, letterSpacing:1 }}>{p.tier}</div>
         </div>
-        <div style={{ fontSize:9, color:"#7a95ae", marginTop:2 }}>
-          {p.pos} · {p.team}{p.age ? ` · ${p.age}y` : ""}{p.ppg != null ? ` · ${p.ppg} ppg` : ""}
+
+        {/* Name + badges */}
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
+            <span style={{ fontSize:12, fontWeight:700, color:"#e2e8f0" }}>{p.name}</span>
+            {p.onTaxi && <span style={{ fontSize:7, background:"#0c1e35", color:"#60a5fa",
+              border:"1px solid #3b82f644", borderRadius:3, padding:"1px 5px" }}>TAXI</span>}
+            {inj && <span style={{ fontSize:7, background:inj+"22", color:inj,
+              border:`1px solid ${inj}44`, borderRadius:3, padding:"1px 5px" }}>{p.injStatus}</span>}
+            {n?.signal && <span style={{ fontSize:7, background:SIG_COLORS[n.signal],
+              color:"#080d14", borderRadius:3, padding:"1px 5px", fontWeight:900 }}>{n.signal}</span>}
+          </div>
+          <div style={{ fontSize:9, color:"#7a95ae", marginTop:2 }}>
+            {p.pos} · {p.team}{p.age ? ` · ${p.age}y` : ""}{p.ppg != null ? ` · ${p.ppg} ppg` : ""}
+          </div>
+        </div>
+
+        {/* Situation flag + chevron */}
+        <div style={{ display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
+          {p.situationFlag && (
+            <div style={{ fontSize:7, color:"#f59e0b", textAlign:"right",
+              maxWidth:80, lineHeight:1.3 }}>{p.situationFlag.replace(/_/g," ")}</div>
+          )}
+          <span style={{ fontSize:9, color:"#4d6880" }}>{expanded ? "▲" : "▼"}</span>
         </div>
       </div>
-      {p.situationFlag && (
-        <div style={{ fontSize:7, color:"#f59e0b", textAlign:"right",
-          maxWidth:80, lineHeight:1.3 }}>{p.situationFlag.replace(/_/g," ")}</div>
+
+      {/* ── Expanded panel ── */}
+      {expanded && (
+        <div style={{ background:ts.bg, borderTop:`1px solid ${ts.border}`,
+          padding:"16px 18px", display:"grid",
+          gridTemplateColumns:"repeat(3,1fr)", gap:18 }}>
+
+          {/* Profile */}
+          <div>
+            <div style={{ fontSize:8, color:ts.text, letterSpacing:2,
+              fontWeight:700, marginBottom:8 }}>PROFILE</div>
+            {[
+              ["Team",     p.team],
+              ["Age",      p.age || "—"],
+              ["Yrs Exp",  p.yrsExp ?? "—"],
+              ["Ht / Wt",  `${p.height||"—"} / ${p.weight||"—"}`],
+              ["Status",   p.status || "Active"],
+              ["Depth",    p.depthOrder ? `#${p.depthOrder} ${p.depthPos||""}` : "Unknown"],
+              ["Injury",   p.injStatus || "None"],
+            ].map(([k, v]) => (
+              <div key={k} style={{ display:"flex", justifyContent:"space-between",
+                borderBottom:"1px solid rgba(255,255,255,0.04)", padding:"3px 0", fontSize:11 }}>
+                <span style={{ color:"#7a95ae" }}>{k}</span>
+                <span style={{ color:"#e2e8f0", fontWeight:600 }}>{v}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Dynasty metrics */}
+          <div>
+            <div style={{ fontSize:8, color:ts.text, letterSpacing:2,
+              fontWeight:700, marginBottom:8 }}>DYNASTY METRICS</div>
+            {[
+              ["Score",         p.score],
+              ["Tier",          p.tier],
+              ["Scarcity Mult", `${(p.scarcityUsed || SCARCITY[p.pos] || 1).toFixed(2)}×`],
+              ["Age Score",     p.ageRaw != null ? Math.round(p.ageRaw) : "—"],
+              ["Role Conf",     p.roleConf != null ? `${Math.round(p.roleConf*100)}%` : "—"],
+              ["Starts (2025)", p.gamesStarted != null ? `${p.gamesStarted}/${p.gamesPlayed}` : "No data"],
+              ["PPG (2025)",    p.ppg != null ? p.ppg : "No data"],
+              ["Season Stats",  p.statLine || "—"],
+              ["Trades",        p.trades ?? "—"],
+              ["FA Adds",       p.adds ?? "—"],
+              ["Situation",     sf ? sf.label : "None"],
+              ...(p.situationNote ? [["Sit. Note", p.situationNote]] : []),
+              ...(p.situationFlag === "SUSPENSION" ? [["Value Mult", `${(sitMultiplier(p)*100).toFixed(0)}%`]] : []),
+            ].map(([k, v]) => (
+              <div key={k} style={{ display:"flex", justifyContent:"space-between",
+                borderBottom:"1px solid rgba(255,255,255,0.04)", padding:"3px 0", fontSize:11 }}>
+                <span style={{ color:"#7a95ae" }}>{k}</span>
+                <span style={{ color:ts.text, fontWeight:700 }}>{v}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Intel */}
+          <div>
+            <div style={{ fontSize:8, color:ts.text, letterSpacing:2,
+              fontWeight:700, marginBottom:8 }}>INTEL</div>
+            {n ? (
+              <div style={{ background:`${SIG_COLORS[n.signal]}18`,
+                border:`1px solid ${SIG_COLORS[n.signal]}`,
+                borderRadius:8, padding:"12px" }}>
+                <div style={{ fontSize:13, fontWeight:900,
+                  color:SIG_COLORS[n.signal], letterSpacing:2,
+                  marginBottom:6 }}>{n.signal}</div>
+                {n.note && (
+                  <div style={{ fontSize:11, color:"#e2e8f0",
+                    lineHeight:1.7, marginBottom:6 }}>{n.note}</div>
+                )}
+                {n.situationFlag && (
+                  <div style={{ fontSize:9, color:"#f59e0b", fontWeight:700 }}>
+                    {n.situationFlag.replace(/_/g," ")}
+                  </div>
+                )}
+                {n.situationNote && (
+                  <div style={{ fontSize:9, color:"#7a95ae",
+                    marginTop:3, fontStyle:"italic" }}>{n.situationNote}</div>
+                )}
+              </div>
+            ) : (
+              <div style={{ fontSize:10, color:"#4d6880",
+                fontStyle:"italic" }}>Run ◈ INTEL SCAN for news signals</div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );
@@ -367,7 +470,7 @@ function TargetsTab({ currentOwner, myGrade, players, newsMap }) {
 }
 
 // ── ROSTER TAB ────────────────────────────────────────────────────────────────
-function RosterTab({ roster, newsMap, setDetail }) {
+function RosterTab({ roster, newsMap }) {
   const [posFilter, setPosFilter] = useState("ALL");
   const [sortKey,   setSortKey]   = useState("score");
   const filtered = roster
@@ -407,7 +510,7 @@ function RosterTab({ roster, newsMap, setDetail }) {
         <span style={{ fontSize:9, color:"#4d6880" }}>{filtered.length} players</span>
       </div>
       <div style={{ border:"1px solid #1e2d3d", borderRadius:10, overflow:"hidden" }}>
-        {filtered.map(p => <PlayerRow key={p.pid} p={p} newsMap={newsMap} onClick={setDetail} />)}
+        {filtered.map(p => <PlayerRow key={p.pid} p={p} newsMap={newsMap} />)}
       </div>
     </div>
   );
@@ -454,7 +557,7 @@ export function TeamHub({ phase, players, owners, currentOwner, newsMap = {}, se
       </div>
       {tab==="overview"  && <Overview myGrade={myGrade} owners={owners} players={players}
         newsMap={newsMap} currentOwner={currentOwner} setTab={setTab} />}
-      {tab==="roster"    && <RosterTab roster={myGrade.roster} newsMap={newsMap} setDetail={setDetail} />}
+      {tab==="roster"    && <RosterTab roster={myGrade.roster} newsMap={newsMap} />}
       {tab==="sellhigh"  && <SellHighTab roster={myGrade.roster} newsMap={newsMap} />}
       {tab==="targets"   && <TargetsTab currentOwner={currentOwner} myGrade={myGrade}
         players={players} newsMap={newsMap} />}
