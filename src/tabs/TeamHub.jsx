@@ -237,7 +237,7 @@ function PlayerRow({ p, newsMap, playerNotes, savePlayerNote, viewMode = "dynast
 }
 
 // ── OVERVIEW TAB ──────────────────────────────────────────────────────────────
-function Overview({ myGrade, owners, players, newsMap, currentOwner, setTab }) {
+function Overview({ myGrade, owners, players, newsMap, currentOwner, setTab, viewMode="dynasty" }) {
   const allGrades = useMemo(() =>
     owners.map(o => gradeRoster(o, players)).filter(Boolean)
       .sort((a,b) => b.contenderScore - a.contenderScore),
@@ -414,7 +414,7 @@ function Overview({ myGrade, owners, players, newsMap, currentOwner, setTab }) {
 }
 
 // ── SELL-HIGH TAB ─────────────────────────────────────────────────────────────
-function SellHighTab({ roster, newsMap }) {
+function SellHighTab({ roster, newsMap, viewMode="dynasty" }) {
   const candidates = sellHighCandidates(roster, newsMap);
   return (
     <div>
@@ -471,7 +471,7 @@ function SellHighTab({ roster, newsMap }) {
 }
 
 // ── TARGETS TAB ───────────────────────────────────────────────────────────────
-function TargetsTab({ currentOwner, myGrade, players, newsMap }) {
+function TargetsTab({ currentOwner, myGrade, players, newsMap, viewMode="dynasty" }) {
   const weak    = weakPositions(myGrade, players);
   const targets = tradeTargets(currentOwner, myGrade, players, newsMap, 12);
   return (
@@ -544,7 +544,7 @@ function TargetsTab({ currentOwner, myGrade, players, newsMap }) {
 }
 
 // ── ROSTER TAB ────────────────────────────────────────────────────────────────
-function RosterTab({ roster, newsMap, playerNotes, savePlayerNote }) {
+function RosterTab({ roster, newsMap, playerNotes, savePlayerNote, viewMode="dynasty" }) {
   const [posFilter, setPosFilter] = useState("ALL");
   const [sortKey,   setSortKey]   = useState("score");
   const filtered = roster
@@ -591,7 +591,7 @@ function RosterTab({ roster, newsMap, playerNotes, savePlayerNote }) {
 }
 
 // ── COMPARE TAB ───────────────────────────────────────────────────────────────
-function CompareTab({ myGrade, owners, players, newsMap, currentOwner }) {
+function CompareTab({ myGrade, owners, players, newsMap, currentOwner, viewMode="dynasty" }) {
   const [oppOwner, setOppOwner] = useState("");
   const oppGrade = oppOwner ? gradeRoster(oppOwner, players) : null;
 
@@ -859,13 +859,13 @@ export function TeamHub({ viewMode="dynasty", phase, players, owners, currentOwn
         ))}
       </div>
       {tab==="overview"  && <Overview myGrade={myGrade} owners={owners} players={players}
-        newsMap={newsMap} currentOwner={currentOwner} setTab={setTab} />}
-      {tab==="roster"    && <RosterTab roster={myGrade.roster} newsMap={newsMap} playerNotes={playerNotes} savePlayerNote={savePlayerNote} />}
-      {tab==="sellhigh"  && <SellHighTab roster={myGrade.roster} newsMap={newsMap} />}
+        newsMap={newsMap} currentOwner={currentOwner} setTab={setTab} viewMode={viewMode} />}
+      {tab==="roster"    && <RosterTab roster={myGrade.roster} newsMap={newsMap} playerNotes={playerNotes} savePlayerNote={savePlayerNote} viewMode={viewMode} />}
+      {tab==="sellhigh"  && <SellHighTab roster={myGrade.roster} newsMap={newsMap} viewMode={viewMode} />}
       {tab==="targets"   && <TargetsTab currentOwner={currentOwner} myGrade={myGrade}
-        players={players} newsMap={newsMap} />}
+        players={players} newsMap={newsMap} viewMode={viewMode} />}
       {tab==="compare"   && <CompareTab myGrade={myGrade} owners={owners} players={players}
-        newsMap={newsMap} currentOwner={currentOwner} />}
+        newsMap={newsMap} currentOwner={currentOwner} viewMode={viewMode} />}
     </div>
   );
 }
