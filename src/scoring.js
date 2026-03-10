@@ -166,19 +166,32 @@ export const calcDynastyValues = (players, eloScores = {}) => {
 
 // ─── START VALUE (0-100) ──────────────────────────────────────────────────────
 // Current-week production metric. Purpose: who to start, who to drop.
-// No scarcity, no age penalty — pure production + role right now.
-// Position-aware PPG floor for players with no stats data.
+// Position-relative absolute mapping — each position has its own PPG ceiling/floor
+// so players spread across the full 0-100 range within their position group.
+// No cross-position normalization (that caused tier-step clustering).
 
-export const START_PPG_FLOOR = { QB:12, RB:8, WR:7, TE:5, DL:4, LB:6, DB:4, K:6 };
+// PPG ceiling = elite starter for that position. Floor = benchwarmer/taxi.
+const SV_CEIL  = { QB:32, RB:22, WR:18, TE:14, DL:13, LB:15, DB:11, K:11 };
+const SV_FLOOR = { QB: 6, RB: 3, WR: 2,  TE: 1,  DL: 1,  LB: 2,  DB: 1,  K: 3 };
+// PPG fallback for players with no stats (estimated from depth/role)
+export const START_PPG_FLOOR = { QB:14, RB:9, WR:8, TE:6, DL:5, LB:7, DB:5, K:7 };
 
 export const calcStartRaw = (p) => {
-  const floor   = START_PPG_FLOOR[p.pos] || 6;
-  const effPpg  = p.ppg ?? (floor * p.effRole * (p.gamesStarted === 0 ? 0.4 : 1.0));
-  const injMult = ["Out","IR","PUP"].includes(p.injStatus) ? 0.25
-                : p.injStatus === "Doubtful"               ? 0.55
+  const floor   = START_PPG_FLOOR[p.pos] || 7;
+  const effPpg  = p.ppg ?? (floor * p.effRole * (p.gamesStarted === 0 ? 0.35 : 0.75));
+  const injMult = ["Out","IR","PUP"].includes(p.injStatus) ? 0.20
+                : p.injStatus === "Doubtful"               ? 0.50
                 : p.injStatus === "Questionable"           ? 0.85
                 : 1.0;
-  return Math.max(0, effPpg * injMult);
+  const ppgAdj = Math.max(0, effPpg * injMult);
+
+  // Map PPG to 0-99 using position ceiling/floor with a slight upward curve
+  // for elite producers (raw^0.82 boosts the top end slightly)
+  const hi   = SV_CEIL[p.pos]  || 15;
+  const lo   = SV_FLOOR[p.pos] || 2;
+  const raw  = Math.min(1.0, Math.max(0.0, (ppgAdj - lo) / (hi - lo)));
+  const curved = Math.pow(raw, 0.82);
+  return Math.max(5, Math.min(99, Math.round(curved * 99)));
 };
 
 export const sitMultiplier = (p) => {

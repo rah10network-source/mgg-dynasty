@@ -279,7 +279,7 @@ function Overview({ myGrade, owners, players, newsMap, currentOwner, setTab, vie
             </div>
           </div>
           <div style={{ display:"flex", gap:20, flexWrap:"wrap" }}>
-            <Stat label="AVG SCORE" value={myGrade.avgScore.toFixed(1)} />
+            <Stat label="AVG DV" value={Math.round(myGrade.avgScore)} />
             <Stat label="ELITE"    value={myGrade.eliteCount} color="#22c55e" />
             <Stat label="STARTERS" value={myGrade.starterCnt} color="#60a5fa" />
             <Stat label="AVG AGE"  value={myGrade.avgAge.toFixed(1)} color="#f59e0b" />
@@ -291,8 +291,8 @@ function Overview({ myGrade, owners, players, newsMap, currentOwner, setTab, vie
           {POS_ORDER.map(pos => {
             const dep = myGrade.posDep[pos];
             if (!dep?.count) return null;
-            const fill = Math.min(100, dep.avg);
-            const col  = dep.avg>=70?"#22c55e":dep.avg>=45?"#60a5fa":dep.avg>=25?"#f59e0b":"#ef4444";
+            const fill = Math.min(100, dep.avg / 10);
+            const col  = dep.avg>=700?"#22c55e":dep.avg>=450?"#60a5fa":dep.avg>=250?"#f59e0b":"#ef4444";
             return (
               <div key={pos} style={{ flex:"1 1 55px", minWidth:48 }}>
                 <div style={{ fontSize:8, color:"#7a95ae", marginBottom:3, letterSpacing:1,
@@ -487,7 +487,7 @@ function TargetsTab({ currentOwner, myGrade, players, newsMap, viewMode="dynasty
               <div key={w.pos} style={{ background:"#080d14", border:"1px solid #1e2d3d",
                 borderRadius:6, padding:"8px 12px", textAlign:"center" }}>
                 <div style={{ fontSize:16, fontWeight:900,
-                  color:w.gap < -15?"#ef4444":"#f59e0b" }}>{w.pos}</div>
+                  color:w.gap < -150?"#ef4444":"#f59e0b" }}>{w.pos}</div>
                 <div style={{ fontSize:8, color:"#4d6880", marginTop:2 }}>
                   {w.mine.toFixed(0)} vs {w.league.toFixed(0)} avg
                 </div>
@@ -601,13 +601,13 @@ function CompareTab({ myGrade, owners, players, newsMap, currentOwner, viewMode=
   const gaps = oppGrade ? POS_ORDER.filter(pos => {
     const mine = myGrade.posDep[pos]?.avg || 0;
     const theirs = oppGrade.posDep[pos]?.avg || 0;
-    return theirs - mine > 15;
+    return theirs - mine > 150;
   }) : [];
 
   const advantages = oppGrade ? POS_ORDER.filter(pos => {
     const mine = myGrade.posDep[pos]?.avg || 0;
     const theirs = oppGrade.posDep[pos]?.avg || 0;
-    return mine - theirs > 15;
+    return mine - theirs > 150;
   }) : [];
 
   return (
@@ -667,7 +667,7 @@ function CompareTab({ myGrade, owners, players, newsMap, currentOwner, viewMode=
                 </div>
                 <div style={{ display:"flex", gap:14, flexWrap:"wrap" }}>
                   {[
-                    ["AVG",     g.avgScore.toFixed(1)],
+                    ["AVG DV",  Math.round(g.avgScore)],
                     ["ELITE",   g.eliteCount],
                     ["STRTRS",  g.starterCnt],
                     ["AVG AGE", g.avgAge.toFixed(1)],

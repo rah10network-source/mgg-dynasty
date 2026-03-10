@@ -347,14 +347,10 @@ export const loadData = async (log, manualSitsRef) => {
   pl = normalise(pl, "roleStab");
 
   // ── Start Value (p.startValue, 0-100) ───────────────────────────────────
-  // Current-production metric: who to start/drop right now.
-  // No scarcity, no dynasty age curve — pure PPG + role + health.
-  pl.forEach(p => { p.startRaw = calcStartRaw(p); });
-  pl = normalise(pl, "startRaw");
+  // Position-relative absolute mapping — no cross-position normalisation.
+  // calcStartRaw returns the final 0-99 value directly from PPG + pos ceiling.
   pl.forEach(p => {
-    p.startValue = Math.round(Math.min(100, Math.max(0,
-      p.startRaw_n * 0.80 + p.roleStab_n * 0.20
-    )));
+    p.startValue = calcStartRaw(p);
     p.score = p.startValue; // legacy alias — kept for external consumers
   });
 

@@ -149,7 +149,7 @@ export function Dashboard({ phase, players, currentOwner, owners, newsMap, seaso
             const dep  = myGrade.posDep[pos];
             if (!dep?.count) return null;
             const fill = Math.min(100,dep.avg);
-            const col  = dep.avg>=70?"#22c55e":dep.avg>=45?"#60a5fa":dep.avg>=25?"#f59e0b":"#ef4444";
+            const col  = dep.avg>=700?"#22c55e":dep.avg>=450?"#60a5fa":dep.avg>=250?"#f59e0b":"#ef4444";
             const isWk = weakPos.has(pos);
             return (
               <div key={pos} style={{flex:"1 1 55px",minWidth:48}}>
@@ -259,7 +259,7 @@ export function Dashboard({ phase, players, currentOwner, owners, newsMap, seaso
           <div style={{display:"flex",flexDirection:"column",gap:10}}>
             {weak.map(({ pos, mine, league, gap }) => {
               const mx   = Math.max(mine, league, 1);
-              const gCol = gap>=0?"#22c55e":gap>-10?"#f59e0b":"#ef4444";
+              const gCol = gap>=0?"#22c55e":gap>-100?"#f59e0b":"#ef4444";
               return (
                 <div key={pos}>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}>
