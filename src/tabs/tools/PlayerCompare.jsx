@@ -88,9 +88,9 @@ function PlayerSearch({ label, selected, onSelect, players, nflDb, slotIndex }) 
             )}
           </div>
           <div style={{ textAlign:"center" }}>
-            {selected.score != null && (
+            {selected.dynastyValue != null && (
               <div style={{ fontSize:36, fontWeight:900, color:ts.text,
-                lineHeight:1 }}>{selected.score}</div>
+                lineHeight:1 }}>{selected.dynastyValue ?? selected.score}</div>
             )}
             <div style={{ fontSize:8, color:ts.text, letterSpacing:1 }}>
               {selected.tier || "FA"}
@@ -142,9 +142,9 @@ function PlayerSearch({ label, selected, onSelect, players, nflDb, slotIndex }) 
                   {p.pos} · {p.team}{p.age ? ` · ${p.age}y` : ""}
                 </div>
               </div>
-              {p.score != null && (
+              {p.dynastyValue != null && (
                 <span style={{ fontSize:12, fontWeight:900,
-                  color:(TIER_STYLE[p.tier]||TIER_STYLE.Stash).text }}>{p.score}</span>
+                  color:(TIER_STYLE[p.tier]||TIER_STYLE.Stash).text }}>{p.dynastyValue ?? p.score}</span>
               )}
               {p.isRostered
                 ? <span style={{ fontSize:7, color:"#22c55e", letterSpacing:1 }}>ROSTERED</span>

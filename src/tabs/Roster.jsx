@@ -6,7 +6,7 @@ export function gradeRoster(owner, players) {
   const roster     = players.filter(p => p.owner === owner);
   if (!roster.length) return null;
 
-  const scores     = roster.map(p => p.score);
+  const scores     = roster.map(p => p.dynastyValue);
   const avgScore   = scores.reduce((a,b) => a+b, 0) / scores.length;
   const topScore   = Math.max(...scores);
   const eliteCount = roster.filter(p => p.tier === "Elite").length;
@@ -18,11 +18,11 @@ export function gradeRoster(owner, players) {
 
   const posDep = {};
   POS_ORDER.forEach(pos => {
-    const pp = roster.filter(p => p.pos === pos).sort((a,b) => b.score - a.score);
+    const pp = roster.filter(p => p.pos === pos).sort((a,b) => b.dynastyValue - a.dynastyValue);
     posDep[pos] = {
       count: pp.length,
-      top:   pp[0]?.score || 0,
-      avg:   pp.length ? pp.reduce((s,p) => s+p.score, 0) / pp.length : 0,
+      top:   pp[0]?.dynastyValue || 0,
+      avg:   pp.length ? pp.reduce((s,p) => s+p.dynastyValue, 0) / pp.length : 0,
     };
   });
 

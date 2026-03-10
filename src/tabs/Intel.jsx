@@ -42,7 +42,7 @@ export function Intel({ newsPhase, newsMap, players, onRunIntel }) {
                 {/* Score badge */}
                 <div style={{background:ts.bg,border:`1px solid ${ts.border}`,borderRadius:6,
                   padding:"7px 11px",textAlign:"center",minWidth:50,flexShrink:0}}>
-                  <div style={{fontSize:18,fontWeight:900,color:ts.text}}>{p?.score ?? '—'}</div>
+                  <div style={{fontSize:18,fontWeight:900,color:ts.text}}>{p?.dynastyValue ?? '—'}</div>
                   <div style={{fontSize:8,color:ts.text,letterSpacing:1}}>{p?.tier||'—'}</div>
                 </div>
                 {/* Intel body */}

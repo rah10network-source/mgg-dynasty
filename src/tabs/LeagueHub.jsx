@@ -8,7 +8,7 @@ const SUB_TABS = [
   ["standings", "▸ STANDINGS"],
 ];
 
-export function LeagueHub({ phase, players, owners, currentOwner, newsMap, setDetail, setActiveTab, seasonState }) {
+export function LeagueHub({ phase, players, owners, currentOwner, newsMap, setDetail, setActiveTab, seasonState, viewMode="dynasty" }) {
   const [sub, setSub] = useState("positions");
 
   const isInSzn = ["inseason","playoffs"].includes(seasonState?.mode);
@@ -35,6 +35,7 @@ export function LeagueHub({ phase, players, owners, currentOwner, newsMap, setDe
           newsMap={newsMap}
           setDetail={setDetail}
           setActiveTab={setActiveTab}
+          viewMode={viewMode}
         />
       )}
 
@@ -117,7 +118,7 @@ export function LeagueHub({ phase, players, owners, currentOwner, newsMap, setDe
                         // Quick inline grade for ranking — doesn't need full gradeRoster
                         const rp = players.filter(p => p.owner===o);
                         if (!rp.length) return null;
-                        const avg = rp.reduce((s,p)=>s+p.score,0)/rp.length;
+                        const avg = rp.reduce((s,p)=>s+pv(p,viewMode),0)/rp.length;
                         const elites = rp.filter(p=>p.tier==="Elite").length;
                         const rank   = Math.round(avg*0.7 + elites*5);
                         const avgAge = rp.map(p=>p.age).filter(Boolean).reduce((s,a)=>s+a,0)/rp.filter(p=>p.age).length;

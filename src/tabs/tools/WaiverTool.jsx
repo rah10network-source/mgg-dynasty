@@ -15,26 +15,31 @@ import { filterDraftPool } from "../../draft";
 //   Trending        — bonus if player is being widely added across the league
 //   Injury risk     — penalty for injured players
 
+// estimateValue is now a fallback for players without dynastyValue from the scoring engine.
+// When dynastyValue is present (rostered or FA database), prefer that.
 const estimateValue = (p) => {
+  if (p.dynastyValue) return p.dynastyValue;
   if (!p.pos) return 0;
   const depthBonus = p.depth === 1 ? 25 : p.depth === 2 ? 10 : 0;
   const age        = p.age || 26;
   const agePenalty = Math.max(0, (age - 28) * 2);
-  return Math.max(0, Math.min(95, 60 - agePenalty + depthBonus));
+  // Scale to 0-1000 range to match dynastyValue
+  return Math.max(0, Math.min(950, (60 - agePenalty + depthBonus) * 10));
 };
 
 const waiverScore = (p, weakPos, trending) => {
   let score = estimateValue(p);
-  if (weakPos.has(p.pos)) score += 18;
-  if (trending.includes(p.pid)) score += 12;
-  if (p.inj) score -= 15;
+  if (weakPos.has(p.pos)) score += 180;
+  if (trending.includes(p.pid)) score += 120;
+  if (p.inj) score -= 150;
   return Math.round(score);
 };
 
 // ── Player card ────────────────────────────────────────────────────────────────
 function WaiverCard({ p, rank, onAddToWatchlist, inWatchlist }) {
   const val  = estimateValue(p);
-  const col  = val >= 70 ? "#22c55e" : val >= 45 ? "#60a5fa" : val >= 25 ? "#f59e0b" : "#ef4444";
+  // Dynasty value color bands on 0-1000 scale
+  const col  = val >= 700 ? "#22c55e" : val >= 400 ? "#60a5fa" : val >= 200 ? "#f59e0b" : "#ef4444";
   const inj  = p.inj && INJ_COLOR[p.inj];
 
   return (
@@ -43,9 +48,9 @@ function WaiverCard({ p, rank, onAddToWatchlist, inWatchlist }) {
       <span style={{ fontSize:9, color:"#4d6880", minWidth:20, textAlign:"center" }}>
         {rank}
       </span>
-      <div style={{ width:40, textAlign:"center", flexShrink:0 }}>
-        <div style={{ fontSize:16, fontWeight:900, color:col }}>{val}</div>
-        <div style={{ fontSize:7, color:"#4d6880", letterSpacing:1 }}>EST.</div>
+      <div style={{ width:44, textAlign:"center", flexShrink:0 }}>
+        <div style={{ fontSize:14, fontWeight:900, color:col }}>{val}</div>
+        <div style={{ fontSize:7, color:"#4d6880", letterSpacing:1 }}>DYN</div>
       </div>
       <div style={{ flex:1, minWidth:0 }}>
         <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>

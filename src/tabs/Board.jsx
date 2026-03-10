@@ -1,13 +1,13 @@
 import React from "react";
 import { TH, TD } from "../components/TableCells";
-import { TIER_STYLE, INJ_COLOR, SIG_COLORS, SIT_ICONS, SCARCITY, POS_ORDER, SITUATION_FLAGS } from "../constants";
+import { TIER_STYLE, INJ_COLOR, SIG_COLORS, SIT_ICONS, SCARCITY, POS_ORDER, SITUATION_FLAGS ,  pv } from "../constants";
 import { sitMultiplier } from "../scoring";
 
 export function Board({
   players, view, newsMap, detail, setDetail,
   tierFilter, setTierFilter, search, setSearch,
   posFilter, setPosFilter,
-  sortKey, sortAsc, onSort,
+  sortKey, sortAsc, onSort, viewMode="dynasty",
 }) {
   return (
     <>
@@ -101,7 +101,7 @@ export function Board({
                     <TD style={{color:"#a8bccf"}}>{p.age ?? '—'}</TD>
 
                     <TD style={{fontWeight:900,fontSize:14,color:ts.text,textShadow:`0 0 8px ${ts.glow}`}}>
-                      {p.score}
+                      {pv(p,viewMode)}
                     </TD>
 
                     <TD>
@@ -188,7 +188,7 @@ export function Board({
                           <div>
                             <div style={{fontSize:9,color:ts.text,letterSpacing:2,marginBottom:8,fontWeight:700}}>DYNASTY METRICS</div>
                             {[
-                              ["Score",          p.score],
+                              ["DV / SV", `${p.dynastyValue ?? "—"} / ${p.startValue ?? "—"}`],
                               ["Tier",           p.tier],
                               ["Scarcity Mult",  `${(p.scarcityUsed||SCARCITY[p.pos]||1).toFixed(2)}×`],
                               ["Age Score",      Math.round(p.ageRaw)],

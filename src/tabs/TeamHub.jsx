@@ -2,7 +2,7 @@
 // Your team's command centre — grade, sell-high alerts, trade targets,
 // positional depth vs league, and your full roster breakdown.
 import { useState, useMemo } from "react";
-import { TIER_STYLE, INJ_COLOR, SIG_COLORS, POS_ORDER, SCARCITY, SITUATION_FLAGS } from "../constants";
+import { TIER_STYLE, INJ_COLOR, SIG_COLORS, POS_ORDER, SCARCITY, SITUATION_FLAGS ,  pv, pvColor } from "../constants";
 import { gradeRoster, isSellHigh, sellHighCandidates, tradeTargets, weakPositions } from "../roster";
 import { sitMultiplier } from "../scoring";
 
@@ -46,7 +46,7 @@ function PlayerRow({ p, newsMap, playerNotes, savePlayerNote }) {
         {/* Score + tier */}
         <div style={{ width:38, textAlign:"center", flexShrink:0 }}>
           <div style={{ fontSize:15, fontWeight:900, color:ts.text,
-            textShadow:`0 0 8px ${ts.glow}` }}>{p.score}</div>
+            textShadow:`0 0 8px ${ts.glow}` }}>{pv(p,viewMode)}</div>
           <div style={{ fontSize:7, color:ts.text, letterSpacing:1 }}>{p.tier}</div>
         </div>
 
@@ -111,8 +111,9 @@ function PlayerRow({ p, newsMap, playerNotes, savePlayerNote }) {
             <div style={{ fontSize:8, color:ts.text, letterSpacing:2,
               fontWeight:700, marginBottom:8 }}>DYNASTY METRICS</div>
             {[
-              ["Score",         p.score],
-              ["Tier",          p.tier],
+              ["DV / SV", `${p.dynastyValue ?? "—"} / ${p.startValue ?? "—"}`],
+              ["Dynasty Value",  p.dynastyValue ?? "—"],
+              ["Tier",           p.tier],
               ["Scarcity Mult", `${(p.scarcityUsed || SCARCITY[p.pos] || 1).toFixed(2)}×`],
               ["Age Score",     p.ageRaw != null ? Math.round(p.ageRaw) : "—"],
               ["Role Conf",     p.roleConf != null ? `${Math.round(p.roleConf*100)}%` : "—"],
@@ -121,6 +122,7 @@ function PlayerRow({ p, newsMap, playerNotes, savePlayerNote }) {
               ["Season Stats",  p.statLine || "—"],
               ["Trades",        p.trades ?? "—"],
               ["FA Adds",       p.adds ?? "—"],
+              ...(p.peerScore != null ? [["Peer Score", `${p.peerScore} (Elo ${p.eloRating})`]] : []),
               ["Situation",     sf ? sf.label : "None"],
               ...(p.situationNote ? [["Sit. Note", p.situationNote]] : []),
               ...(p.situationFlag === "SUSPENSION" ? [["Value Mult", `${(sitMultiplier(p)*100).toFixed(0)}%`]] : []),
@@ -329,7 +331,7 @@ function Overview({ myGrade, owners, players, newsMap, currentOwner, setTab }) {
                   <div style={{ fontSize:11, fontWeight:700, color:"#e2e8f0" }}>{p.name}</div>
                   <div style={{ fontSize:9, color:"#7a95ae" }}>{p.pos} · Age {p.age}</div>
                 </div>
-                <span style={{ fontSize:9, color:"#ef4444", fontWeight:700 }}>{p.score}</span>
+                <span style={{ fontSize:9, color:"#ef4444", fontWeight:700 }}>{pv(p,viewMode)}</span>
               </div>
             ))
           }
@@ -437,7 +439,7 @@ function SellHighTab({ roster, newsMap }) {
                 padding:"12px 16px", borderBottom:"1px solid #0f1923",
                 background:isSell?"#1a0a0a":"#080d14" }}>
                 <div style={{ width:42, textAlign:"center", flexShrink:0 }}>
-                  <div style={{ fontSize:18, fontWeight:900, color:ts.text }}>{p.score}</div>
+                  <div style={{ fontSize:18, fontWeight:900, color:ts.text }}>{pv(p,viewMode)}</div>
                   <div style={{ fontSize:7, color:ts.text }}>{p.tier}</div>
                 </div>
                 <div style={{ flex:1 }}>
@@ -516,7 +518,7 @@ function TargetsTab({ currentOwner, myGrade, players, newsMap }) {
                 padding:"10px 16px", borderBottom:"1px solid #0f1923",
                 background:isBuy?"#0a1f0a":"#080d14" }}>
                 <div style={{ width:42, textAlign:"center", flexShrink:0 }}>
-                  <div style={{ fontSize:16, fontWeight:900, color:ts.text }}>{p.score}</div>
+                  <div style={{ fontSize:16, fontWeight:900, color:ts.text }}>{pv(p,viewMode)}</div>
                   <div style={{ fontSize:7, color:ts.text }}>{p.tier}</div>
                 </div>
                 <div style={{ flex:1 }}>
@@ -550,7 +552,7 @@ function RosterTab({ roster, newsMap, playerNotes, savePlayerNote }) {
     .sort((a,b) =>
       sortKey === "age" ? (a.age||99)-(b.age||99)
       : sortKey === "ppg" ? (b.ppg||0)-(a.ppg||0)
-      : b.score - a.score
+      : b.dynastyValue - a.dynastyValue
     );
   return (
     <div>
@@ -773,7 +775,7 @@ function CompareTab({ myGrade, owners, players, newsMap, currentOwner }) {
                   fontWeight:700, marginBottom:8 }}>{label}</div>
                 <div style={{ border:"1px solid #1e2d3d", borderRadius:10, overflow:"hidden" }}>
                   {[...g.roster]
-                    .sort((a, b) => b.score - a.score)
+                    .sort((a, b) => b.dynastyValue - a.dynastyValue)
                     .slice(0, 20)
                     .map(p => {
                       const ts2 = TIER_STYLE[p.tier] || TIER_STYLE.Stash;
@@ -784,7 +786,7 @@ function CompareTab({ myGrade, owners, players, newsMap, currentOwner }) {
                           background:"#080d14", borderBottom:"1px solid #0f1923" }}>
                           <div style={{ width:32, textAlign:"center", flexShrink:0 }}>
                             <div style={{ fontSize:13, fontWeight:900, color:ts2.text,
-                              textShadow:`0 0 6px ${ts2.glow}` }}>{p.score}</div>
+                              textShadow:`0 0 6px ${ts2.glow}` }}>{pv(p,viewMode)}</div>
                           </div>
                           <div style={{ flex:1, minWidth:0 }}>
                             <div style={{ display:"flex", alignItems:"center", gap:5 }}>
@@ -818,7 +820,7 @@ function CompareTab({ myGrade, owners, players, newsMap, currentOwner }) {
 }
 
 // ── MAIN ──────────────────────────────────────────────────────────────────────
-export function TeamHub({ phase, players, owners, currentOwner, newsMap = {}, setDetail, playerNotes = {}, savePlayerNote }) {
+export function TeamHub({ viewMode="dynasty", phase, players, owners, currentOwner, newsMap = {}, setDetail, playerNotes = {}, savePlayerNote }) {
   const [tab, setTab] = useState("overview");
 
   if (phase !== "done" || !currentOwner) {

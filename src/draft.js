@@ -95,7 +95,7 @@ export function scoreDraftPlayer(p, bigBoard = [], rosteredPlayers = [], archety
 
   // If already scored by the dynasty model, use it
   const rostered = rosteredPlayers.find(pl => pl.pid === p.pid);
-  if (rostered?.score) return applyArchetypeWeight(rostered.score, p, archetype);
+  if (rostered?.dynastyValue ?? rostered?.startValue) return applyArchetypeWeight(rostered.score, p, archetype);
 
   // Fallback estimate — unrostered players scored by age + depth + position
   return applyArchetypeWeight(estimateBaseScore(p), p, archetype);

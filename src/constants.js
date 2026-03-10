@@ -123,3 +123,17 @@ export const SITUATION_PATTERNS = [
   { flag:"TRADE_DEMAND",   patterns:["trade request","requested trade","wants out","unhappy","demands trade","trade demand"] },
   { flag:"DEPTH_PROMOTED", patterns:["named starter","takes over","steps in","promoted to starter","filling in","starting in place"] },
 ];
+
+// ─── VIEW MODE HELPERS ────────────────────────────────────────────────────────
+// Global toggle: "dynasty" (0-1000 DV, default) or "redraft" (0-100 SV)
+// pv(p, mode)    → correct numeric value for the current view
+// pvLabel(mode)  → short label for the value shown
+// pvColor(v, m)  → tier-appropriate colour for the value
+export const pv      = (p, mode) => mode === "redraft" ? (p.startValue ?? 0) : (p.dynastyValue ?? 0);
+export const pvLabel = (mode)    => mode === "redraft" ? "SV" : "DV";
+export const pvColor = (val, mode) => {
+  if (mode === "redraft") {
+    return val >= 75 ? "#22c55e" : val >= 50 ? "#60a5fa" : val >= 30 ? "#f59e0b" : "#ef4444";
+  }
+  return val >= 700 ? "#22c55e" : val >= 400 ? "#60a5fa" : val >= 200 ? "#f59e0b" : "#ef4444";
+};

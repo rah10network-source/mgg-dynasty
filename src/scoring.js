@@ -100,7 +100,87 @@ export const idpScarcity = (pos, t) => {
   return SCARCITY[pos] || 1.0;
 };
 
-// ─── SITUATION ────────────────────────────────────────────────────────────────
+// ─── DYNASTY VALUE (0-1000) ───────────────────────────────────────────────────
+// Non-linear, position-ranked exponential decay. Purpose: trade fairness, draft
+// pick comparisons, waiver adds. Only shown in Trade/Waiver/Draft tools.
+//
+// Rank within position group determined by dynastyRaw (age-weighted production).
+// Value falls exponentially from rank — the cliff accelerates through tiers,
+// matching how the real dynasty trade market prices players.
+
+const DV_TOP = { QB:900, RB:950, WR:980, TE:820, DL:720, LB:750, DB:700, K:200 };
+const DV_K   = { QB:0.15, RB:0.18, WR:0.12, TE:0.18, DL:0.15, LB:0.15, DB:0.15, K:0.10 };
+
+export const calcDynastyValues = (players, eloScores = {}) => {
+  const byPos = {};
+  players.forEach(p => {
+    if (!byPos[p.pos]) byPos[p.pos] = [];
+    byPos[p.pos].push(p);
+  });
+
+  const eloList   = Object.values(eloScores);
+  const eloActive = eloList.length >= 6;
+  const eloMin    = eloActive ? Math.min(...eloList) : 1200;
+  const eloRange  = eloActive ? Math.max(Math.max(...eloList) - eloMin, 1) : 1;
+
+  const result = {};
+
+  Object.entries(byPos).forEach(([pos, group]) => {
+    const top = DV_TOP[pos] || 500;
+    const k   = DV_K[pos]   || 0.15;
+
+    // Sort by dynasty-relevant composite: age upside + production + demand
+    const ranked = [...group].sort((a, b) => {
+      const ra = (a.ageGated_n || 0) * 0.50 + (a.prodProxy_n || 0) * 0.30 + (a.demandRaw_n || 0) * 0.20;
+      const rb = (b.ageGated_n || 0) * 0.50 + (b.prodProxy_n || 0) * 0.30 + (b.demandRaw_n || 0) * 0.20;
+      return rb - ra;
+    });
+
+    ranked.forEach((p, idx) => {
+      // Exponential base from rank
+      let dv = top * Math.exp(-k * idx);
+
+      // Age multiplier — young players get dynasty premium, old past cliff get steep discount
+      const [rise, peak, cliff] = PRIME[p.pos] || [23, 28, 33];
+      const age = p.age || 26;
+      let ageMult;
+      if      (age < rise)   ageMult = Math.min(1.2, 1.1 + (rise - age) * 0.03);  // young premium
+      else if (age <= peak)  ageMult = 1.0;
+      else if (age <= cliff) ageMult = Math.max(0.65, 0.95 - (age - peak) * 0.06);
+      else                   ageMult = Math.max(0.25, 0.65 - (age - cliff) * 0.12);
+
+      dv *= ageMult;
+
+      // Elo peer blend (15% once active, keeps the community signal in range)
+      if (eloActive && eloScores[p.pid]) {
+        const peerNorm = (eloScores[p.pid] - eloMin) / eloRange; // 0-1
+        dv = dv * 0.85 + top * peerNorm * 0.15;
+      }
+
+      result[p.pid] = Math.round(Math.max(1, Math.min(999, dv)));
+    });
+  });
+
+  return result;
+};
+
+// ─── START VALUE (0-100) ──────────────────────────────────────────────────────
+// Current-week production metric. Purpose: who to start, who to drop.
+// No scarcity, no age penalty — pure production + role right now.
+// Position-aware PPG floor for players with no stats data.
+
+export const START_PPG_FLOOR = { QB:12, RB:8, WR:7, TE:5, DL:4, LB:6, DB:4, K:6 };
+
+export const calcStartRaw = (p) => {
+  const floor   = START_PPG_FLOOR[p.pos] || 6;
+  const effPpg  = p.ppg ?? (floor * p.effRole * (p.gamesStarted === 0 ? 0.4 : 1.0));
+  const injMult = ["Out","IR","PUP"].includes(p.injStatus) ? 0.25
+                : p.injStatus === "Doubtful"               ? 0.55
+                : p.injStatus === "Questionable"           ? 0.85
+                : 1.0;
+  return Math.max(0, effPpg * injMult);
+};
+
 export const sitMultiplier = (p) => {
   const flag = p.situationFlag;
   if (!flag) return 1.0;

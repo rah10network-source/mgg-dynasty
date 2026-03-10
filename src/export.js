@@ -12,7 +12,7 @@ export const doExport = (players, newsMap) => {
     const n = newsMap[p.name] || {};
     return [
       i + 1, p.name, p.pos, p.team, p.age ?? '', p.yrsExp ?? '',
-      p.score, p.tier,
+      p.dynastyValue, p.startValue, p.tier,
       p.depthOrder ? `#${p.depthOrder}` : '—',
       Math.round(p.roleConf * 100),
       p.gamesStarted ?? '', p.gamesPlayed ?? '', p.ppg ?? '', p.statLine || '',
@@ -32,7 +32,7 @@ export const doExport = (players, newsMap) => {
   POS_ORDER.forEach(pos => {
     players.filter(p => p.pos === pos).forEach((p, i) => {
       const n = newsMap[p.name] || {};
-      rows2.push([pos, i+1, p.name, p.team, p.age ?? '', p.score, p.tier,
+      rows2.push([pos, i+1, p.name, p.team, p.age ?? '', p.dynastyValue, p.startValue, p.tier,
                   p.depthOrder ? `#${p.depthOrder}` : '—',
                   p.gamesStarted ?? '', p.ppg ?? '', p.statLine || '', p.owner, n.signal || '']);
     });
@@ -47,7 +47,7 @@ export const doExport = (players, newsMap) => {
     const ih = ["Player","Pos","Team","Owner","Score","Tier","Status","Signal","Situation","Note"];
     const id = Object.entries(newsMap).map(([name, n]) => {
       const p = players.find(pl => pl.name === name);
-      return [name, p?.pos||'', p?.team||'', p?.owner||'', p?.score||'', p?.tier||'',
+      return [name, p?.pos||'', p?.team||'', p?.owner||'', p?.dynastyValue||'', p?.tier||'',
               n.status||'', n.signal||'', n.situation||'', n.note||''];
     });
     const ws3 = XLSX.utils.aoa_to_sheet([ih, ...id]);

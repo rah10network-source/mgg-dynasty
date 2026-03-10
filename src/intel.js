@@ -33,7 +33,7 @@ export const HEADLINE_RULES = [
   { flag: "CAMP_BATTLE",    terms: ["combine workout", "pro day", "draft visit", "pre-draft visit", "top 30 visit", "private workout", "on-field workout"] },
   { flag: "IR_RETURN",      terms: ["medicals cleared", "passed physical", "clean bill of health", "cleared medicals", "injury concern cleared"] },
   { flag: "SUSPENSION",     terms: ["character concerns", "off-field issues", "conduct flag", "red flag", "do not draft"] },
-  { flag: "FREE_AGENT",     terms: ["going undrafted", "draft stock falling", "sliding in draft", "dropping in rankings", "fell out of draft"] },
+  { flag: "CAMP_BATTLE",    terms: ["going undrafted", "draft stock falling", "sliding in draft", "dropping in rankings", "fell out of draft", "late round projection", "undrafted projection"] },
   { flag: "BREAKOUT_ROLE",  terms: ["combine standout", "pro day standout", "raised draft stock", "stock rising", "rocketed up boards"] },
 ];
 
@@ -67,7 +67,8 @@ export const deepAnalyse = (name, headlines, p) => {
 
   // ── Layer 1: Sleeper data ──────────────────────────────────────────────────
   if (p) {
-    if (p.team === "FA" || ["Cut", "Inactive", "Released"].includes(p.status)) {
+    // Draft prospects have no NFL team yet — "FA" is expected, not a red flag
+    if (!p.isDraftProspect && (p.team === "FA" || ["Cut", "Inactive", "Released"].includes(p.status))) {
       return {
         flag:      "FREE_AGENT",
         note:      `${name} is a free agent — no team, scheme, or role confirmed`,
@@ -173,7 +174,7 @@ export const claudeAnalyse = async (name, headlines, playerData, apiKey) => {
     `Games started: ${p.gamesStarted ?? "unknown"}`,
     `PPG: ${p.ppg ?? "unknown"}`,
     `Injury status: ${p.injStatus || "none"}`,
-    `Dynasty score: ${p.score ?? "unknown"}`,
+    `Dynasty value: ${p.dynastyValue ?? "—"} · Start value: ${p.startValue ?? "—"}`,
     `Tier: ${p.tier || "unknown"}`,
     `Years exp: ${p.yrsExp ?? "?"}`,
   ].join(" | ") : "No roster data available";

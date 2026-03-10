@@ -1,7 +1,7 @@
 // ─── DASHBOARD ────────────────────────────────────────────────────────────────
 // Primary focus: your team health (grade, alerts, cliff risks)
 // Offseason: dynasty value lens · In-season: adds record + matchup context
-import { TIER_STYLE, INJ_COLOR, SIG_COLORS, POS_ORDER, PRIME } from "../constants";
+import { TIER_STYLE, INJ_COLOR, SIG_COLORS, POS_ORDER, PRIME, pv, pvLabel, pvColor } from "../constants";
 import { gradeRoster, isSellHigh, weakPositions, sellHighCandidates, tradeTargets } from "../roster";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -19,7 +19,7 @@ const WINDOW_COLOR = {
 };
 
 // ── component ─────────────────────────────────────────────────────────────────
-export function Dashboard({ phase, players, currentOwner, owners, newsMap, seasonState }) {
+export function Dashboard({ phase, players, currentOwner, owners, newsMap, seasonState, viewMode="dynasty" }) {
 
   if (phase === "idle") {
     return (
@@ -197,7 +197,7 @@ export function Dashboard({ phase, players, currentOwner, owners, newsMap, seaso
                     <div style={{fontSize:9,color:"#7a95ae"}}>{p.pos} · {p.team} · {p.age}y</div>
                   </div>
                   <div style={{textAlign:"right"}}>
-                    <div style={{fontSize:13,fontWeight:900,color:ts.text}}>{p.score}</div>
+                    <div style={{fontSize:13,fontWeight:900,color:ts.text}}>{pv(p,viewMode)}</div>
                     {n?.signal && <span style={{fontSize:8,background:SIG_COLORS[n.signal],color:"#080d14",
                       borderRadius:3,padding:"1px 4px",fontWeight:900}}>{n.signal}</span>}
                   </div>
@@ -218,7 +218,7 @@ export function Dashboard({ phase, players, currentOwner, owners, newsMap, seaso
                     <div style={{fontSize:9,color:"#7a95ae"}}>{p.pos} · {p.age}y · cliff:{cliff}</div>
                   </div>
                   <div style={{textAlign:"right"}}>
-                    <div style={{fontSize:13,fontWeight:900,color:"#f97316"}}>{p.score}</div>
+                    <div style={{fontSize:13,fontWeight:900,color:"#f97316"}}>{pv(p,viewMode)}</div>
                     <div style={{fontSize:8,color:"#f97316"}}>+{(p.age-cliff).toFixed(1)}y past</div>
                   </div>
                 </div>
@@ -239,7 +239,7 @@ export function Dashboard({ phase, players, currentOwner, owners, newsMap, seaso
                   </div>
                   <div style={{textAlign:"right"}}>
                     <div style={{fontSize:9,fontWeight:700,color:INJ_COLOR[p.injStatus]||"#ef4444"}}>{p.injStatus}</div>
-                    <div style={{fontSize:11,color:ts.text,fontWeight:700}}>{p.score}</div>
+                    <div style={{fontSize:11,color:ts.text,fontWeight:700}}>{pv(p,viewMode)}</div>
                   </div>
                 </div>
               );
@@ -310,7 +310,7 @@ export function Dashboard({ phase, players, currentOwner, owners, newsMap, seaso
                         <div style={{fontSize:9,color:"#7a95ae"}}>{p.pos} · {p.team} · {p.age}y · {p.owner}</div>
                       </div>
                       <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:2}}>
-                        <span style={{fontSize:14,fontWeight:900,color:ts.text}}>{p.score}</span>
+                        <span style={{fontSize:14,fontWeight:900,color:ts.text}}>{pv(p,viewMode)}</span>
                         {isWk && <span style={{fontSize:7,color:"#22c55e",fontWeight:700,letterSpacing:0.5}}>FILLS GAP</span>}
                         {n?.signal==="BUY" && <span style={{fontSize:7,background:"#22c55e",color:"#080d14",
                           borderRadius:2,padding:"1px 4px",fontWeight:900}}>BUY</span>}

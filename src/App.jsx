@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 
-import { LEAGUE_ID, PICK_VALUES, MANUAL_SITUATIONS, LEAGUE_API_KEY } from "./constants";
+import { LEAGUE_ID, PICK_VALUES, MANUAL_SITUATIONS, LEAGUE_API_KEY, pv } from "./constants";
 import { calcAge, resolveBreakoutFlag, ageScore }     from "./scoring";
 import { loadData as apiLoadData } from "./api";
 import { runIntel as apiRunIntel, claudeAnalyse } from "./intel";
@@ -19,6 +19,7 @@ import { PlayerHub }     from "./tabs/PlayerHub";
 import { AnalysisTools } from "./tabs/AnalysisTools";
 import { DraftHub }      from "./tabs/DraftHub";
 import { Log }           from "./tabs/Log";
+import { QuickRank, applyRanking } from "./tabs/QuickRank";
 
 const isProxied = () => typeof window !== "undefined" &&
   (window.location.hostname.includes("claude.ai") || window.location.hostname.includes("anthropic.com"));
@@ -68,6 +69,11 @@ export default function App() {
   const [watchlist,   setWatchlist]  = useState(()=>lsGet(userKey,"watchlist",[]));
   const [manualSits,  setManualSits] = useState(()=>lsGet(userKey,"situations")??{...MANUAL_SITUATIONS});
   const [playerNotes, setPlayerNotes]= useState(()=>lsGet(userKey,"player_notes",{}));
+  const [eloScores,   setEloScores]  = useState(()=>lsGet(userKey,"elo_scores",{}));
+  const [showQuickRank, setShowQuickRank] = useState(false);
+  const [viewMode, setViewMode] = useState(() => {
+    try { return localStorage.getItem("mgg_view_mode") || "dynasty"; } catch { return "dynasty"; }
+  });
   const manualSitsRef = useRef(manualSits);
 
   useEffect(()=>{
@@ -77,6 +83,7 @@ export default function App() {
     setWatchlist(ls.get("watchlist",[]));
     setManualSits(ls.get("situations")??{...MANUAL_SITUATIONS});
     setPlayerNotes(ls.get("player_notes",{}));
+    setEloScores(ls.get("elo_scores",{}));
     setTradeOwnerA(identity.ownerName||"");
   },[identity?.userId]); // eslint-disable-line
 
@@ -104,6 +111,7 @@ export default function App() {
 
   const saveBigBoard  =(next)=>{setBigBoard(next);ls.set("bigboard",next);};
   const savePlayerNote=(pid,note)=>{const next={...playerNotes,[pid]:note||undefined};if(!note)delete next[pid];setPlayerNotes(next);ls.set("player_notes",next);};
+  const saveEloScores =(next)=>{setEloScores(next);ls.set("elo_scores",next);};
   const bigBoardAdd   =(p)=>{if(bigBoard.find(b=>b.pid===p.pid))return;saveBigBoard([...bigBoard,{...p,note:"",addedAt:Date.now()}]);};
   const bigBoardRemove=(pid)=>saveBigBoard(bigBoard.filter(p=>p.pid!==pid));
   const bigBoardMove  =(pid,dir)=>{const i=bigBoard.findIndex(p=>p.pid===pid);if(i<0)return;const n=[...bigBoard];const s=dir==="up"?i-1:i+1;if(s<0||s>=n.length)return;[n[i],n[s]]=[n[s],n[i]];saveBigBoard(n);};
@@ -173,9 +181,9 @@ export default function App() {
   const [claudeTradeNarrative,setClaudeTradeNarrative]=useState(null);
   const [claudeTradeLoading,  setClaudeTradeLoading  ]=useState(false);
 
-  const rosterOf=(o)=>players.filter(p=>p.owner===o).sort((a,b)=>b.score-a.score);
+  const rosterOf=(o)=>players.filter(p=>p.owner===o).sort((a,b)=>b.dynastyValue-a.dynastyValue);
   const tradeSearchResults=(o,s)=>{if(!s.trim())return[];const q=s.toLowerCase();return rosterOf(o).filter(p=>p.name.toLowerCase().includes(q)&&!tradeSideA.find(x=>x.pid===p.pid)&&!tradeSideB.find(x=>x.pid===p.pid)).slice(0,6);};
-  const addPlayer=(side,p)=>{const set=side==="A"?setTradeSideA:setTradeSideB;set(prev=>[...prev,{type:"player",pid:p.pid,name:p.name,pos:p.pos,team:p.team,age:p.age,score:p.score,tier:p.tier,owner:p.owner}]);if(side==="A")setTradeSearchA("");else setTradeSearchB("");};
+  const addPlayer=(side,p)=>{const set=side==="A"?setTradeSideA:setTradeSideB;set(prev=>[...prev,{type:"player",pid:p.pid,name:p.name,pos:p.pos,team:p.team,age:p.age,score:p.startValue,dynastyValue:p.dynastyValue,tier:p.tier,owner:p.owner}]);if(side==="A")setTradeSearchA("");else setTradeSearchB("");};
   const addPick=(side)=>{const yr=side==="A"?tradePickYrA:tradePickYrB,rd=side==="A"?tradePickRdA:tradePickRdB;const set=side==="A"?setTradeSideA:setTradeSideB;set(prev=>[...prev,{type:"pick",id:`${yr}-${rd}-${Date.now()}`,label:`${yr} ${rd}`,year:yr,round:rd,score:pickValue(rd,yr-2026),customVal:null}]);};
   const removeItem=(side,id)=>{const set=side==="A"?setTradeSideA:setTradeSideB;set(prev=>prev.filter(x=>(x.pid||x.id)!==id));};
   const setPickCustomVal=(side,id,val)=>{const set=side==="A"?setTradeSideA:setTradeSideB;set(prev=>prev.map(x=>x.id===id?{...x,customVal:val===''?null:Number(val)}:x));};
@@ -234,8 +242,28 @@ export default function App() {
     setPhase("loading");logRef.current=[];setProgress([]);
     try{
       const{players:pl,nflDb:db,seasonState:ss,draftPicksByOwner:dpbo,rosterIdToOwner:rid2o}=await apiLoadData(log,manualSitsRef);
-      setPlayers(pl);setNflDb(db);setDraftPicksByOwner(dpbo);setRosterIdToOwner(rid2o);
+      // Blend Elo peer scores into final player scores (15% weight once enough data exists)
+      const currentElo = lsGet(userKey,"elo_scores",{});
+      const eloEntries = Object.keys(currentElo).length;
+      const eloBlendsActive = eloEntries >= 6; // need at least 2 full rankings before it matters
+      const eloMin = eloEntries ? Math.min(...Object.values(currentElo)) : 1200;
+      const eloMax = eloEntries ? Math.max(...Object.values(currentElo)) : 1200;
+      const eloRange = Math.max(eloMax - eloMin, 1);
+      const enrichedPl = eloBlendsActive ? pl.map(p => {
+        const elo = currentElo[p.pid];
+        if (!elo) return p;
+        const peerNorm = ((elo - eloMin) / eloRange) * 100;
+        // Elo blends into dynastyValue (0-1000 scale)
+        const dvBlended = Math.round(p.dynastyValue * 0.85 + (peerNorm / 100) * 1000 * 0.15);
+        return { ...p, dynastyValue: Math.min(999, Math.max(1, dvBlended)),
+                        score: p.startValue, peerScore: Math.round(peerNorm), eloRating: elo };
+      }) : pl;
+
+      setPlayers(enrichedPl);setNflDb(db);setDraftPicksByOwner(dpbo);setRosterIdToOwner(rid2o);
       setSeasonState(prev=>prev._override?prev:ss);setSyncedAt(new Date().toLocaleTimeString());setPhase("done");
+      // Show QuickRank once per 24h after a successful sync
+      const lastRank = lsGet(userKey,"last_quickrank",0);
+      if(Date.now() - lastRank > 86400000) setShowQuickRank(true);
       // Re-open login if identity owner no longer matches loaded roster
       if(identity){
         const loaded=[...new Set(pl.map(p=>p.owner).filter(Boolean))];
@@ -326,6 +354,26 @@ export default function App() {
 
             <Btn onClick={doLoad}   disabled={phase==="loading"}                      grad="linear-gradient(135deg,#22c55e,#16a34a)">{phase==="loading"?"◌ SYNCING...":"⟳ SYNC DATA"}</Btn>
             <Btn onClick={doIntel}  disabled={newsPhase==="loading"||!players.length}  grad="linear-gradient(135deg,#f59e0b,#d97706)">{newsPhase==="loading"?"◌ SCANNING...":"◈ INTEL SCAN"}</Btn>
+
+            {/* Dynasty / Redraft toggle */}
+            <div style={{display:"flex",alignItems:"center",background:"#0a1118",border:"1px solid #1e2d3d",borderRadius:5,overflow:"hidden"}}>
+              {[["dynasty","DV"],["redraft","SV"]].map(([m,lbl])=>{
+                const active = viewMode === m;
+                const col = m === "dynasty" ? "#22c55e" : "#60a5fa";
+                return (
+                  <button key={m} onClick={()=>{
+                    setViewMode(m);
+                    try { localStorage.setItem("mgg_view_mode", m); } catch {}
+                  }} title={m==="dynasty"?"Dynasty Value (0-1000) — trade & asset view":"Start Value (0-100) — weekly redraft view"}
+                    style={{background:active?col+"22":"transparent",color:active?col:"#2a3d52",
+                      border:"none",padding:"5px 10px",fontFamily:"inherit",fontSize:8,
+                      fontWeight:active?900:400,letterSpacing:1,cursor:"pointer",transition:"all .15s"}}>
+                    {lbl}
+                  </button>
+                );
+              })}
+            </div>
+
             <Btn onClick={()=>doExport(players,newsMap)} disabled={!players.length}   grad="linear-gradient(135deg,#6366f1,#4f46e5)">⬇ EXPORT XLSX</Btn>
           </div>
         </div>
@@ -365,9 +413,9 @@ export default function App() {
           </div>
         )}
 
-        {tab==="dashboard"&&<Dashboard phase={phase} players={players} currentOwner={activeOwner} owners={owners} newsMap={newsMap} seasonState={seasonState} onViewTeam={isCommissioner?enterViewMode:undefined}/>}
-        {tab==="leaguehub"&&<LeagueHub phase={phase} players={players} owners={owners} currentOwner={activeOwner} newsMap={newsMap} setDetail={setDetail} setActiveTab={setTab} seasonState={seasonState} onViewTeam={isCommissioner?enterViewMode:undefined}/>}
-        {tab==="teamhub"&&<TeamHub phase={phase} players={players} owners={owners} currentOwner={activeOwner} newsMap={newsMap} setDetail={setDetail} isViewMode={isViewMode} viewingOwner={viewingOwner} isCommissioner={isCommissioner} onViewTeam={enterViewMode} onExitView={exitViewMode} playerNotes={playerNotes} savePlayerNote={savePlayerNote}/>}
+        {tab==="dashboard"&&<Dashboard phase={phase} players={players} currentOwner={activeOwner} owners={owners} newsMap={newsMap} seasonState={seasonState} viewMode={viewMode} onViewTeam={isCommissioner?enterViewMode:undefined}/>}
+        {tab==="leaguehub"&&<LeagueHub phase={phase} players={players} owners={owners} currentOwner={activeOwner} newsMap={newsMap} setDetail={setDetail} setActiveTab={setTab} seasonState={seasonState} viewMode={viewMode} onViewTeam={isCommissioner?enterViewMode:undefined}/>}
+        {tab==="teamhub"&&<TeamHub phase={phase} players={players} owners={owners} currentOwner={activeOwner} newsMap={newsMap} setDetail={setDetail} isViewMode={isViewMode} viewingOwner={viewingOwner} isCommissioner={isCommissioner} onViewTeam={enterViewMode} onExitView={exitViewMode} playerNotes={playerNotes} savePlayerNote={savePlayerNote} viewMode={viewMode}/>}
         {tab==="playerhub"&&<PlayerHub
           currentOwner={currentOwner} activeOwner={activeOwner} isViewMode={isViewMode}
           owners={owners} phase={phase} players={players} newsMap={newsMap} nflDb={nflDb} view={view}
@@ -386,6 +434,7 @@ export default function App() {
           faAgeMax={faAgeMax} setFaAgeMax={setFaAgeMax} faHideInj={faHideInj} setFaHideInj={setFaHideInj}
           faResults={faResults} faTeams={faTeams} faWatchlist={faWatchlist}
           addToFaWatchlist={addToFaWatchlist} removeFromFaWatchlist={removeFromFaWatchlist}
+          viewMode={viewMode}
         />}
         {tab==="tools"&&<AnalysisTools
           phase={phase} owners={owners} players={players} nflDb={nflDb}
@@ -403,6 +452,7 @@ export default function App() {
           itemScore={itemScore} tradeTotal={tradeTotal} tradeVerdict={tradeVerdict} tradeReset={tradeReset}
           claudeTradeNarrative={claudeTradeNarrative} claudeTradeLoading={claudeTradeLoading}
           requestClaudeTradeNarrative={requestClaudeTradeNarrative} hasApiKey={hasApiKey()}
+          viewMode={viewMode}
         />}
         {tab==="drafthub"&&<DraftHub
           phase={phase} players={players} nflDb={nflDb} currentOwner={currentOwner} owners={owners}
@@ -411,9 +461,27 @@ export default function App() {
           bigBoardAdd={bigBoardAdd} bigBoardRemove={bigBoardRemove} bigBoardMove={bigBoardMove} bigBoardNote={bigBoardNote} bigBoardClear={bigBoardClear}
           draftRoomMode={draftRoomMode} setDraftRoomMode={setDraftRoomMode} mockState={mockState} setMockState={setMockState}
           liveDraftId={liveDraftId} setLiveDraftId={setLiveDraftId}
+          viewMode={viewMode}
         />}
         {tab==="log"&&<Log progress={progress}/>}
       </div>
+
+      {/* ── QUICK RANK MODAL ──────────────────────────────────────────────── */}
+      {showQuickRank && players.length > 0 && (
+        <QuickRank
+          players={players}
+          eloScores={eloScores}
+          onComplete={(newScores) => {
+            saveEloScores(newScores);
+            lsSet(userKey, "last_quickrank", Date.now());
+            setShowQuickRank(false);
+          }}
+          onSkip={() => {
+            lsSet(userKey, "last_quickrank", Date.now());
+            setShowQuickRank(false);
+          }}
+        />
+      )}
 
       {/* ── LOGIN / ACCOUNT MODAL ─────────────────────────────────────────── */}
       {loginOpen&&(

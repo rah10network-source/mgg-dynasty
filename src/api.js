@@ -4,6 +4,7 @@ import {
 import {
   calcAge, ageScore, normalise, calcSleeperPts, idpScarcity,
   sitMultiplier, resolveBreakoutFlag, detectSituation, deriveSignal,
+  calcDynastyValues, calcStartRaw,
 } from "./scoring";
 
 // ─── RE-EXPORTS FOR BACKWARD COMPAT ──────────────────────────────────────────
@@ -282,9 +283,17 @@ export const loadData = async (log, manualSitsRef) => {
     // Gets a 15% scarcity boost — unique two-way contributors are extremely rare
     p.scarcityUsed = p.dualPos ? Math.min(sc * 1.15, 2.5) : sc;
 
+    // Position-aware fallback PPG — calibrated to realistic starter production per position.
+    // The old flat * 10 constant was tuned for offensive PPG (10-25 range) and
+    // massively over-inflated IDP players with no stats data (LB fallback was 22,
+    // beating real starter WRs). IDPs naturally score 3-12 PPG so they need a lower base.
+    // Elite IDP with REAL stats still competes correctly (LB 17.5 ≈ WR 17.6).
+    const FALLBACK_PPG = { QB:18, RB:12, WR:10, TE:8, DL:5, LB:8, DB:6, K:6 };
+    const fallbackBase = FALLBACK_PPG[p.pos] || 8;
+
     const baseProd = p.ppg != null
       ? p.ppg * sc
-      : sc * p.effRole * startPenalty * 10;
+      : fallbackBase * sc * p.effRole * startPenalty;
 
     // Manual situations (seeded before any Intel scan)
     const manualSit = manualSitsRef.current[p.name];
@@ -336,17 +345,31 @@ export const loadData = async (log, manualSitsRef) => {
   pl = normalise(pl, "ageGated");
   pl = normalise(pl, "demandRaw");
   pl = normalise(pl, "roleStab");
+
+  // ── Start Value (p.startValue, 0-100) ───────────────────────────────────
+  // Current-production metric: who to start/drop right now.
+  // No scarcity, no dynasty age curve — pure PPG + role + health.
+  pl.forEach(p => { p.startRaw = calcStartRaw(p); });
+  pl = normalise(pl, "startRaw");
   pl.forEach(p => {
-    p.score = Math.round(Math.min(100, Math.max(0,
-      p.prodProxy_n * 0.45 + p.ageGated_n * 0.30 + p.demandRaw_n * 0.15 + p.roleStab_n * 0.10
+    p.startValue = Math.round(Math.min(100, Math.max(0,
+      p.startRaw_n * 0.80 + p.roleStab_n * 0.20
     )));
+    p.score = p.startValue; // legacy alias — kept for external consumers
   });
 
-  const srt = [...pl].sort((a, b) => b.score - a.score);
+  // ── Dynasty Value (p.dynastyValue, 0-1000) ───────────────────────────────
+  // Non-linear, positionally ranked, exponential decay — the primary value.
+  // Shown everywhere; toggle switches to startValue for redraft view.
+  const dvMap = calcDynastyValues(pl);
+  pl.forEach(p => { p.dynastyValue = dvMap[p.pid] || 1; });
+
+  // Tiers and final sort from dynastyValue (the primary number)
+  const srt = [...pl].sort((a, b) => b.dynastyValue - a.dynastyValue);
   const n   = srt.length;
-  const [t90, t70, t45, t20] = [0.10, 0.30, 0.55, 0.80].map(q => srt[Math.floor(n * q)]?.score || 50);
+  const [t90, t70, t45, t20] = [0.10, 0.30, 0.55, 0.80].map(q => srt[Math.floor(n * q)]?.dynastyValue || 200);
   pl.forEach(p => {
-    p.tier = p.score >= t90 ? "Elite" : p.score >= t70 ? "Starter" : p.score >= t45 ? "Flex" : p.score >= t20 ? "Depth" : "Stash";
+    p.tier = p.dynastyValue >= t90 ? "Elite" : p.dynastyValue >= t70 ? "Starter" : p.dynastyValue >= t45 ? "Flex" : p.dynastyValue >= t20 ? "Depth" : "Stash";
   });
 
   const tc = ["Elite","Starter","Flex","Depth","Stash"]
@@ -376,6 +399,6 @@ export const loadData = async (log, manualSitsRef) => {
   };
   log(`Season: ${seasonState.season} · ${seasonState.mode.toUpperCase()}${seasonState.currentWeek ? " · Week " + seasonState.currentWeek : ""}`, "success");
 
-  return { players: pl.sort((a, b) => b.score - a.score), nflDb: allP, seasonState, draftPicksByOwner, rosterIdToOwner };
+  return { players: pl.sort((a, b) => b.dynastyValue - a.dynastyValue), nflDb: allP, seasonState, draftPicksByOwner, rosterIdToOwner };
 };
 

@@ -213,7 +213,7 @@ export function NewsSituations({ players, currentOwner, owners }) {
       items.sort((a, b) => {
         const aDate = new Date(a.articles[0]?.published || 0);
         const bDate = new Date(b.articles[0]?.published || 0);
-        return bDate - aDate || b.player.score - a.player.score;
+        return bDate - aDate || b.player.dynastyValue - a.player.dynastyValue;
       });
 
       setNewsItems(items);
@@ -459,7 +459,7 @@ export function NewsSituations({ players, currentOwner, owners }) {
                 <div style={{background:ts.bg,border:`1px solid ${ts.border}`,
                   borderRadius:6,padding:"4px 8px",textAlign:"center",
                   minWidth:44,flexShrink:0}}>
-                  <div style={{fontSize:15,fontWeight:900,color:ts.text,lineHeight:1}}>{p.score}</div>
+                  <div style={{fontSize:15,fontWeight:900,color:ts.text,lineHeight:1}}>{p.dynastyValue ?? p.score}</div>
                   <div style={{fontSize:7,color:ts.text,letterSpacing:0.5}}>{p.tier.toUpperCase()}</div>
                 </div>
 

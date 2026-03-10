@@ -22,7 +22,7 @@ export const pickValue = (round, yearOffset = 0) =>
 // Unified scorer for a trade item — player or pick.
 // customVal allows user overrides (editable in Trade UI).
 
-export const itemScore = (item) => item.customVal ?? item.score ?? 0;
+export const itemScore = (item) => item.customVal ?? item.dynastyValue ?? item.score ?? 0;
 
 // ─── TRADE TOTALS ─────────────────────────────────────────────────────────────
 
@@ -84,8 +84,8 @@ export const claudeTradeAnalysis = async (sideA, sideB, ownerA, ownerB, apiKey) 
   const formatSide = (items) =>
     items.map(i =>
       i.type === "pick"
-        ? `${i.label} pick (value ~${i.score})`
-        : `${i.name} (${i.pos}, age ${i.age ?? "?"}, score ${i.score}, tier ${i.tier})`
+        ? `${i.label} pick (value ~${i.dynastyValue ?? i.score})`
+        : `${i.name} (${i.pos}, age ${i.age ?? "?"}, dv ${i.dynastyValue ?? i.score}, tier ${i.tier})`
     ).join(", ") || "nothing";
 
   const prompt = `You are a dynasty fantasy football analyst. Evaluate this trade briefly.

@@ -31,7 +31,7 @@ const scoreForDraft = (p, bigBoard, players) => {
   const bbRank = bigBoard.findIndex(b => b.pid === p.pid);
   if (bbRank >= 0) return 1000 - bbRank; // Big Board rank is authoritative
   const roster = players.find(pl => pl.pid === p.pid);
-  if (roster) return roster.score || 0;
+  if (roster) return roster.dynastyValue || 0;
   // Fallback: prefer depth #1 young players
   const age = p.age || 25;
   const depthBonus = p.depth===1?20:p.depth===2?10:0;
@@ -75,7 +75,7 @@ function MockDraft({ owners, players, nflDb, bigBoard, bigBoardMode, currentOwne
       yrsExp:p.years_exp??null,
       get score(){ return scoreForDraft(this, bigBoard, players); },
     }))
-    .sort((a,b) => b.score-a.score);
+    .sort((a,b) => b.dynastyValue-a.dynastyValue);
 
   const suggestions = pool.slice(0, 5);
   const filteredPool = inputSearch

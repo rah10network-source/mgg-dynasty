@@ -154,6 +154,8 @@ export function BigBoard({
         drops:      0,
         injStatus:  bp.inj ?? null,
         status:     nflP?.status ?? null,
+        // Prospects have no NFL team yet — suppress FREE_AGENT flag
+        isDraftProspect: !bp.team || bp.team === "FA" || (nflP?.years_exp ?? 1) === 0,
       };
 
       const result = deepAnalyse(bp.name, headlines, playerData);
@@ -214,7 +216,7 @@ export function BigBoard({
         </div>
 
         <div style={{fontSize:9,color:"#4d6880",letterSpacing:1,marginBottom:8}}>
-          {pool.length} AVAILABLE · CLICK TO ADD · SCORE = DYNASTY ESTIMATE
+          {pool.length} AVAILABLE · CLICK TO ADD · DYN = DYNASTY VALUE (0-1000) · PROSPECT = BASE ESTIMATE
         </div>
 
         {/* Pool list */}
@@ -467,7 +469,17 @@ export function BigBoard({
                       {/* Right side: score + actions */}
                       <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",
                         gap:6,flexShrink:0}}>
-                        <ProspectScore score={prospectScore} pos={p.pos} />
+                        {/* Dynasty value if available, otherwise prospect score */}
+                        {p.dynastyValue ? (
+                          <div style={{textAlign:"center"}}>
+                            <div style={{fontSize:14,fontWeight:900,
+                              color: p.dynastyValue>=700?"#22c55e":p.dynastyValue>=400?"#60a5fa":p.dynastyValue>=200?"#f59e0b":"#4d6880",
+                              lineHeight:1}}>{p.dynastyValue}</div>
+                            <div style={{fontSize:7,color:"#4d6880",letterSpacing:1}}>DYN</div>
+                          </div>
+                        ) : (
+                          <ProspectScore score={prospectScore} pos={p.pos} />
+                        )}
                         <div style={{display:"flex",gap:4}}>
                           <button
                             onClick={()=>{

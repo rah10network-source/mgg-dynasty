@@ -1,6 +1,6 @@
-import { TIER_STYLE, INJ_COLOR, SIG_COLORS, POS_ORDER } from "../../constants";
+import { TIER_STYLE, INJ_COLOR, SIG_COLORS, POS_ORDER ,  pv } from "../../constants";
 
-export function PositionRankings({ players, newsMap, setDetail, setActiveTab }) {
+export function PositionRankings({ players, newsMap, setDetail, setActiveTab, viewMode="dynasty" }) {
   return (
     <>
       {POS_ORDER.map(pos => {
@@ -15,7 +15,7 @@ export function PositionRankings({ players, newsMap, setDetail, setActiveTab }) 
                 {pos}
               </span>
               <span style={{fontSize:9,color:"#4d6880",letterSpacing:1}}>
-                {pp.length} ROSTERED · AVG {Math.round(pp.reduce((s,p) => s+p.score, 0) / pp.length)}
+                {pp.length} ROSTERED · AVG {Math.round(pp.reduce((s,p) => s+pv(p,viewMode), 0) / pp.length)}
               </span>
             </div>
             <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
@@ -32,7 +32,7 @@ export function PositionRankings({ players, newsMap, setDetail, setActiveTab }) 
                     </div>
                     <div style={{fontWeight:900,color:"#e2e8f0",fontSize:13}}>{p.name}</div>
                     <div style={{fontSize:10,color:"#7a95ae",marginTop:2}}>
-                      {p.team} · {p.age} · <span style={{color:ts.text,fontWeight:700}}>{p.score}</span>
+                      {p.team} · {p.age} · <span style={{color:ts.text,fontWeight:700}}>{pv(p,viewMode)}</span>
                     </div>
                     {p.depthOrder && (
                       <div style={{fontSize:9,color:p.depthOrder===1?"#22c55e":"#f59e0b",marginTop:2}}>

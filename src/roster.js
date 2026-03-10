@@ -9,9 +9,9 @@
 //   LeagueHub.jsx  — gradeRoster for league-wide standings
 //
 // KEY FIX: isSellHigh was duplicated with DIFFERENT thresholds:
-//   Dashboard.jsx → score >= 60
-//   TeamHub.jsx   → score >= 55
-// Canonical threshold is now score >= top 35% of owner's roster (relative),
+//   Dashboard.jsx → dynastyValue >= 250
+//   TeamHub.jsx   → dynastyValue >= 280
+// Canonical threshold is now dynastyValue >= top 35% of owner's roster (relative),
 // with a minimum absolute floor of 45 to catch value regardless of roster depth.
 
 import { PRIME, POS_ORDER } from "./constants";
@@ -24,7 +24,7 @@ export function gradeRoster(owner, players) {
   const roster = players.filter(p => p.owner === owner);
   if (!roster.length) return null;
 
-  const scores     = roster.map(p => p.score).sort((a, b) => b - a);
+  const scores     = roster.map(p => p.dynastyValue).sort((a, b) => b - a);
   const avgScore   = scores.reduce((a, b) => a + b, 0) / scores.length;
   const topScore   = scores[0] || 0;
   const eliteCount = roster.filter(p => p.tier === "Elite").length;
@@ -40,8 +40,8 @@ export function gradeRoster(owner, players) {
     const atPos = roster.filter(p => p.pos === pos);
     posDep[pos] = {
       count: atPos.length,
-      avg:   atPos.length ? atPos.reduce((s, p) => s + p.score, 0) / atPos.length : 0,
-      top:   atPos[0]?.score || 0,
+      avg:   atPos.length ? atPos.reduce((s, p) => s + p.dynastyValue, 0) / atPos.length : 0,
+      top:   atPos[0]?.dynastyValue || 0,
     };
   });
 
@@ -115,14 +115,14 @@ export function isSellHigh(p, newsMap, ownerRoster = []) {
 
   // Relative threshold — top 35% of the owner's roster or absolute floor of 45
   if (ownerRoster.length > 0) {
-    const sorted    = [...ownerRoster].sort((a, b) => b.score - a.score);
+    const sorted    = [...ownerRoster].sort((a, b) => b.dynastyValue - a.dynastyValue);
     const cutoffIdx = Math.ceil(sorted.length * 0.35) - 1;
-    const threshold = Math.max(sorted[cutoffIdx]?.score ?? 45, 45);
-    return p.score >= threshold;
+    const threshold = Math.max(sorted[cutoffIdx]?.dynastyValue ?? 200, 200);
+    return p.dynastyValue >= threshold;
   }
 
   // No roster context — use absolute floor
-  return p.score >= 45;
+  return p.dynastyValue >= 200;
 }
 
 // ─── LEAGUE AVERAGE BY POSITION ───────────────────────────────────────────────
@@ -132,7 +132,7 @@ export function leagueAvgByPos(players) {
   const result = {};
   POS_ORDER.forEach(pos => {
     const atPos = players.filter(p => p.pos === pos);
-    result[pos] = atPos.length ? atPos.reduce((s, p) => s + p.score, 0) / atPos.length : 0;
+    result[pos] = atPos.length ? atPos.reduce((s, p) => s + p.dynastyValue, 0) / atPos.length : 0;
   });
   return result;
 }
@@ -166,7 +166,7 @@ export function sellHighCandidates(roster, newsMap) {
       // Explicit SELL signals first, then by score descending
       const aS = newsMap?.[a.name]?.signal === "SELL" ? 1000 : 0;
       const bS = newsMap?.[b.name]?.signal === "SELL" ? 1000 : 0;
-      return (bS + b.score) - (aS + a.score);
+      return (bS + b.dynastyValue) - (aS + a.dynastyValue);
     });
 }
 
@@ -180,7 +180,7 @@ export function tradeTargets(currentOwner, myGrade, players, newsMap, topN = 8) 
   return players
     .filter(p =>
       p.owner !== currentOwner &&
-      p.score >= 50 &&
+      p.dynastyValue >= 250 &&
       weak.has(p.pos)
     )
     .map(p => ({
@@ -188,7 +188,7 @@ export function tradeTargets(currentOwner, myGrade, players, newsMap, topN = 8) 
       _priority:
         (weak.has(p.pos)                         ? 20 : 0) +
         (newsMap?.[p.name]?.signal === "BUY"     ? 15 : 0) +
-        p.score,
+        p.dynastyValue,
     }))
     .sort((a, b) => b._priority - a._priority)
     .slice(0, topN);

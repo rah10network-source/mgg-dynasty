@@ -191,7 +191,7 @@ export function Trade({
                             <span style={{fontSize:11,color:ts.text,fontWeight:700}}>{p.name}</span>
                             <span style={{fontSize:9,color:"#7a95ae",marginLeft:6}}>{p.pos} · {p.team} · {p.age}y</span>
                           </div>
-                          <span style={{fontSize:11,fontWeight:900,color:ts.text}}>{p.score}</span>
+                          <span style={{fontSize:10,fontWeight:900,color:ts.text}}>{p.dynastyValue ?? p.score}</span>
                         </div>
                       );
                     })}
@@ -243,7 +243,7 @@ export function Trade({
                     <div style={{display:"flex",alignItems:"center",gap:5}}>
                       {item.type === "pick" && (
                         <input type="number" min="0" max="150"
-                          value={item.customVal ?? ""} placeholder={item.score}
+                          value={item.customVal ?? ""} placeholder={item.dynastyValue ?? item.score}
                           onChange={e => setPickCustomVal(side, item.id, e.target.value)}
                           style={{width:42,background:"#080d14",border:"1px solid #1e2d3d",
                             color:"#f59e0b",padding:"3px 5px",borderRadius:3,
@@ -276,12 +276,12 @@ export function Trade({
             ).map(pos => {
               const giving  = tradeSideA.filter(x => x.type==="player" && x.pos===pos);
               const getting = tradeSideB.filter(x => x.type==="player" && x.pos===pos);
-              const netVal  = getting.reduce((s,x)=>s+x.score,0) - giving.reduce((s,x)=>s+x.score,0);
+              const netVal  = getting.reduce((s,x)=>s+(x.dynastyValue??x.score??0),0) - giving.reduce((s,x)=>s+(x.dynastyValue??x.score??0),0);
               return (
                 <div key={pos} style={{textAlign:"center",minWidth:48}}>
                   <div style={{fontSize:9,color:"#60a5fa",fontWeight:700,marginBottom:3}}>{pos}</div>
-                  {giving.length  > 0 && <div style={{fontSize:9,color:"#ef4444"}}>-{giving.map(x=>x.score).join(", ")}</div>}
-                  {getting.length > 0 && <div style={{fontSize:9,color:"#22c55e"}}>+{getting.map(x=>x.score).join(", ")}</div>}
+                  {giving.length  > 0 && <div style={{fontSize:9,color:"#ef4444"}}>-{giving.map(x=>(x.dynastyValue??x.score)).join(", ")}</div>}
+                  {getting.length > 0 && <div style={{fontSize:9,color:"#22c55e"}}>+{getting.map(x=>(x.dynastyValue??x.score)).join(", ")}</div>}
                   <div style={{fontSize:10,fontWeight:700,color:netVal>=0?"#22c55e":"#ef4444",
                     marginTop:2,borderTop:"1px solid #1e2d3d",paddingTop:2}}>
                     {netVal >= 0 ? "+" : ""}{netVal}

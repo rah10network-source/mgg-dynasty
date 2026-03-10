@@ -1,4 +1,4 @@
-import { TIER_STYLE, INJ_COLOR, SIG_COLORS, POS_ORDER, SITUATION_FLAGS, MANUAL_SITUATIONS } from "../constants";
+import { TIER_STYLE, INJ_COLOR, SIG_COLORS, POS_ORDER, SITUATION_FLAGS, MANUAL_SITUATIONS ,  pv } from "../constants";
 
 export function Hub({
   // nested tab
@@ -18,6 +18,7 @@ export function Hub({
   faTeamFilter, setFaTeamFilter, faAgeMin, setFaAgeMin, faAgeMax, setFaAgeMax,
   faHideInj, setFaHideInj, faResults, faTeams, faWatchlist,
   addToFaWatchlist, removeFromFaWatchlist,
+  viewMode="dynasty",
 }) {
   const inputStyle = {
     background:"#080d14", border:"1px solid #1e2d3d", color:"#e2e8f0",
@@ -405,7 +406,7 @@ export function Hub({
                 <div>
                   <div style={{fontSize:9,color:"#f59e0b",letterSpacing:2,fontWeight:700,marginBottom:10}}>◎ YOUR FA WATCHLIST — SCORED</div>
                   <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:8}}>
-                    {[...faWatchlist].sort((a,b) => b.score-a.score).map(p => {
+                    {[...faWatchlist].sort((a,b) => b.dynastyValue-a.dynastyValue).map(p => {
                       const ts = TIER_STYLE[p.tier];
                       const sf = p.situationFlag && SITUATION_FLAGS[p.situationFlag];
                       return (
@@ -419,7 +420,7 @@ export function Hub({
                           <div style={{fontWeight:900,color:"#e2e8f0",fontSize:13,marginBottom:2,paddingRight:14}}>{p.name}</div>
                           <div style={{fontSize:10,color:"#7a95ae"}}>{p.pos} · {p.team} · {p.age||"?"}y</div>
                           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:6}}>
-                            <span style={{fontSize:20,fontWeight:900,color:ts.text,textShadow:`0 0 8px ${ts.glow}`}}>{p.score}</span>
+                            <span style={{fontSize:20,fontWeight:900,color:ts.text,textShadow:`0 0 8px ${ts.glow}`}}>{pv(p,viewMode)}</span>
                             <div style={{textAlign:"right"}}>
                               {p.depth && <div style={{fontSize:9,color:p.depth===1?"#22c55e":"#f59e0b"}}>Depth #{p.depth}</div>}
                               {p.injStatus && <div style={{fontSize:9,color:INJ_COLOR[p.injStatus]||"#ef4444",fontWeight:700}}>{p.injStatus}</div>}
