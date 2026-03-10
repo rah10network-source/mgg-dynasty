@@ -33,3 +33,27 @@
 ### Files in this zip
 Deploy ALL to src/ — complete set, no partial updates needed.
 Ensure src/tabs/drafthub/ and src/tabs/tools/ directories exist.
+
+## [1.2.3] — 2026-03-10 · IDP Scoring Vote + Player Notes + Team Comparison
+
+### Changed
+**IDP scoring — league vote applied (`src/constants.js`)**
+- `idp_qb_hit`: +0.5 → +1 per hit
+- `idp_pass_def`: +1 → +2 per defended pass
+- Comment updated from "Pending" to "PASSED"
+
+### Added
+**Player notes persistence (`src/App.jsx`, `src/tabs/TeamHub.jsx`)**
+- `playerNotes` state stored in `localStorage` keyed by `pid` under `mgg_player_notes_{userId}`
+- Notes survive refreshes, are namespaced per user (same as watchlist/bigboard)
+- Notes are editable from the expanded player row in My Roster tab
+- Shows ✎ NOTE badge on collapsed row when a note exists
+- SAVE / CANCEL / CLEAR controls. Empty save removes the key (no stale entries)
+
+**Team Comparison tab (`src/tabs/TeamHub.jsx`)**
+- New ⬤ COMPARE tab in Team Hub
+- Owner selector dropdown — pick any other team to compare against
+- Side-by-side grade cards (grade letter, contender score, window, all 6 stats)
+- Trade intel strip — YOUR STRENGTHS and YOUR NEEDS derived from positional gaps >15 avg
+- Dual-sided positional depth bars (mine left, theirs right) — green = winner per position
+- Side-by-side roster lists (top 20 by score) with signal badges

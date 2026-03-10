@@ -11,6 +11,7 @@ const TABS = [
   ["roster",    "⬡ MY ROSTER"],
   ["sellhigh",  "⚑ SELL-HIGH"],
   ["targets",   "⇄ TARGETS"],
+  ["compare",   "⬤ COMPARE"],
 ];
 
 function Stat({ label, value, color = "#e2e8f0", size = 18 }) {
@@ -22,12 +23,15 @@ function Stat({ label, value, color = "#e2e8f0", size = 18 }) {
   );
 }
 
-function PlayerRow({ p, newsMap }) {
+function PlayerRow({ p, newsMap, playerNotes, savePlayerNote }) {
   const [expanded, setExpanded] = useState(false);
+  const [editingNote, setEditingNote] = useState(false);
+  const [noteVal, setNoteVal] = useState("");
   const n   = newsMap?.[p.name];
   const ts  = TIER_STYLE[p.tier] || TIER_STYLE.Stash;
   const inj = p.injStatus && INJ_COLOR[p.injStatus];
   const sf  = p.situationFlag ? SITUATION_FLAGS[p.situationFlag] : null;
+  const savedNote = playerNotes?.[p.pid] || "";
 
   return (
     <div style={{ borderBottom:"1px solid #0f1923" }}>
@@ -56,6 +60,8 @@ function PlayerRow({ p, newsMap }) {
               border:`1px solid ${inj}44`, borderRadius:3, padding:"1px 5px" }}>{p.injStatus}</span>}
             {n?.signal && <span style={{ fontSize:7, background:SIG_COLORS[n.signal],
               color:"#080d14", borderRadius:3, padding:"1px 5px", fontWeight:900 }}>{n.signal}</span>}
+            {savedNote && <span style={{ fontSize:7, color:"#f59e0b", background:"#f59e0b18",
+              border:"1px solid #f59e0b44", borderRadius:3, padding:"1px 5px" }}>✎ NOTE</span>}
           </div>
           <div style={{ fontSize:9, color:"#7a95ae", marginTop:2 }}>
             {p.pos} · {p.team}{p.age ? ` · ${p.age}y` : ""}{p.ppg != null ? ` · ${p.ppg} ppg` : ""}
@@ -72,11 +78,12 @@ function PlayerRow({ p, newsMap }) {
         </div>
       </div>
 
-      {/* ── Expanded panel ── */}
       {expanded && (
         <div style={{ background:ts.bg, borderTop:`1px solid ${ts.border}`,
-          padding:"16px 18px", display:"grid",
-          gridTemplateColumns:"repeat(3,1fr)", gap:18 }}>
+          padding:"16px 18px" }}>
+
+          {/* Top 3 columns */}
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:18, marginBottom:16 }}>
 
           {/* Profile */}
           <div>
@@ -154,6 +161,71 @@ function PlayerRow({ p, newsMap }) {
             ) : (
               <div style={{ fontSize:10, color:"#4d6880",
                 fontStyle:"italic" }}>Run ◈ INTEL SCAN for news signals</div>
+            )}
+          </div>
+          </div>
+
+          {/* Notes row — full width */}
+          <div style={{ borderTop:"1px solid rgba(255,255,255,0.06)", paddingTop:12 }}>
+            <div style={{ display:"flex", justifyContent:"space-between",
+              alignItems:"center", marginBottom:6 }}>
+              <div style={{ fontSize:8, color:"#f59e0b", letterSpacing:2, fontWeight:700 }}>
+                MY NOTES
+              </div>
+              {!editingNote && (
+                <button onClick={() => { setEditingNote(true); setNoteVal(savedNote); }}
+                  style={{ fontSize:8, background:"none", border:"1px solid #2a3f55",
+                    color:"#60a5fa", borderRadius:4, padding:"2px 8px",
+                    cursor:"pointer", fontFamily:"inherit" }}>
+                  {savedNote ? "EDIT" : "+ ADD NOTE"}
+                </button>
+              )}
+            </div>
+            {editingNote ? (
+              <div>
+                <textarea
+                  value={noteVal}
+                  onChange={e => setNoteVal(e.target.value)}
+                  placeholder="Trade value thoughts, injury notes, role changes..."
+                  autoFocus
+                  style={{ width:"100%", minHeight:64, background:"#050a10",
+                    border:"1px solid #2a3f55", borderRadius:6, color:"#e2e8f0",
+                    padding:"8px 10px", fontSize:11, fontFamily:"inherit",
+                    resize:"vertical", outline:"none", boxSizing:"border-box" }}
+                />
+                <div style={{ display:"flex", gap:8, marginTop:6 }}>
+                  <button onClick={() => { savePlayerNote(p.pid, noteVal.trim()); setEditingNote(false); }}
+                    style={{ fontSize:8, background:"#22c55e22", border:"1px solid #22c55e66",
+                      color:"#22c55e", borderRadius:4, padding:"3px 12px",
+                      cursor:"pointer", fontFamily:"inherit", fontWeight:700 }}>
+                    SAVE
+                  </button>
+                  <button onClick={() => setEditingNote(false)}
+                    style={{ fontSize:8, background:"none", border:"1px solid #2a3f55",
+                      color:"#4d6880", borderRadius:4, padding:"3px 10px",
+                      cursor:"pointer", fontFamily:"inherit" }}>
+                    CANCEL
+                  </button>
+                  {savedNote && (
+                    <button onClick={() => { savePlayerNote(p.pid, ""); setEditingNote(false); }}
+                      style={{ fontSize:8, background:"#ef444422", border:"1px solid #ef444466",
+                        color:"#ef4444", borderRadius:4, padding:"3px 10px",
+                        cursor:"pointer", fontFamily:"inherit" }}>
+                      CLEAR
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : savedNote ? (
+              <div style={{ fontSize:11, color:"#e2e8f0", lineHeight:1.7,
+                background:"#f59e0b0d", border:"1px solid #f59e0b22",
+                borderRadius:6, padding:"8px 12px" }}>
+                {savedNote}
+              </div>
+            ) : (
+              <div style={{ fontSize:10, color:"#4d6880", fontStyle:"italic" }}>
+                No notes yet — click + ADD NOTE to record trade thoughts
+              </div>
             )}
           </div>
         </div>
@@ -470,7 +542,7 @@ function TargetsTab({ currentOwner, myGrade, players, newsMap }) {
 }
 
 // ── ROSTER TAB ────────────────────────────────────────────────────────────────
-function RosterTab({ roster, newsMap }) {
+function RosterTab({ roster, newsMap, playerNotes, savePlayerNote }) {
   const [posFilter, setPosFilter] = useState("ALL");
   const [sortKey,   setSortKey]   = useState("score");
   const filtered = roster
@@ -510,14 +582,243 @@ function RosterTab({ roster, newsMap }) {
         <span style={{ fontSize:9, color:"#4d6880" }}>{filtered.length} players</span>
       </div>
       <div style={{ border:"1px solid #1e2d3d", borderRadius:10, overflow:"hidden" }}>
-        {filtered.map(p => <PlayerRow key={p.pid} p={p} newsMap={newsMap} />)}
+        {filtered.map(p => <PlayerRow key={p.pid} p={p} newsMap={newsMap} playerNotes={playerNotes} savePlayerNote={savePlayerNote} />)}
       </div>
     </div>
   );
 }
 
+// ── COMPARE TAB ───────────────────────────────────────────────────────────────
+function CompareTab({ myGrade, owners, players, newsMap, currentOwner }) {
+  const [oppOwner, setOppOwner] = useState("");
+  const oppGrade = oppOwner ? gradeRoster(oppOwner, players) : null;
+
+  const otherOwners = owners.filter(o => o !== currentOwner);
+
+  // Positional gap analysis — positions where opp is strong and I'm weak
+  const gaps = oppGrade ? POS_ORDER.filter(pos => {
+    const mine = myGrade.posDep[pos]?.avg || 0;
+    const theirs = oppGrade.posDep[pos]?.avg || 0;
+    return theirs - mine > 15;
+  }) : [];
+
+  const advantages = oppGrade ? POS_ORDER.filter(pos => {
+    const mine = myGrade.posDep[pos]?.avg || 0;
+    const theirs = oppGrade.posDep[pos]?.avg || 0;
+    return mine - theirs > 15;
+  }) : [];
+
+  return (
+    <div>
+      {/* Owner selector */}
+      <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:20,
+        background:"#080d14", border:"1px solid #1e2d3d", borderRadius:10, padding:"14px 16px" }}>
+        <div style={{ fontSize:9, color:"#7a95ae", letterSpacing:2, flexShrink:0 }}>COMPARE VS</div>
+        <select value={oppOwner} onChange={e => setOppOwner(e.target.value)}
+          style={{ flex:1, background:"#050a10", border:"1px solid #2a3f55",
+            color: oppOwner ? "#e2e8f0" : "#4d6880",
+            borderRadius:6, padding:"6px 10px", fontSize:11,
+            fontFamily:"inherit", cursor:"pointer", outline:"none" }}>
+          <option value="">— Select an owner —</option>
+          {otherOwners.map(o => <option key={o} value={o}>{o}</option>)}
+        </select>
+        {oppOwner && (
+          <button onClick={() => setOppOwner("")}
+            style={{ background:"none", border:"none", color:"#4d6880",
+              fontSize:14, cursor:"pointer", padding:"0 4px" }}>✕</button>
+        )}
+      </div>
+
+      {!oppOwner && (
+        <div style={{ textAlign:"center", padding:"48px 20px",
+          border:"1px dashed #1e2d3d", borderRadius:12 }}>
+          <div style={{ fontSize:11, color:"#4d6880" }}>Select an opponent above to see the head-to-head breakdown</div>
+        </div>
+      )}
+
+      {oppGrade && (
+        <div>
+          {/* ── Grade header cards ── */}
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14, marginBottom:18 }}>
+            {[
+              { g: myGrade,  label: "YOUR TEAM",    you: true },
+              { g: oppGrade, label: oppOwner.toUpperCase(), you: false },
+            ].map(({ g, label, you }) => (
+              <div key={label} style={{ background:"#0a1118",
+                border:`2px solid ${you ? g.gradeColor : g.gradeColor+"88"}`,
+                borderRadius:12, padding:"16px 18px",
+                boxShadow: you ? `0 0 20px ${g.gradeColor}22` : "none" }}>
+                <div style={{ fontSize:8, color: you ? g.gradeColor : "#7a95ae",
+                  letterSpacing:2, fontWeight:700, marginBottom:6 }}>{label}</div>
+                <div style={{ display:"flex", alignItems:"baseline", gap:10, marginBottom:10 }}>
+                  <span style={{ fontSize:48, fontWeight:900, color:g.gradeColor, lineHeight:1 }}>
+                    {g.grade}
+                  </span>
+                  <div>
+                    <div style={{ fontSize:11, fontWeight:700, color:g.windowColor, letterSpacing:2 }}>
+                      {g.window}
+                    </div>
+                    <div style={{ fontSize:9, color:"#4d6880" }}>
+                      Contender: <span style={{ color:g.gradeColor, fontWeight:700 }}>{g.contenderScore}</span>
+                    </div>
+                  </div>
+                </div>
+                <div style={{ display:"flex", gap:14, flexWrap:"wrap" }}>
+                  {[
+                    ["AVG",     g.avgScore.toFixed(1)],
+                    ["ELITE",   g.eliteCount],
+                    ["STRTRS",  g.starterCnt],
+                    ["AVG AGE", g.avgAge.toFixed(1)],
+                    ["CLIFF",   g.cliffCnt],
+                    ["INJ",     g.injCnt],
+                  ].map(([k, v]) => (
+                    <div key={k} style={{ textAlign:"center" }}>
+                      <div style={{ fontSize:14, fontWeight:900, color:g.gradeColor }}>{v}</div>
+                      <div style={{ fontSize:7, color:"#7a95ae", letterSpacing:1 }}>{k}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* ── Trade intel strip ── */}
+          {(gaps.length > 0 || advantages.length > 0) && (
+            <div style={{ background:"#0a1118", border:"1px solid #1e2d3d",
+              borderRadius:10, padding:"12px 16px", marginBottom:18,
+              display:"flex", gap:16, flexWrap:"wrap" }}>
+              {advantages.length > 0 && (
+                <div style={{ flex:1, minWidth:160 }}>
+                  <div style={{ fontSize:8, color:"#22c55e", letterSpacing:2,
+                    fontWeight:700, marginBottom:6 }}>YOUR STRENGTHS (target their need)</div>
+                  <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                    {advantages.map(pos => (
+                      <span key={pos} style={{ fontSize:9, background:"#22c55e18",
+                        border:"1px solid #22c55e44", color:"#22c55e",
+                        borderRadius:4, padding:"2px 8px", fontWeight:700 }}>{pos}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {gaps.length > 0 && (
+                <div style={{ flex:1, minWidth:160 }}>
+                  <div style={{ fontSize:8, color:"#f59e0b", letterSpacing:2,
+                    fontWeight:700, marginBottom:6 }}>YOUR NEEDS (they can fill)</div>
+                  <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                    {gaps.map(pos => (
+                      <span key={pos} style={{ fontSize:9, background:"#f59e0b18",
+                        border:"1px solid #f59e0b44", color:"#f59e0b",
+                        borderRadius:4, padding:"2px 8px", fontWeight:700 }}>{pos}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Positional depth bars ── */}
+          <div style={{ background:"#080d14", border:"1px solid #1e2d3d",
+            borderRadius:10, padding:"14px 16px", marginBottom:18 }}>
+            <div style={{ fontSize:8, color:"#7a95ae", letterSpacing:2,
+              fontWeight:700, marginBottom:12 }}>POSITIONAL DEPTH</div>
+            {POS_ORDER.map(pos => {
+              const mine   = myGrade.posDep[pos]?.avg || 0;
+              const theirs = oppGrade.posDep[pos]?.avg || 0;
+              const myCount = myGrade.posDep[pos]?.count || 0;
+              const theirCount = oppGrade.posDep[pos]?.count || 0;
+              const max = Math.max(mine, theirs, 1);
+              const myCol   = mine >= theirs ? "#22c55e" : "#ef4444";
+              const theirCol= theirs > mine  ? "#22c55e" : "#ef4444";
+              return (
+                <div key={pos} style={{ marginBottom:8 }}>
+                  <div style={{ display:"flex", justifyContent:"space-between",
+                    marginBottom:3, fontSize:9 }}>
+                    <span style={{ color:myCol, fontWeight:700 }}>
+                      {mine.toFixed(0)} <span style={{ color:"#4d6880", fontWeight:400 }}>({myCount})</span>
+                    </span>
+                    <span style={{ color:"#7a95ae", fontWeight:700, letterSpacing:2 }}>{pos}</span>
+                    <span style={{ color:theirCol, fontWeight:700 }}>
+                      <span style={{ color:"#4d6880", fontWeight:400 }}>({theirCount})</span> {theirs.toFixed(0)}
+                    </span>
+                  </div>
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:3 }}>
+                    {/* My bar — right-aligned */}
+                    <div style={{ display:"flex", justifyContent:"flex-end" }}>
+                      <div style={{ height:6, borderRadius:"3px 0 0 3px",
+                        width:`${(mine/max)*100}%`,
+                        background: mine >= theirs ? "#22c55e" : "#334155",
+                        transition:"width .3s" }} />
+                    </div>
+                    {/* Their bar — left-aligned */}
+                    <div>
+                      <div style={{ height:6, borderRadius:"0 3px 3px 0",
+                        width:`${(theirs/max)*100}%`,
+                        background: theirs > mine ? "#22c55e" : "#334155",
+                        transition:"width .3s" }} />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* ── Side-by-side roster lists ── */}
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
+            {[
+              { g: myGrade,  label: "YOUR ROSTER" },
+              { g: oppGrade, label: `${oppOwner.split(" ")[0].toUpperCase()}'S ROSTER` },
+            ].map(({ g, label }) => (
+              <div key={label}>
+                <div style={{ fontSize:8, color:"#7a95ae", letterSpacing:2,
+                  fontWeight:700, marginBottom:8 }}>{label}</div>
+                <div style={{ border:"1px solid #1e2d3d", borderRadius:10, overflow:"hidden" }}>
+                  {[...g.roster]
+                    .sort((a, b) => b.score - a.score)
+                    .slice(0, 20)
+                    .map(p => {
+                      const ts2 = TIER_STYLE[p.tier] || TIER_STYLE.Stash;
+                      const nr2 = newsMap?.[p.name];
+                      return (
+                        <div key={p.pid} style={{ display:"flex", alignItems:"center",
+                          gap:8, padding:"5px 10px",
+                          background:"#080d14", borderBottom:"1px solid #0f1923" }}>
+                          <div style={{ width:32, textAlign:"center", flexShrink:0 }}>
+                            <div style={{ fontSize:13, fontWeight:900, color:ts2.text,
+                              textShadow:`0 0 6px ${ts2.glow}` }}>{p.score}</div>
+                          </div>
+                          <div style={{ flex:1, minWidth:0 }}>
+                            <div style={{ display:"flex", alignItems:"center", gap:5 }}>
+                              <span style={{ fontSize:11, fontWeight:700, color:"#e2e8f0",
+                                overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                                {p.name}
+                              </span>
+                              {nr2?.signal && (
+                                <span style={{ fontSize:6, background:SIG_COLORS[nr2.signal],
+                                  color:"#080d14", borderRadius:2, padding:"1px 4px",
+                                  fontWeight:900, flexShrink:0 }}>{nr2.signal}</span>
+                              )}
+                            </div>
+                            <div style={{ fontSize:8, color:"#7a95ae" }}>
+                              {p.pos} · {p.team}{p.age ? ` · ${p.age}y` : ""}
+                            </div>
+                          </div>
+                          <div style={{ fontSize:7, color:ts2.text, letterSpacing:1,
+                            flexShrink:0 }}>{p.tier}</div>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── MAIN ──────────────────────────────────────────────────────────────────────
-export function TeamHub({ phase, players, owners, currentOwner, newsMap = {}, setDetail }) {
+export function TeamHub({ phase, players, owners, currentOwner, newsMap = {}, setDetail, playerNotes = {}, savePlayerNote }) {
   const [tab, setTab] = useState("overview");
 
   if (phase !== "done" || !currentOwner) {
@@ -557,10 +858,12 @@ export function TeamHub({ phase, players, owners, currentOwner, newsMap = {}, se
       </div>
       {tab==="overview"  && <Overview myGrade={myGrade} owners={owners} players={players}
         newsMap={newsMap} currentOwner={currentOwner} setTab={setTab} />}
-      {tab==="roster"    && <RosterTab roster={myGrade.roster} newsMap={newsMap} />}
+      {tab==="roster"    && <RosterTab roster={myGrade.roster} newsMap={newsMap} playerNotes={playerNotes} savePlayerNote={savePlayerNote} />}
       {tab==="sellhigh"  && <SellHighTab roster={myGrade.roster} newsMap={newsMap} />}
       {tab==="targets"   && <TargetsTab currentOwner={currentOwner} myGrade={myGrade}
         players={players} newsMap={newsMap} />}
+      {tab==="compare"   && <CompareTab myGrade={myGrade} owners={owners} players={players}
+        newsMap={newsMap} currentOwner={currentOwner} />}
     </div>
   );
 }

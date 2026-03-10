@@ -67,6 +67,7 @@ export default function App() {
   const [faWatchlist, setFaWatchlist]= useState(()=>lsGet(userKey,"fa_watchlist",[]));
   const [watchlist,   setWatchlist]  = useState(()=>lsGet(userKey,"watchlist",[]));
   const [manualSits,  setManualSits] = useState(()=>lsGet(userKey,"situations")??{...MANUAL_SITUATIONS});
+  const [playerNotes, setPlayerNotes]= useState(()=>lsGet(userKey,"player_notes",{}));
   const manualSitsRef = useRef(manualSits);
 
   useEffect(()=>{
@@ -75,6 +76,7 @@ export default function App() {
     setFaWatchlist(ls.get("fa_watchlist",[]));
     setWatchlist(ls.get("watchlist",[]));
     setManualSits(ls.get("situations")??{...MANUAL_SITUATIONS});
+    setPlayerNotes(ls.get("player_notes",{}));
     setTradeOwnerA(identity.ownerName||"");
   },[identity?.userId]); // eslint-disable-line
 
@@ -101,6 +103,7 @@ export default function App() {
   const clearSeasonOverride=()=>{setSeasonState(p=>({...p,_override:false}));try{localStorage.removeItem("mgg_season_override");}catch{}};
 
   const saveBigBoard  =(next)=>{setBigBoard(next);ls.set("bigboard",next);};
+  const savePlayerNote=(pid,note)=>{const next={...playerNotes,[pid]:note||undefined};if(!note)delete next[pid];setPlayerNotes(next);ls.set("player_notes",next);};
   const bigBoardAdd   =(p)=>{if(bigBoard.find(b=>b.pid===p.pid))return;saveBigBoard([...bigBoard,{...p,note:"",addedAt:Date.now()}]);};
   const bigBoardRemove=(pid)=>saveBigBoard(bigBoard.filter(p=>p.pid!==pid));
   const bigBoardMove  =(pid,dir)=>{const i=bigBoard.findIndex(p=>p.pid===pid);if(i<0)return;const n=[...bigBoard];const s=dir==="up"?i-1:i+1;if(s<0||s>=n.length)return;[n[i],n[s]]=[n[s],n[i]];saveBigBoard(n);};
@@ -364,7 +367,7 @@ export default function App() {
 
         {tab==="dashboard"&&<Dashboard phase={phase} players={players} currentOwner={activeOwner} owners={owners} newsMap={newsMap} seasonState={seasonState} onViewTeam={isCommissioner?enterViewMode:undefined}/>}
         {tab==="leaguehub"&&<LeagueHub phase={phase} players={players} owners={owners} currentOwner={activeOwner} newsMap={newsMap} setDetail={setDetail} setActiveTab={setTab} seasonState={seasonState} onViewTeam={isCommissioner?enterViewMode:undefined}/>}
-        {tab==="teamhub"&&<TeamHub phase={phase} players={players} owners={owners} currentOwner={activeOwner} newsMap={newsMap} setDetail={setDetail} isViewMode={isViewMode} viewingOwner={viewingOwner} isCommissioner={isCommissioner} onViewTeam={enterViewMode} onExitView={exitViewMode}/>}
+        {tab==="teamhub"&&<TeamHub phase={phase} players={players} owners={owners} currentOwner={activeOwner} newsMap={newsMap} setDetail={setDetail} isViewMode={isViewMode} viewingOwner={viewingOwner} isCommissioner={isCommissioner} onViewTeam={enterViewMode} onExitView={exitViewMode} playerNotes={playerNotes} savePlayerNote={savePlayerNote}/>}
         {tab==="playerhub"&&<PlayerHub
           currentOwner={currentOwner} activeOwner={activeOwner} isViewMode={isViewMode}
           owners={owners} phase={phase} players={players} newsMap={newsMap} nflDb={nflDb} view={view}

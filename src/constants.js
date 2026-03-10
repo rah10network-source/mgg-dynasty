@@ -1,5 +1,5 @@
 // ─── LEAGUE CONFIG ────────────────────────────────────────────────────────────
-export const LEAGUE_ID = "1178580692040589312";
+export const LEAGUE_ID = "1315875703715016704";
 export const SLEEPER   = "https://api.sleeper.app/v1";
 export const LEAGUE_API_KEY = import.meta.env.VITE_LEAGUE_API_KEY || "";
 
@@ -28,7 +28,7 @@ export const POS_ORDER = ["QB","RB","WR","TE","DL","LB","DB","K"];
 // Return scoring from constitution §7.2:
 //   Punt return: +1/10 yds | Kick return: +1/30 yds | INT/Fum return: +1/10 yds
 //
-// Pending league vote: idp_tkl_solo +1→+1.5, idp_pass_def +1→+2, idp_qb_hit +0.5→+1
+// League vote PASSED: idp_pass_def +1→+2, idp_qb_hit +0.5→+1 (applied v1.2.3)
 export const SCORING = {
   // Offense
   pass_yd:0.04, pass_td:4,  pass_int:-1,
@@ -47,8 +47,8 @@ export const SCORING = {
   idp_tkl_solo:   1,
   idp_tkl_ast:    0.5,
   idp_tkl_loss:   2,
-  idp_qb_hit:     0.5,
-  idp_pass_def:   1,
+  idp_qb_hit:     1,
+  idp_pass_def:   2,
   idp_int:        2,
   idp_ff:         1,
   idp_fum_rec:    1,
