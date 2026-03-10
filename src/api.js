@@ -346,27 +346,60 @@ export const loadData = async (log, manualSitsRef) => {
   pl = normalise(pl, "demandRaw");
   pl = normalise(pl, "roleStab");
 
-  // ── Start Value (p.startValue, 0-100) ───────────────────────────────────
-  // Position-relative absolute mapping — no cross-position normalisation.
-  // calcStartRaw returns the final 0-99 value directly from PPG + pos ceiling.
-  pl.forEach(p => {
-    p.startValue = calcStartRaw(p);
-    p.score = p.startValue; // legacy alias — kept for external consumers
-  });
-
-  // ── Dynasty Value (p.dynastyValue, 0-1000) ───────────────────────────────
-  // Non-linear, positionally ranked, exponential decay — the primary value.
-  // Shown everywhere; toggle switches to startValue for redraft view.
+  // ── Dynasty Value (p.dynastyValue, 0-1000) ─── computed FIRST ────────────
+  // Used below to project SV for no-stats players.
   const dvMap = calcDynastyValues(pl);
   pl.forEach(p => { p.dynastyValue = dvMap[p.pid] || 1; });
 
-  // Tiers and final sort from dynastyValue (the primary number)
+  // Tiers from dynastyValue
   const srt = [...pl].sort((a, b) => b.dynastyValue - a.dynastyValue);
   const n   = srt.length;
   const [t90, t70, t45, t20] = [0.10, 0.30, 0.55, 0.80].map(q => srt[Math.floor(n * q)]?.dynastyValue || 200);
   pl.forEach(p => {
     p.tier = p.dynastyValue >= t90 ? "Elite" : p.dynastyValue >= t70 ? "Starter" : p.dynastyValue >= t45 ? "Flex" : p.dynastyValue >= t20 ? "Depth" : "Stash";
   });
+
+  // ── Start Value (p.startValue, 0-100) ────────────────────────────────────
+  // For players WITH stats → position-relative absolute PPG mapping (real production).
+  // For players WITHOUT stats → project from DV rank within position (offseason nuance).
+  //   DV rank 0 gets projected PPG at 85% of position ceiling.
+  //   DV rank last gets projected PPG at 25% above floor.
+  //   Injury multipliers applied after projection.
+  const SV_CEIL  = { QB:32, RB:22, WR:18, TE:14, DL:13, LB:15, DB:11, K:11 };
+  const SV_FLOOR = { QB: 6, RB: 3, WR: 2,  TE: 1,  DL: 1,  LB: 2,  DB: 1,  K: 3 };
+
+  // First pass: players with stats use calcStartRaw (PPG → SV directly)
+  pl.forEach(p => {
+    if (p.ppg != null) {
+      p.startValue = calcStartRaw(p);
+    }
+  });
+
+  // Second pass: no-stats players — project from DV rank within position group
+  const byPos = {};
+  pl.filter(p => p.ppg == null).forEach(p => {
+    if (!byPos[p.pos]) byPos[p.pos] = [];
+    byPos[p.pos].push(p);
+  });
+  Object.entries(byPos).forEach(([pos, group]) => {
+    const sorted = [...group].sort((a, b) => b.dynastyValue - a.dynastyValue);
+    const total  = sorted.length;
+    const lo = SV_FLOOR[pos] ?? 2;
+    const hi = SV_CEIL[pos]  ?? 15;
+    const injMult = (p) =>
+      ["Out","IR","PUP"].includes(p.injStatus) ? 0.20
+      : p.injStatus === "Doubtful"             ? 0.50
+      : p.injStatus === "Questionable"         ? 0.85 : 1.0;
+
+    sorted.forEach((p, idx) => {
+      const frac    = 1.0 - idx / Math.max(total - 1, 1); // 1.0 at rank 0 → 0.0 at last
+      const projPpg = (lo + (hi - lo) * (0.25 + frac * 0.60)) * injMult(p);
+      const raw     = Math.min(1.0, Math.max(0.0, (projPpg - lo) / (hi - lo)));
+      p.startValue  = Math.max(5, Math.min(99, Math.round(Math.pow(raw, 0.82) * 99)));
+    });
+  });
+
+  pl.forEach(p => { p.score = p.startValue ?? 0; }); // legacy alias
 
   const tc = ["Elite","Starter","Flex","Depth","Stash"]
     .map(t => `${t}:${pl.filter(x => x.tier === t).length}`).join(" · ");

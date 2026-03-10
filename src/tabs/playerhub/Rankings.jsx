@@ -58,7 +58,7 @@ export function Rankings({
               <TH label="POS"    k="pos"          w={44}  sortKey={sortKey} sortAsc={sortAsc} onSort={onSort}/>
               <TH label="TEAM"   k="team"         w={50}  sortKey={sortKey} sortAsc={sortAsc} onSort={onSort}/>
               <TH label="AGE"    k="age"          w={44}  sortKey={sortKey} sortAsc={sortAsc} onSort={onSort}/>
-              <TH label="SCORE"  k="score"        w={60}  sortKey={sortKey} sortAsc={sortAsc} onSort={onSort}/>
+              <TH label={viewMode==="redraft"?"SV":"DV"} k="score" w={60}  sortKey={sortKey} sortAsc={sortAsc} onSort={onSort}/>
               <TH label="TIER"   k="tier"         w={72}  sortKey={sortKey} sortAsc={sortAsc} onSort={onSort}/>
               <TH label="DEPTH"  k="depthOrder"   w={56}  sortKey={sortKey} sortAsc={sortAsc} onSort={onSort}/>
               <TH label="ROLE"   k="roleConf"     w={64}  sortKey={sortKey} sortAsc={sortAsc} onSort={onSort}/>

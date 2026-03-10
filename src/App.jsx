@@ -236,6 +236,15 @@ export default function App() {
   const [mockState,    setMockState]    =useState(null);
   const [liveDraftId,  setLiveDraftId]  =useState(null);
 
+  // ── Mobile nav ────────────────────────────────────────────────────────────
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.innerWidth < 768);
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+
   const log=(msg,type="info")=>{const e={msg,type,ts:new Date().toLocaleTimeString()};logRef.current=[...logRef.current,e];setProgress([...logRef.current]);};
 
   const doLoad=useCallback(async()=>{
@@ -302,7 +311,15 @@ export default function App() {
     .filter(p=>posFilter==="ALL"||p.pos===posFilter)
     .filter(p=>tierFilter==="ALL"||p.tier===tierFilter)
     .filter(p=>!search||p.name.toLowerCase().includes(search.toLowerCase())||(p.owner||"").toLowerCase().includes(search.toLowerCase())||(p.team||"").toLowerCase().includes(search.toLowerCase()))
-    .sort((a,b)=>{const va=a[sortKey]??0,vb=b[sortKey]??0;const r=typeof va==="string"?va.localeCompare(vb):va-vb;return sortAsc?r:-r;});
+    .sort((a,b)=>{
+      // When sorting by "score", respect the active DV/SV toggle
+      const resolvedKey = sortKey === "score"
+        ? (viewMode === "redraft" ? "startValue" : "dynastyValue")
+        : sortKey;
+      const va=a[resolvedKey]??0,vb=b[resolvedKey]??0;
+      const r=typeof va==="string"?va.localeCompare(vb):va-vb;
+      return sortAsc?r:-r;
+    });
 
   return(
     <div style={{background:"#080d14",color:"#e2e8f0",minHeight:"100vh",fontFamily:"'Courier New',monospace"}}>
@@ -318,72 +335,210 @@ export default function App() {
         </div>
       )}
 
-      {/* HEADER */}
-      <div style={{background:"linear-gradient(180deg,#0f1923,#080d14)",borderBottom:"1px solid #1e2d3d",padding:"16px 22px"}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:10}}>
-          <div style={{display:"flex",alignItems:"center",gap:12}}>
-            <div style={{width:36,height:36,background:"linear-gradient(135deg,#22c55e,#0ea5e9)",borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,fontWeight:900,color:"#080d14"}}>Ω</div>
-            <div>
-              <div style={{fontSize:19,fontWeight:900,letterSpacing:3,background:"linear-gradient(90deg,#22c55e,#0ea5e9)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>MGG DYNASTY</div>
-              <div style={{fontSize:8,color:"#2a3d52",letterSpacing:4,marginTop:1}}>LIVE INTELLIGENCE BOARD · {LEAGUE_ID}</div>
-            </div>
-          </div>
-          <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
-            {syncedAt&&<span style={{fontSize:9,color:"#2a3d52",letterSpacing:1}}>SYNCED {syncedAt}</span>}
-
-            {/* Identity pill — opens account/login modal */}
-            <button onClick={()=>setLoginOpen(true)}
-              style={{background:"none",border:`1px solid ${isCommissioner?"#f59e0b44":"#1e2d3d"}`,
-                color:isCommissioner?"#f59e0b":"#4b6580",borderRadius:5,padding:"5px 12px",
-                fontFamily:"inherit",fontSize:9,cursor:"pointer",letterSpacing:1,
-                display:"flex",alignItems:"center",gap:5}}>
-              {isCommissioner&&<span>★</span>}
-              {identity ? `◎ ${currentOwner||identity.displayName}` : "◎ LOG IN"}
-            </button>
-
-            {/* Season mode pills */}
-            <div style={{display:"flex",alignItems:"center",background:"#0a1118",border:"1px solid #1e2d3d",borderRadius:5,overflow:"hidden"}}>
-              {SEASON_MODES.map(m=>{const active=seasonState.mode===m;const col={offseason:"#4b6580",preseason:"#60a5fa",inseason:"#22c55e",playoffs:"#f59e0b",complete:"#6b7280"}[m];return(
-                <button key={m} onClick={()=>overrideSeasonMode(m)} title={seasonState._override?"Manual override":"Auto-detected"}
-                  style={{background:active?col+"22":"transparent",color:active?col:"#2a3d52",border:"none",padding:"4px 8px",fontFamily:"inherit",fontSize:8,fontWeight:active?900:400,letterSpacing:1,cursor:"pointer",borderRight:"1px solid #1e2d3d",transition:"all .15s"}}>
-                  {m.slice(0,3).toUpperCase()}
-                </button>
-              );})}
-              {seasonState._override&&<button onClick={clearSeasonOverride} style={{background:"#f59e0b22",color:"#f59e0b",border:"none",padding:"4px 6px",fontFamily:"inherit",fontSize:8,cursor:"pointer"}}>AUTO</button>}
+      {/* ── MOBILE NAV DRAWER ──────────────────────────────────────────────── */}
+      {isMobile && (
+        <>
+          {menuOpen && (
+            <div onClick={()=>setMenuOpen(false)}
+              style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.65)",zIndex:999,backdropFilter:"blur(2px)"}}/>
+          )}
+          <div style={{
+            position:"fixed",top:0,left:0,height:"100%",width:272,
+            background:"linear-gradient(180deg,#0f1923,#080d14)",
+            borderRight:"1px solid #1e2d3d",
+            transform:menuOpen?"translateX(0)":"translateX(-100%)",
+            transition:"transform .25s cubic-bezier(.4,0,.2,1)",
+            zIndex:1000,display:"flex",flexDirection:"column",overflowY:"auto",
+          }}>
+            <div style={{padding:"18px 16px 12px",borderBottom:"1px solid #1e2d3d",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                <div style={{width:28,height:28,background:"linear-gradient(135deg,#22c55e,#0ea5e9)",borderRadius:6,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:900,color:"#080d14"}}>Ω</div>
+                <div style={{fontSize:12,fontWeight:900,letterSpacing:2,background:"linear-gradient(90deg,#22c55e,#0ea5e9)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>MGG DYNASTY</div>
+              </div>
+              <button onClick={()=>setMenuOpen(false)}
+                style={{background:"none",border:"none",color:"#4b6580",fontSize:16,cursor:"pointer",padding:4,lineHeight:1}}>✕</button>
             </div>
 
-            <Btn onClick={doLoad}   disabled={phase==="loading"}                      grad="linear-gradient(135deg,#22c55e,#16a34a)">{phase==="loading"?"◌ SYNCING...":"⟳ SYNC DATA"}</Btn>
-            <Btn onClick={doIntel}  disabled={newsPhase==="loading"||!players.length}  grad="linear-gradient(135deg,#f59e0b,#d97706)">{newsPhase==="loading"?"◌ SCANNING...":"◈ INTEL SCAN"}</Btn>
+            <div style={{padding:"8px 12px",borderBottom:"1px solid #1e2d3d"}}>
+              <button onClick={()=>{setLoginOpen(true);setMenuOpen(false);}}
+                style={{width:"100%",background:"none",border:`1px solid ${isCommissioner?"#f59e0b44":"#1e2d3d"}`,
+                  color:isCommissioner?"#f59e0b":"#4b6580",borderRadius:5,padding:"7px 10px",
+                  fontFamily:"inherit",fontSize:9,cursor:"pointer",letterSpacing:1,textAlign:"left",
+                  display:"flex",alignItems:"center",gap:6}}>
+                {isCommissioner&&<span>★</span>}
+                {identity ? `◎ ${currentOwner||identity.displayName}` : "◎ LOG IN"}
+              </button>
+            </div>
 
-            {/* Dynasty / Redraft toggle */}
-            <div style={{display:"flex",alignItems:"center",background:"#0a1118",border:"1px solid #1e2d3d",borderRadius:5,overflow:"hidden"}}>
-              {[["dynasty","DV"],["redraft","SV"]].map(([m,lbl])=>{
-                const active = viewMode === m;
-                const col = m === "dynasty" ? "#22c55e" : "#60a5fa";
+            <div style={{padding:"6px 10px",flex:1}}>
+              <div style={{fontSize:8,color:"#2a3d52",letterSpacing:2,fontWeight:700,padding:"6px 6px 4px"}}>NAVIGATE</div>
+              {[
+                ["dashboard","Ω","DASHBOARD"],
+                ["leaguehub","⬡","LEAGUE HUB"],
+                ["teamhub","◎","TEAM HUB"],
+                ["playerhub","◈","PLAYER HUB"],
+                ["tools","⇄","ANALYSIS TOOLS"],
+                ["drafthub","◈","DRAFT HUB"],
+                ["log","▸","LOG"],
+              ].map(([id,icon,lbl])=>{
+                const active = tab === id;
                 return (
-                  <button key={m} onClick={()=>{
-                    setViewMode(m);
-                    try { localStorage.setItem("mgg_view_mode", m); } catch {}
-                  }} title={m==="dynasty"?"Dynasty Value (0-1000) — trade & asset view":"Start Value (0-100) — weekly redraft view"}
-                    style={{background:active?col+"22":"transparent",color:active?col:"#2a3d52",
-                      border:"none",padding:"5px 10px",fontFamily:"inherit",fontSize:8,
-                      fontWeight:active?900:400,letterSpacing:1,cursor:"pointer",transition:"all .15s"}}>
+                  <button key={id} onClick={()=>{setTab(id);setMenuOpen(false);}}
+                    style={{width:"100%",display:"flex",alignItems:"center",gap:10,
+                      background:active?"rgba(34,197,94,0.1)":"transparent",
+                      border:"none",borderRadius:6,padding:"10px 10px",
+                      color:active?"#22c55e":"#4b6580",fontFamily:"inherit",
+                      fontSize:11,fontWeight:active?900:400,letterSpacing:active?1.5:1,
+                      cursor:"pointer",textAlign:"left",marginBottom:2,
+                      borderLeft:active?"2px solid #22c55e":"2px solid transparent",
+                      transition:"all .12s"}}>
+                    <span style={{fontSize:12,width:16,textAlign:"center"}}>{icon}</span>
                     {lbl}
                   </button>
                 );
               })}
             </div>
 
-            <Btn onClick={()=>doExport(players,newsMap)} disabled={!players.length}   grad="linear-gradient(135deg,#6366f1,#4f46e5)">⬇ EXPORT XLSX</Btn>
+            <div style={{padding:"8px 12px",borderTop:"1px solid #1e2d3d"}}>
+              <div style={{fontSize:8,color:"#2a3d52",letterSpacing:2,fontWeight:700,marginBottom:6}}>VIEW MODE</div>
+              <div style={{display:"flex",background:"#0a1118",border:"1px solid #1e2d3d",borderRadius:5,overflow:"hidden"}}>
+                {[["dynasty","DV","#22c55e"],["redraft","SV","#60a5fa"]].map(([m,lbl,col])=>{
+                  const active = viewMode === m;
+                  return (
+                    <button key={m} onClick={()=>{setViewMode(m);try{localStorage.setItem("mgg_view_mode",m);}catch{}}}
+                      style={{flex:1,background:active?col+"22":"transparent",color:active?col:"#2a3d52",
+                        border:"none",padding:"8px 0",fontFamily:"inherit",fontSize:9,
+                        fontWeight:active?900:400,letterSpacing:1,cursor:"pointer",transition:"all .15s"}}>
+                      {lbl}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div style={{padding:"6px 12px",borderTop:"1px solid #1e2d3d"}}>
+              <div style={{fontSize:8,color:"#2a3d52",letterSpacing:2,fontWeight:700,marginBottom:5}}>SEASON MODE</div>
+              <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
+                {SEASON_MODES.map(m=>{
+                  const active=seasonState.mode===m;
+                  const col={offseason:"#4b6580",preseason:"#60a5fa",inseason:"#22c55e",playoffs:"#f59e0b",complete:"#6b7280"}[m];
+                  return (
+                    <button key={m} onClick={()=>overrideSeasonMode(m)}
+                      style={{background:active?col+"22":"transparent",color:active?col:"#2a3d52",
+                        border:`1px solid ${active?col+"55":"#1e2d3d"}`,borderRadius:4,
+                        padding:"4px 7px",fontFamily:"inherit",fontSize:8,fontWeight:active?900:400,
+                        letterSpacing:1,cursor:"pointer"}}>
+                      {m.slice(0,3).toUpperCase()}
+                    </button>
+                  );
+                })}
+                {seasonState._override&&<button onClick={clearSeasonOverride} style={{background:"#f59e0b22",color:"#f59e0b",border:"1px solid #f59e0b44",borderRadius:4,padding:"4px 7px",fontFamily:"inherit",fontSize:8,cursor:"pointer"}}>AUTO</button>}
+              </div>
+            </div>
+
+            <div style={{padding:"10px 12px 22px",borderTop:"1px solid #1e2d3d",display:"flex",flexDirection:"column",gap:6}}>
+              <Btn onClick={()=>{doLoad();setMenuOpen(false);}} disabled={phase==="loading"} grad="linear-gradient(135deg,#22c55e,#16a34a)">{phase==="loading"?"◌ SYNCING...":"⟳ SYNC DATA"}</Btn>
+              <Btn onClick={()=>{doIntel();setMenuOpen(false);}} disabled={newsPhase==="loading"||!players.length} grad="linear-gradient(135deg,#f59e0b,#d97706)">{newsPhase==="loading"?"◌ SCANNING...":"◈ INTEL SCAN"}</Btn>
+              <Btn onClick={()=>doExport(players,newsMap)} disabled={!players.length} grad="linear-gradient(135deg,#6366f1,#4f46e5)">⬇ EXPORT XLSX</Btn>
+              {syncedAt&&<div style={{fontSize:8,color:"#2a3d52",letterSpacing:1,textAlign:"center",marginTop:2}}>SYNCED {syncedAt}</div>}
+            </div>
           </div>
-        </div>
-        <div style={{display:"flex",gap:0,marginTop:16,borderBottom:"1px solid #1e2d3d"}}>
-          {[["dashboard","Ω DASHBOARD"],["leaguehub","⬡ LEAGUE HUB"],["teamhub","◎ TEAM HUB"],["playerhub","◈ PLAYER HUB"],["tools","⇄ ANALYSIS TOOLS"],["drafthub","◈ DRAFT HUB"],["log","▸ LOG"]]
-            .map(([id,lbl])=>(<button key={id} onClick={()=>setTab(id)} style={{background:"none",border:"none",borderBottom:tab===id?"2px solid #22c55e":"2px solid transparent",color:tab===id?"#22c55e":"#4b6580",padding:"7px 16px",fontFamily:"inherit",fontSize:10,letterSpacing:2,fontWeight:700,cursor:"pointer"}}>{lbl}</button>))}
-        </div>
+        </>
+      )}
+
+      {/* ── HEADER ─────────────────────────────────────────────────────────── */}
+      <div style={{background:"linear-gradient(180deg,#0f1923,#080d14)",borderBottom:"1px solid #1e2d3d",padding:isMobile?"10px 14px":"16px 22px"}}>
+        {isMobile ? (
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <div style={{width:30,height:30,background:"linear-gradient(135deg,#22c55e,#0ea5e9)",borderRadius:7,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,fontWeight:900,color:"#080d14"}}>Ω</div>
+              <div>
+                <div style={{fontSize:13,fontWeight:900,letterSpacing:2,background:"linear-gradient(90deg,#22c55e,#0ea5e9)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>MGG DYNASTY</div>
+                <div style={{fontSize:8,color:"#22c55e",letterSpacing:1,fontWeight:700,marginTop:1}}>
+                  {[["dashboard","Ω DASHBOARD"],["leaguehub","⬡ LEAGUE HUB"],["teamhub","◎ TEAM HUB"],["playerhub","◈ PLAYER HUB"],["tools","⇄ ANALYSIS TOOLS"],["drafthub","◈ DRAFT HUB"],["log","▸ LOG"]].find(([id])=>id===tab)?.[1]||""}
+                </div>
+              </div>
+            </div>
+            <div style={{display:"flex",alignItems:"center",gap:6}}>
+              <button onClick={doLoad} disabled={phase==="loading"}
+                style={{background:"linear-gradient(135deg,#22c55e,#16a34a)",border:"none",borderRadius:6,
+                  padding:"7px 11px",color:"#080d14",fontFamily:"inherit",fontSize:10,fontWeight:900,
+                  cursor:"pointer",opacity:phase==="loading"?0.5:1,lineHeight:1}}>
+                {phase==="loading"?"◌":"⟳"}
+              </button>
+              <button onClick={doIntel} disabled={newsPhase==="loading"||!players.length}
+                style={{background:"linear-gradient(135deg,#f59e0b,#d97706)",border:"none",borderRadius:6,
+                  padding:"7px 11px",color:"#080d14",fontFamily:"inherit",fontSize:10,fontWeight:900,
+                  cursor:"pointer",opacity:(newsPhase==="loading"||!players.length)?0.5:1,lineHeight:1}}>
+                {newsPhase==="loading"?"◌":"◈"}
+              </button>
+              <button onClick={()=>setMenuOpen(true)}
+                style={{background:"#0a1118",border:"1px solid #1e2d3d",borderRadius:6,
+                  width:34,height:34,cursor:"pointer",display:"flex",flexDirection:"column",
+                  alignItems:"center",justifyContent:"center",gap:4,padding:0}}>
+                <span style={{display:"block",width:14,height:2,background:"#e2e8f0",borderRadius:1}}/>
+                <span style={{display:"block",width:14,height:2,background:"#e2e8f0",borderRadius:1}}/>
+                <span style={{display:"block",width:14,height:2,background:"#e2e8f0",borderRadius:1}}/>
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:10}}>
+              <div style={{display:"flex",alignItems:"center",gap:12}}>
+                <div style={{width:36,height:36,background:"linear-gradient(135deg,#22c55e,#0ea5e9)",borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,fontWeight:900,color:"#080d14"}}>Ω</div>
+                <div>
+                  <div style={{fontSize:19,fontWeight:900,letterSpacing:3,background:"linear-gradient(90deg,#22c55e,#0ea5e9)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>MGG DYNASTY</div>
+                  <div style={{fontSize:8,color:"#2a3d52",letterSpacing:4,marginTop:1}}>LIVE INTELLIGENCE BOARD · {LEAGUE_ID}</div>
+                </div>
+              </div>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
+                {syncedAt&&<span style={{fontSize:9,color:"#2a3d52",letterSpacing:1}}>SYNCED {syncedAt}</span>}
+                <button onClick={()=>setLoginOpen(true)}
+                  style={{background:"none",border:`1px solid ${isCommissioner?"#f59e0b44":"#1e2d3d"}`,
+                    color:isCommissioner?"#f59e0b":"#4b6580",borderRadius:5,padding:"5px 12px",
+                    fontFamily:"inherit",fontSize:9,cursor:"pointer",letterSpacing:1,
+                    display:"flex",alignItems:"center",gap:5}}>
+                  {isCommissioner&&<span>★</span>}
+                  {identity ? `◎ ${currentOwner||identity.displayName}` : "◎ LOG IN"}
+                </button>
+                <div style={{display:"flex",alignItems:"center",background:"#0a1118",border:"1px solid #1e2d3d",borderRadius:5,overflow:"hidden"}}>
+                  {SEASON_MODES.map(m=>{const active=seasonState.mode===m;const col={offseason:"#4b6580",preseason:"#60a5fa",inseason:"#22c55e",playoffs:"#f59e0b",complete:"#6b7280"}[m];return(
+                    <button key={m} onClick={()=>overrideSeasonMode(m)} title={seasonState._override?"Manual override":"Auto-detected"}
+                      style={{background:active?col+"22":"transparent",color:active?col:"#2a3d52",border:"none",padding:"4px 8px",fontFamily:"inherit",fontSize:8,fontWeight:active?900:400,letterSpacing:1,cursor:"pointer",borderRight:"1px solid #1e2d3d",transition:"all .15s"}}>
+                      {m.slice(0,3).toUpperCase()}
+                    </button>
+                  );})}
+                  {seasonState._override&&<button onClick={clearSeasonOverride} style={{background:"#f59e0b22",color:"#f59e0b",border:"none",padding:"4px 6px",fontFamily:"inherit",fontSize:8,cursor:"pointer"}}>AUTO</button>}
+                </div>
+                <Btn onClick={doLoad}   disabled={phase==="loading"}                      grad="linear-gradient(135deg,#22c55e,#16a34a)">{phase==="loading"?"◌ SYNCING...":"⟳ SYNC DATA"}</Btn>
+                <Btn onClick={doIntel}  disabled={newsPhase==="loading"||!players.length}  grad="linear-gradient(135deg,#f59e0b,#d97706)">{newsPhase==="loading"?"◌ SCANNING...":"◈ INTEL SCAN"}</Btn>
+                <div style={{display:"flex",alignItems:"center",background:"#0a1118",border:"1px solid #1e2d3d",borderRadius:5,overflow:"hidden"}}>
+                  {[["dynasty","DV","#22c55e"],["redraft","SV","#60a5fa"]].map(([m,lbl,col])=>{
+                    const active = viewMode === m;
+                    return (
+                      <button key={m} onClick={()=>{setViewMode(m);try{localStorage.setItem("mgg_view_mode",m);}catch{}}}
+                        title={m==="dynasty"?"Dynasty Value (0-1000) — trade & asset view":"Start Value (0-100) — weekly redraft view"}
+                        style={{background:active?col+"22":"transparent",color:active?col:"#2a3d52",
+                          border:"none",padding:"5px 10px",fontFamily:"inherit",fontSize:8,
+                          fontWeight:active?900:400,letterSpacing:1,cursor:"pointer",transition:"all .15s"}}>
+                        {lbl}
+                      </button>
+                    );
+                  })}
+                </div>
+                <Btn onClick={()=>doExport(players,newsMap)} disabled={!players.length} grad="linear-gradient(135deg,#6366f1,#4f46e5)">⬇ EXPORT XLSX</Btn>
+              </div>
+            </div>
+            <div style={{display:"flex",gap:0,marginTop:16,borderBottom:"1px solid #1e2d3d"}}>
+              {[["dashboard","Ω DASHBOARD"],["leaguehub","⬡ LEAGUE HUB"],["teamhub","◎ TEAM HUB"],["playerhub","◈ PLAYER HUB"],["tools","⇄ ANALYSIS TOOLS"],["drafthub","◈ DRAFT HUB"],["log","▸ LOG"]]
+                .map(([id,lbl])=>(<button key={id} onClick={()=>setTab(id)} style={{background:"none",border:"none",borderBottom:tab===id?"2px solid #22c55e":"2px solid transparent",color:tab===id?"#22c55e":"#4b6580",padding:"7px 16px",fontFamily:"inherit",fontSize:10,letterSpacing:2,fontWeight:700,cursor:"pointer"}}>{lbl}</button>))}
+            </div>
+          </>
+        )}
       </div>
 
-      <div style={{padding:"18px 22px"}}>
+      <div style={{padding:isMobile?"12px 10px":"18px 22px"}}>
         {phase==="idle"&&(
           <div style={{textAlign:"center",padding:"72px 20px",border:"1px dashed #1e2d3d",borderRadius:12}}>
             <div style={{fontSize:48,fontWeight:900,background:"linear-gradient(135deg,#22c55e,#0ea5e9)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",marginBottom:14}}>Ω</div>

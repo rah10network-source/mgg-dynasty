@@ -552,6 +552,7 @@ function RosterTab({ roster, newsMap, playerNotes, savePlayerNote, viewMode="dyn
     .sort((a,b) =>
       sortKey === "age" ? (a.age||99)-(b.age||99)
       : sortKey === "ppg" ? (b.ppg||0)-(a.ppg||0)
+      : viewMode === "redraft" ? (b.startValue||0)-(a.startValue||0)
       : b.dynastyValue - a.dynastyValue
     );
   return (
@@ -582,6 +583,13 @@ function RosterTab({ roster, newsMap, playerNotes, savePlayerNote, viewMode="dyn
           ))}
         </div>
         <span style={{ fontSize:9, color:"#4d6880" }}>{filtered.length} players</span>
+        {viewMode === "redraft" && (
+          <span style={{ fontSize:8, color:"#f59e0b", background:"rgba(245,158,11,0.12)",
+            border:"1px solid rgba(245,158,11,0.3)", borderRadius:4, padding:"2px 6px",
+            fontWeight:700, letterSpacing:0.5 }}>
+            SV {filtered.some(p => p.ppg != null) ? "" : "· OFFSEASON PROJ"}
+          </span>
+        )}
       </div>
       <div style={{ border:"1px solid #1e2d3d", borderRadius:10, overflow:"hidden" }}>
         {filtered.map(p => <PlayerRow key={p.pid} p={p} newsMap={newsMap} playerNotes={playerNotes} savePlayerNote={savePlayerNote} viewMode={viewMode} />)}
