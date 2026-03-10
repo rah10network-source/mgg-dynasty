@@ -129,7 +129,7 @@ export function Dashboard({ phase, players, currentOwner, owners, newsMap, seaso
           </div>
           <div style={{display:"flex",gap:18,flexWrap:"wrap"}}>
             {[
-              ["AVG SCORE", myGrade.avgScore.toFixed(1), "#e2e8f0"],
+              ["AVG DV",    Math.round(myGrade.avgScore), "#e2e8f0"],
               ["ELITE",     myGrade.eliteCount,           "#22c55e"],
               ["STARTERS",  myGrade.starterCnt,           "#60a5fa"],
               ["AVG AGE",   myGrade.avgAge.toFixed(1),    "#f59e0b"],
@@ -358,7 +358,7 @@ export function Dashboard({ phase, players, currentOwner, owners, newsMap, seaso
                         padding:"2px 5px",fontWeight:700,letterSpacing:0.5}}>{g.window}</span>
                     </td>
                     <td style={{padding:"6px 8px",textAlign:"center",borderBottom:"1px solid #0f1923",
-                      fontSize:10,color:"#e2e8f0",fontWeight:700}}>{g.avgScore.toFixed(1)}</td>
+                      fontSize:10,color:"#e2e8f0",fontWeight:700}}>{Math.round(g.avgScore)}</td>
                     <td style={{padding:"6px 8px",textAlign:"center",borderBottom:"1px solid #0f1923",
                       fontSize:10,color:"#22c55e",fontWeight:700}}>{g.eliteCount}</td>
                     <td style={{padding:"6px 8px",textAlign:"center",borderBottom:"1px solid #0f1923",

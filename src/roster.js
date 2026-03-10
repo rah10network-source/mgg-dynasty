@@ -24,9 +24,21 @@ export function gradeRoster(owner, players) {
   const roster = players.filter(p => p.owner === owner);
   if (!roster.length) return null;
 
-  const scores     = roster.map(p => p.dynastyValue).sort((a, b) => b - a);
-  const avgScore   = scores.reduce((a, b) => a + b, 0) / scores.length;
-  const topScore   = scores[0] || 0;
+  // Dynasty asset scores (0-1000) — for depth map, ranking, league standing
+  const dvScores   = roster.map(p => p.dynastyValue).sort((a, b) => b - a);
+  const avgDV      = dvScores.reduce((a, b) => a + b, 0) / dvScores.length;
+  const topDV      = dvScores[0] || 0;
+
+  // Start/contender scores (0-100) — for win-now grade
+  const svScores   = roster.map(p => p.startValue ?? 0).sort((a, b) => b - a);
+  const avgSV      = svScores.reduce((a, b) => a + b, 0) / svScores.length;
+  const topSV      = svScores[0] || 0;
+
+  // Legacy aliases for consumers that reference avgScore/topScore/scores
+  const scores     = dvScores;
+  const avgScore   = avgDV;
+  const topScore   = topDV;
+
   const eliteCount = roster.filter(p => p.tier === "Elite").length;
   const starterCnt = roster.filter(p => p.tier === "Starter").length;
   const avgAge     = roster.reduce((s, p) => s + (p.age || 0), 0) / roster.length;
@@ -34,7 +46,7 @@ export function gradeRoster(owner, players) {
   const injCnt     = roster.filter(p => p.injStatus &&
     ["Out", "IR", "PUP", "Doubtful", "Questionable"].includes(p.injStatus)).length;
 
-  // Positional depth map — avg score + count per position
+  // Positional depth map — dynastyValue (asset strength per position)
   const posDep = {};
   POS_ORDER.forEach(pos => {
     const atPos = roster.filter(p => p.pos === pos);
@@ -45,9 +57,12 @@ export function gradeRoster(owner, players) {
     };
   });
 
+  // contenderScore: "can you win NOW?" — uses startValue (0-100 win-now production).
+  // Deliberately NOT based on dynastyValue — a young rebuild roster can have high DV
+  // but a low contender grade, which is exactly right.
   const contenderScore = Math.round(
-    topScore   * 0.25 +
-    avgScore   * 0.30 +
+    topSV      * 0.25 +
+    avgSV      * 0.30 +
     eliteCount * 8    +
     starterCnt * 3    -
     cliffCnt   * 5    -
@@ -71,14 +86,16 @@ export function gradeRoster(owner, players) {
     "AGEING OUT": "#6b7280",
   }[window];
 
+  // Grade thresholds calibrated for 0-100 startValue-based contenderScore.
+  // Max achievable ~95 (4 elite, 6 starters, top SV 93, avg SV 72).
   const grade =
-    contenderScore >= 110 ? "A+"
-  : contenderScore >= 95  ? "A"
-  : contenderScore >= 80  ? "B+"
-  : contenderScore >= 65  ? "B"
-  : contenderScore >= 50  ? "C+"
-  : contenderScore >= 35  ? "C"
-  : contenderScore >= 20  ? "D"
+    contenderScore >= 90  ? "A+"
+  : contenderScore >= 75  ? "A"
+  : contenderScore >= 60  ? "B+"
+  : contenderScore >= 45  ? "B"
+  : contenderScore >= 30  ? "C+"
+  : contenderScore >= 18  ? "C"
+  : contenderScore >= 8   ? "D"
   : "F";
 
   const gradeColor =

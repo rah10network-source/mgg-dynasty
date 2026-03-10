@@ -23,7 +23,7 @@ function Stat({ label, value, color = "#e2e8f0", size = 18 }) {
   );
 }
 
-function PlayerRow({ p, newsMap, playerNotes, savePlayerNote }) {
+function PlayerRow({ p, newsMap, playerNotes, savePlayerNote, viewMode = "dynasty" }) {
   const [expanded, setExpanded] = useState(false);
   const [editingNote, setEditingNote] = useState(false);
   const [noteVal, setNoteVal] = useState("");
@@ -584,7 +584,7 @@ function RosterTab({ roster, newsMap, playerNotes, savePlayerNote }) {
         <span style={{ fontSize:9, color:"#4d6880" }}>{filtered.length} players</span>
       </div>
       <div style={{ border:"1px solid #1e2d3d", borderRadius:10, overflow:"hidden" }}>
-        {filtered.map(p => <PlayerRow key={p.pid} p={p} newsMap={newsMap} playerNotes={playerNotes} savePlayerNote={savePlayerNote} />)}
+        {filtered.map(p => <PlayerRow key={p.pid} p={p} newsMap={newsMap} playerNotes={playerNotes} savePlayerNote={savePlayerNote} viewMode={viewMode} />)}
       </div>
     </div>
   );
