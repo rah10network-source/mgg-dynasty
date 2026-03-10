@@ -1,4 +1,4 @@
-import { TIER_STYLE, INJ_COLOR, SIG_COLORS, POS_ORDER, SITUATION_FLAGS, MANUAL_SITUATIONS ,  pv } from "../constants";
+import { TIER_STYLE, INJ_COLOR, SIG_COLORS, POS_ORDER, SITUATION_FLAGS, MANUAL_SITUATIONS, pv } from "../constants";
 
 export function Hub({
   // nested tab

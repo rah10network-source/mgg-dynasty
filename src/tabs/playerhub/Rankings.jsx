@@ -1,6 +1,6 @@
 import React from "react";
 import { TH, TD } from "../../components/TableCells";
-import { TIER_STYLE, INJ_COLOR, SIG_COLORS, SIT_ICONS, SCARCITY, POS_ORDER, SITUATION_FLAGS } , pv } from "../../constants";
+import { TIER_STYLE, INJ_COLOR, SIG_COLORS, SIT_ICONS, SCARCITY, POS_ORDER, SITUATION_FLAGS, pv } from "../../constants";
 import { sitMultiplier } from "../../scoring";
 
 export function Rankings({

@@ -2,7 +2,7 @@
 // Your team's command centre — grade, sell-high alerts, trade targets,
 // positional depth vs league, and your full roster breakdown.
 import { useState, useMemo } from "react";
-import { TIER_STYLE, INJ_COLOR, SIG_COLORS, POS_ORDER, SCARCITY, SITUATION_FLAGS ,  pv, pvColor } from "../constants";
+import { TIER_STYLE, INJ_COLOR, SIG_COLORS, POS_ORDER, SCARCITY, SITUATION_FLAGS, pv, pvColor } from "../constants";
 import { gradeRoster, isSellHigh, sellHighCandidates, tradeTargets, weakPositions } from "../roster";
 import { sitMultiplier } from "../scoring";
 

@@ -10,7 +10,7 @@
 //  - Player trio is always cross-position (at least one IDP vs one offensive player)
 //  - Transparent — score breakdown shows "Peer: X%" when active
 import { useState } from "react";
-import { TIER_STYLE, SIG_COLORS, POS_ORDER ,  pv } from "../constants";
+import { TIER_STYLE, SIG_COLORS, POS_ORDER, pv } from "../constants";
 
 const K_FACTOR = 32; // Standard Elo K — controls how fast scores shift per comparison
 

@@ -1,4 +1,4 @@
-import { TIER_STYLE, INJ_COLOR, SIG_COLORS, POS_ORDER ,  pv } from "../../constants";
+import { TIER_STYLE, INJ_COLOR, SIG_COLORS, POS_ORDER, pv } from "../../constants";
 
 export function PositionRankings({ players, newsMap, setDetail, setActiveTab, viewMode="dynasty" }) {
   return (
