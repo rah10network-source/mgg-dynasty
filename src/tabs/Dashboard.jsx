@@ -61,7 +61,7 @@ export function Dashboard({ phase, players, currentOwner, owners, newsMap, seaso
   const injured   = myPlayers.filter(p => ["Out","IR","PUP","Doubtful"].includes(p.injStatus)).slice(0, 5);
 
   const weak    = weakPositions(myGrade, players);
-  const weakPos = new Set(weak.filter(w => w.gap < -5).map(w => w.pos));
+  const weakPos = new Set(weak.filter(w => w.gap < -50).map(w => w.pos));
   const targets = tradeTargets(currentOwner, myGrade, players, newsMap, 5);
 
   const modeInfo  = MODE_LABEL[seasonState?.mode] || MODE_LABEL.offseason;
@@ -148,8 +148,11 @@ export function Dashboard({ phase, players, currentOwner, owners, newsMap, seaso
           {POS_ORDER.map(pos => {
             const dep  = myGrade.posDep[pos];
             if (!dep?.count) return null;
-            const fill = Math.min(100,dep.avg);
-            const col  = dep.avg>=700?"#22c55e":dep.avg>=450?"#60a5fa":dep.avg>=250?"#f59e0b":"#ef4444";
+            const lgAtPos = players.filter(p => p.pos === pos);
+            const lgAvg   = lgAtPos.length ? lgAtPos.reduce((s,p)=>s+(p.dynastyValue||0),0)/lgAtPos.length : 1;
+            const ratio   = lgAvg > 0 ? dep.avg / lgAvg : 0;
+            const fill    = Math.min(100, Math.round(ratio * 100));
+            const col     = ratio>=0.90?"#22c55e":ratio>=0.70?"#60a5fa":ratio>=0.50?"#f59e0b":"#ef4444";
             const isWk = weakPos.has(pos);
             return (
               <div key={pos} style={{flex:"1 1 55px",minWidth:48}}>

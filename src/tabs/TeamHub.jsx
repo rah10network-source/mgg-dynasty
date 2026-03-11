@@ -291,8 +291,12 @@ function Overview({ myGrade, owners, players, newsMap, currentOwner, setTab, vie
           {POS_ORDER.map(pos => {
             const dep = myGrade.posDep[pos];
             if (!dep?.count) return null;
-            const fill = Math.min(100, dep.avg / 10);
-            const col  = dep.avg>=700?"#22c55e":dep.avg>=450?"#60a5fa":dep.avg>=250?"#f59e0b":"#ef4444";
+            // League-relative: bar 100% = at or above league avg for this position
+            const lgAtPos = players.filter(p => p.pos === pos);
+            const lgAvg   = lgAtPos.length ? lgAtPos.reduce((s,p)=>s+(p.dynastyValue||0),0)/lgAtPos.length : 1;
+            const ratio   = lgAvg > 0 ? dep.avg / lgAvg : 0;
+            const fill    = Math.min(100, Math.round(ratio * 100));
+            const col     = ratio>=0.90?"#22c55e":ratio>=0.70?"#60a5fa":ratio>=0.50?"#f59e0b":"#ef4444";
             return (
               <div key={pos} style={{ flex:"1 1 55px", minWidth:48 }}>
                 <div style={{ fontSize:8, color:"#7a95ae", marginBottom:3, letterSpacing:1,

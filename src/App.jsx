@@ -245,12 +245,16 @@ export default function App() {
     return () => window.removeEventListener("resize", handler);
   }, []);
 
+  // ── Team select — shown when Sleeper userId can't be auto-matched ─────────
+  // Separate from loginOpen so we don't force re-auth, just re-map.
+  const [needsTeamSelect, setNeedsTeamSelect] = useState(false);
+
   const log=(msg,type="info")=>{const e={msg,type,ts:new Date().toLocaleTimeString()};logRef.current=[...logRef.current,e];setProgress([...logRef.current]);};
 
   const doLoad=useCallback(async()=>{
     setPhase("loading");logRef.current=[];setProgress([]);
     try{
-      const{players:pl,nflDb:db,seasonState:ss,draftPicksByOwner:dpbo,rosterIdToOwner:rid2o}=await apiLoadData(log,manualSitsRef);
+      const{players:pl,nflDb:db,seasonState:ss,draftPicksByOwner:dpbo,rosterIdToOwner:rid2o,leagueUsers:lu}=await apiLoadData(log,manualSitsRef);
       // Blend Elo peer scores into final player scores (15% weight once enough data exists)
       const currentElo = lsGet(userKey,"elo_scores",{});
       const eloEntries = Object.keys(currentElo).length;
@@ -273,10 +277,48 @@ export default function App() {
       // Show QuickRank once per 24h after a successful sync
       const lastRank = lsGet(userKey,"last_quickrank",0);
       if(Date.now() - lastRank > 86400000) setShowQuickRank(true);
-      // Re-open login if identity owner no longer matches loaded roster
+      // ── Auto-match identity to roster owner ─────────────────────────────
+      // Priority 1: hard match on Sleeper user_id (100% reliable)
+      // Priority 2: fuzzy match on display name / username
+      // Priority 3: ask user to pick (needsTeamSelect) — NOT a full re-auth
       if(identity){
         const loaded=[...new Set(pl.map(p=>p.owner).filter(Boolean))];
-        if(loaded.length>0&&!loaded.includes(identity.ownerName)) setLoginOpen(true);
+        if(loaded.length>0){
+          if(loaded.includes(identity.ownerName)){
+            // Already matched — nothing to do
+          } else {
+            // Try userId match first using leagueUsers returned from loadData
+            const leagueUsers = lu || [];
+            const userRecord = leagueUsers.find(u => u.user_id === identity.userId);
+            const userDisplayName = userRecord
+              ? (userRecord.metadata?.team_name || userRecord.display_name || userRecord.username || "")
+              : "";
+            const idMatch = loaded.find(o =>
+              o.toLowerCase() === userDisplayName.toLowerCase()
+            );
+            if(idMatch){
+              // Silent auto-fix — no modal needed
+              setOwnerMapping(idMatch);
+              setTradeOwnerA(idMatch);
+            } else {
+              // Fuzzy fallback: check username / display name fragments
+              const uname = (identity.username || "").toLowerCase();
+              const dname = (identity.displayName || "").toLowerCase();
+              const fuzzy = loaded.find(o => {
+                const ol = o.toLowerCase();
+                return ol === dname || ol.includes(uname) || uname.includes(ol.split(" ")[0]) ||
+                       ol === uname || dname.includes(ol);
+              });
+              if(fuzzy){
+                setOwnerMapping(fuzzy);
+                setTradeOwnerA(fuzzy);
+              } else {
+                // Genuinely can't match — show team picker (not full login re-auth)
+                setNeedsTeamSelect(true);
+              }
+            }
+          }
+        }
       }
     }catch(e){log(`Error: ${e.message}`,"error");setPhase("error");}
   },[identity]); // eslint-disable-line
@@ -293,18 +335,33 @@ export default function App() {
     if(!user)return;
     const displayName=user.metadata?.team_name||user.display_name||user.username||loginInput.trim();
     const uname=(user.username||loginInput.trim()).toLowerCase();
+
+    if(owners.length===0){
+      // Data not loaded yet — save the Sleeper user, close modal, auto-trigger sync.
+      // The doLoad handler will do userId-based matching once owners are known.
+      finaliseLogin(user, displayName); // temporary ownerName — will be corrected post-sync
+      setTradeOwnerA(displayName);
+      doLoad(); // auto-kick off sync so matching can happen
+      return;
+    }
+
+    // Owners are loaded — try to match
     const matchedOwner=owners.find(o=>
       o.toLowerCase()===displayName.toLowerCase()||
       o.toLowerCase().includes(uname)||
       uname.includes(o.toLowerCase().split(" ")[0])
     );
-    if(owners.length>0&&!matchedOwner){
-      setLoginError(`"${displayName}" is not a member of this league. Access denied.`);
-      setLoginLoading(false);
+
+    if(!matchedOwner){
+      // Verified Sleeper member but couldn't auto-match name — let them pick their team.
+      // Don't hard-deny: name mismatches happen (team name ≠ display name).
+      finaliseLogin(user, displayName);
+      setNeedsTeamSelect(true); // show team picker as next step
       return;
     }
-    finaliseLogin(user, matchedOwner||displayName);
-    setTradeOwnerA(matchedOwner||displayName);
+
+    finaliseLogin(user, matchedOwner);
+    setTradeOwnerA(matchedOwner);
   };
 
   const view=players
@@ -621,6 +678,49 @@ export default function App() {
         {tab==="log"&&<Log progress={progress}/>}
       </div>
 
+      {/* ── TEAM SELECT MODAL — shown after Sleeper verify when name can't auto-match ── */}
+      {needsTeamSelect && identity && owners.length > 0 && (
+        <div style={{position:"fixed",inset:0,background:"rgba(8,13,20,0.97)",display:"flex",
+          alignItems:"center",justifyContent:"center",zIndex:1001}}>
+          <div style={{background:"#0f1923",border:"2px solid #0ea5e9",borderRadius:14,
+            padding:"28px 30px",width:400,maxWidth:"92vw",boxShadow:"0 0 60px rgba(14,165,233,0.18)"}}>
+            <div style={{fontSize:16,fontWeight:900,letterSpacing:2,color:"#0ea5e9",marginBottom:4}}>
+              WHICH TEAM IS YOURS?
+            </div>
+            <div style={{fontSize:9,color:"#4d6880",letterSpacing:2,marginBottom:6}}>
+              Sleeper verified: <span style={{color:"#e2e8f0",fontWeight:700}}>@{identity.username}</span>
+            </div>
+            <div style={{fontSize:10,color:"#7a95ae",lineHeight:1.7,marginBottom:18}}>
+              We couldn't automatically match your Sleeper account to a roster.
+              Tap your team name below — this is saved and won't be asked again.
+            </div>
+            <div style={{display:"flex",flexDirection:"column",gap:5,maxHeight:260,overflowY:"auto",marginBottom:18}}>
+              {owners.map(o => (
+                <button key={o} onClick={()=>{
+                    setOwnerMapping(o);
+                    setTradeOwnerA(o);
+                    setNeedsTeamSelect(false);
+                    setLoginOpen(false);
+                  }}
+                  style={{background:"#0a1118",border:"1px solid #1e2d3d",color:"#e2e8f0",
+                    borderRadius:7,padding:"11px 14px",fontFamily:"inherit",fontSize:12,
+                    cursor:"pointer",textAlign:"left",display:"flex",
+                    justifyContent:"space-between",alignItems:"center",
+                    transition:"all .12s"}}
+                  onMouseEnter={e=>{e.currentTarget.style.borderColor="#0ea5e9";e.currentTarget.style.color="#0ea5e9";}}
+                  onMouseLeave={e=>{e.currentTarget.style.borderColor="#1e2d3d";e.currentTarget.style.color="#e2e8f0";}}>
+                  <span style={{fontWeight:700}}>{o}</span>
+                  <span style={{fontSize:9,color:"#4d6880"}}>{players.filter(p=>p.owner===o).length} players</span>
+                </button>
+              ))}
+            </div>
+            <div style={{fontSize:8,color:"#2a3d52",textAlign:"center",letterSpacing:1}}>
+              You can always change this in ACCOUNT settings
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── QUICK RANK MODAL ──────────────────────────────────────────────── */}
       {showQuickRank && players.length > 0 && (
         <QuickRank
@@ -665,9 +765,9 @@ export default function App() {
                 {/* Owner mapping correction */}
                 {owners.length>0&&(
                   <div style={{marginBottom:16}}>
-                    <div style={{fontSize:9,color:"#4d6880",letterSpacing:1,marginBottom:6}}>YOUR TEAM — tap to correct</div>
+                    <div style={{fontSize:9,color:"#4d6880",letterSpacing:1,marginBottom:6}}>YOUR TEAM — tap to change</div>
                     <div style={{display:"flex",flexDirection:"column",gap:4,maxHeight:200,overflowY:"auto"}}>
-                      {owners.map(o=>(<button key={o} onClick={()=>setOwnerMapping(o)}
+                      {owners.map(o=>(<button key={o} onClick={()=>{setOwnerMapping(o);setTradeOwnerA(o);setLoginOpen(false);}}
                         style={{background:identity.ownerName===o?"#0f2b1a":"#0a1118",
                           border:`1px solid ${identity.ownerName===o?"#22c55e":"#1e2d3d"}`,
                           color:identity.ownerName===o?"#22c55e":"#e2e8f0",borderRadius:6,

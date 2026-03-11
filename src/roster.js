@@ -60,14 +60,16 @@ export function gradeRoster(owner, players) {
   // contenderScore: "can you win NOW?" — uses startValue (0-100 win-now production).
   // Deliberately NOT based on dynastyValue — a young rebuild roster can have high DV
   // but a low contender grade, which is exactly right.
-  const contenderScore = Math.round(
-    topSV      * 0.25 +
-    avgSV      * 0.30 +
-    eliteCount * 8    +
-    starterCnt * 3    -
-    cliffCnt   * 5    -
-    injCnt     * 2
-  );
+  // eliteCount and starterCnt are capped so a 35-man dynasty roster with 13 "starters"
+  // doesn't inflate the score — max contribution from counts is capped per slot.
+  const contenderScore = Math.min(99, Math.max(0, Math.round(
+    topSV               * 0.35 +
+    avgSV               * 0.30 +
+    Math.min(eliteCount, 6) * 5  +
+    Math.min(starterCnt, 10) * 2 -
+    cliffCnt            * 5    -
+    injCnt              * 2
+  )));
 
   const window =
     avgAge < 25  ? "REBUILD"
@@ -86,13 +88,14 @@ export function gradeRoster(owner, players) {
     "AGEING OUT": "#6b7280",
   }[window];
 
-  // Grade thresholds calibrated for 0-100 startValue-based contenderScore.
-  // Max achievable ~95 (4 elite, 6 starters, top SV 93, avg SV 72).
+  // Grade thresholds calibrated for capped 0-99 contenderScore.
+  // A+ requires genuine elite roster (7 elite, strong avg SV).
+  // Most solid contenders land B+ to A range.
   const grade =
     contenderScore >= 90  ? "A+"
-  : contenderScore >= 75  ? "A"
-  : contenderScore >= 60  ? "B+"
-  : contenderScore >= 45  ? "B"
+  : contenderScore >= 74  ? "A"
+  : contenderScore >= 58  ? "B+"
+  : contenderScore >= 44  ? "B"
   : contenderScore >= 30  ? "C+"
   : contenderScore >= 18  ? "C"
   : contenderScore >= 8   ? "D"
