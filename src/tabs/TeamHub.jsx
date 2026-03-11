@@ -34,14 +34,14 @@ function PlayerRow({ p, newsMap, playerNotes, savePlayerNote, viewMode = "dynast
   const savedNote = playerNotes?.[p.pid] || "";
 
   return (
-    <div style={{ borderBottom:"1px solid #0f1923" }}>
+    <div style={{ borderBottom:"1px solid #161b26" }}>
       {/* ── Summary row ── */}
       <div onClick={() => setExpanded(x => !x)}
         style={{ display:"flex", alignItems:"center", gap:10, padding:"7px 10px",
-          background: expanded ? ts.bg : "#080d14",
+          background: expanded ? ts.bg : "#0d1117",
           cursor:"pointer", transition:"background .15s" }}
-        onMouseOver={e => { if (!expanded) e.currentTarget.style.background = "#0a1118"; }}
-        onMouseOut={e  => { if (!expanded) e.currentTarget.style.background = "#080d14"; }}>
+        onMouseOver={e => { if (!expanded) e.currentTarget.style.background = "#1d2535"; }}
+        onMouseOut={e  => { if (!expanded) e.currentTarget.style.background = "#0d1117"; }}>
 
         {/* Score + tier */}
         <div style={{ width:38, textAlign:"center", flexShrink:0 }}>
@@ -54,14 +54,14 @@ function PlayerRow({ p, newsMap, playerNotes, savePlayerNote, viewMode = "dynast
         <div style={{ flex:1, minWidth:0 }}>
           <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
             <span style={{ fontSize:12, fontWeight:700, color:"#e2e8f0" }}>{p.name}</span>
-            {p.onTaxi && <span style={{ fontSize:7, background:"#0c1e35", color:"#60a5fa",
-              border:"1px solid #3b82f644", borderRadius:3, padding:"1px 5px" }}>TAXI</span>}
+            {p.onTaxi && <span style={{ fontSize:7, background:"#0c1e35", color:"#00D4FF",
+              border:"1px solid "#9580FF"44", borderRadius:3, padding:"1px 5px" }}>TAXI</span>}
             {inj && <span style={{ fontSize:7, background:inj+"22", color:inj,
               border:`1px solid ${inj}44`, borderRadius:3, padding:"1px 5px" }}>{p.injStatus}</span>}
             {n?.signal && <span style={{ fontSize:7, background:SIG_COLORS[n.signal],
-              color:"#080d14", borderRadius:3, padding:"1px 5px", fontWeight:900 }}>{n.signal}</span>}
-            {savedNote && <span style={{ fontSize:7, color:"#f59e0b", background:"#f59e0b18",
-              border:"1px solid #f59e0b44", borderRadius:3, padding:"1px 5px" }}>✎ NOTE</span>}
+              color:"#0d1117", borderRadius:3, padding:"1px 5px", fontWeight:900 }}>{n.signal}</span>}
+            {savedNote && <span style={{ fontSize:7, color:"#FFD700", background:"#f59e0b18",
+              border:"1px solid #FFD70044", borderRadius:3, padding:"1px 5px" }}>✎ NOTE</span>}
           </div>
           <div style={{ fontSize:9, color:"#7a95ae", marginTop:2 }}>
             {p.pos} · {p.team}{p.age ? ` · ${p.age}y` : ""}{p.ppg != null ? ` · ${p.ppg} ppg` : ""}
@@ -71,10 +71,10 @@ function PlayerRow({ p, newsMap, playerNotes, savePlayerNote, viewMode = "dynast
         {/* Situation flag + chevron */}
         <div style={{ display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
           {p.situationFlag && (
-            <div style={{ fontSize:7, color:"#f59e0b", textAlign:"right",
+            <div style={{ fontSize:7, color:"#FFD700", textAlign:"right",
               maxWidth:80, lineHeight:1.3 }}>{p.situationFlag.replace(/_/g," ")}</div>
           )}
-          <span style={{ fontSize:9, color:"#4d6880" }}>{expanded ? "▲" : "▼"}</span>
+          <span style={{ fontSize:9, color:"#8892a4" }}>{expanded ? "▲" : "▼"}</span>
         </div>
       </div>
 
@@ -142,7 +142,7 @@ function PlayerRow({ p, newsMap, playerNotes, savePlayerNote, viewMode = "dynast
             {n ? (
               <div style={{ background:`${SIG_COLORS[n.signal]}18`,
                 border:`1px solid ${SIG_COLORS[n.signal]}`,
-                borderRadius:8, padding:"12px" }}>
+                borderRadius:0, padding:"12px" }}>
                 <div style={{ fontSize:13, fontWeight:900,
                   color:SIG_COLORS[n.signal], letterSpacing:2,
                   marginBottom:6 }}>{n.signal}</div>
@@ -151,7 +151,7 @@ function PlayerRow({ p, newsMap, playerNotes, savePlayerNote, viewMode = "dynast
                     lineHeight:1.7, marginBottom:6 }}>{n.note}</div>
                 )}
                 {n.situationFlag && (
-                  <div style={{ fontSize:9, color:"#f59e0b", fontWeight:700 }}>
+                  <div style={{ fontSize:9, color:"#FFD700", fontWeight:700 }}>
                     {n.situationFlag.replace(/_/g," ")}
                   </div>
                 )}
@@ -161,7 +161,7 @@ function PlayerRow({ p, newsMap, playerNotes, savePlayerNote, viewMode = "dynast
                 )}
               </div>
             ) : (
-              <div style={{ fontSize:10, color:"#4d6880",
+              <div style={{ fontSize:10, color:"#8892a4",
                 fontStyle:"italic" }}>Run ◈ INTEL SCAN for news signals</div>
             )}
           </div>
@@ -171,14 +171,14 @@ function PlayerRow({ p, newsMap, playerNotes, savePlayerNote, viewMode = "dynast
           <div style={{ borderTop:"1px solid rgba(255,255,255,0.06)", paddingTop:12 }}>
             <div style={{ display:"flex", justifyContent:"space-between",
               alignItems:"center", marginBottom:6 }}>
-              <div style={{ fontSize:8, color:"#f59e0b", letterSpacing:2, fontWeight:700 }}>
+              <div style={{ fontSize:8, color:"#FFD700", letterSpacing:2, fontWeight:700 }}>
                 MY NOTES
               </div>
               {!editingNote && (
                 <button onClick={() => { setEditingNote(true); setNoteVal(savedNote); }}
                   style={{ fontSize:8, background:"none", border:"1px solid #2a3f55",
-                    color:"#60a5fa", borderRadius:4, padding:"2px 8px",
-                    cursor:"pointer", fontFamily:"inherit" }}>
+                    color:"#00D4FF", borderRadius:4, padding:"2px 8px",
+                    cursor:"pointer", fontFamily:"'Bebas Neue',sans-serif" }}>
                   {savedNote ? "EDIT" : "+ ADD NOTE"}
                 </button>
               )}
@@ -192,27 +192,27 @@ function PlayerRow({ p, newsMap, playerNotes, savePlayerNote, viewMode = "dynast
                   autoFocus
                   style={{ width:"100%", minHeight:64, background:"#050a10",
                     border:"1px solid #2a3f55", borderRadius:6, color:"#e2e8f0",
-                    padding:"8px 10px", fontSize:11, fontFamily:"inherit",
+                    padding:"8px 10px", fontSize:11, fontFamily:"'Bebas Neue',sans-serif",
                     resize:"vertical", outline:"none", boxSizing:"border-box" }}
                 />
                 <div style={{ display:"flex", gap:8, marginTop:6 }}>
                   <button onClick={() => { savePlayerNote(p.pid, noteVal.trim()); setEditingNote(false); }}
-                    style={{ fontSize:8, background:"#22c55e22", border:"1px solid #22c55e66",
-                      color:"#22c55e", borderRadius:4, padding:"3px 12px",
-                      cursor:"pointer", fontFamily:"inherit", fontWeight:700 }}>
+                    style={{ fontSize:8, background:"#9580FF22", border:"1px solid #9580FF66",
+                      color:"#9580FF", borderRadius:4, padding:"3px 12px",
+                      cursor:"pointer", fontFamily:"'Bebas Neue',sans-serif", fontWeight:700 }}>
                     SAVE
                   </button>
                   <button onClick={() => setEditingNote(false)}
                     style={{ fontSize:8, background:"none", border:"1px solid #2a3f55",
-                      color:"#4d6880", borderRadius:4, padding:"3px 10px",
-                      cursor:"pointer", fontFamily:"inherit" }}>
+                      color:"#8892a4", borderRadius:4, padding:"3px 10px",
+                      cursor:"pointer", fontFamily:"'Bebas Neue',sans-serif" }}>
                     CANCEL
                   </button>
                   {savedNote && (
                     <button onClick={() => { savePlayerNote(p.pid, ""); setEditingNote(false); }}
-                      style={{ fontSize:8, background:"#ef444422", border:"1px solid #ef444466",
-                        color:"#ef4444", borderRadius:4, padding:"3px 10px",
-                        cursor:"pointer", fontFamily:"inherit" }}>
+                      style={{ fontSize:8, background:"#FF475722", border:"1px solid #ef444466",
+                        color:"#FF4757", borderRadius:4, padding:"3px 10px",
+                        cursor:"pointer", fontFamily:"'Bebas Neue',sans-serif" }}>
                       CLEAR
                     </button>
                   )}
@@ -220,12 +220,12 @@ function PlayerRow({ p, newsMap, playerNotes, savePlayerNote, viewMode = "dynast
               </div>
             ) : savedNote ? (
               <div style={{ fontSize:11, color:"#e2e8f0", lineHeight:1.7,
-                background:"#f59e0b0d", border:"1px solid #f59e0b22",
+                background:"#f59e0b0d", border:"1px solid #FFD70022",
                 borderRadius:6, padding:"8px 12px" }}>
                 {savedNote}
               </div>
             ) : (
-              <div style={{ fontSize:10, color:"#4d6880", fontStyle:"italic" }}>
+              <div style={{ fontSize:10, color:"#8892a4", fontStyle:"italic" }}>
                 No notes yet — click + ADD NOTE to record trade thoughts
               </div>
             )}
@@ -254,8 +254,8 @@ function Overview({ myGrade, owners, players, newsMap, currentOwner, setTab, vie
     <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
 
       {/* Grade card */}
-      <div style={{ background:"#0a1118", border:`2px solid ${myGrade.gradeColor}`,
-        borderRadius:12, padding:"18px 22px",
+      <div style={{ background:"#1d2535", border:`2px solid ${myGrade.gradeColor}`,
+        borderRadius:0, padding:"18px 22px",
         boxShadow:`0 0 24px ${myGrade.gradeColor}22` }}>
         <div style={{ display:"flex", justifyContent:"space-between",
           alignItems:"center", flexWrap:"wrap", gap:14 }}>
@@ -271,7 +271,7 @@ function Overview({ myGrade, owners, players, newsMap, currentOwner, setTab, vie
                   {myGrade.window}
                 </div>
                 <div style={{ fontSize:10, color:"#7a95ae" }}>#{myRank} of {owners.length} teams</div>
-                <div style={{ fontSize:9, color:"#4d6880", marginTop:2 }}>
+                <div style={{ fontSize:9, color:"#8892a4", marginTop:2 }}>
                   Contender score: <span style={{ color:myGrade.gradeColor, fontWeight:700 }}>
                     {myGrade.contenderScore}
                   </span>
@@ -281,11 +281,11 @@ function Overview({ myGrade, owners, players, newsMap, currentOwner, setTab, vie
           </div>
           <div style={{ display:"flex", gap:20, flexWrap:"wrap" }}>
             <Stat label="AVG DV" value={Math.round(myGrade.avgScore)} />
-            <Stat label="ELITE"    value={myGrade.eliteCount} color="#22c55e" />
-            <Stat label="STARTERS" value={myGrade.starterCnt} color="#60a5fa" />
-            <Stat label="AVG AGE"  value={myGrade.avgAge.toFixed(1)} color="#f59e0b" />
-            <Stat label="ON CLIFF" value={myGrade.cliffCnt}   color="#f97316" />
-            <Stat label="INJURED"  value={myGrade.injCnt}     color="#ef4444" />
+            <Stat label="ELITE"    value={myGrade.eliteCount} color="#9580FF" />
+            <Stat label="STARTERS" value={myGrade.starterCnt} color="#00D4FF" />
+            <Stat label="AVG AGE"  value={myGrade.avgAge.toFixed(1)} color="#FFD700" />
+            <Stat label="ON CLIFF" value={myGrade.cliffCnt}   color="#FF9040" />
+            <Stat label="INJURED"  value={myGrade.injCnt}     color="#FF4757" />
           </div>
         </div>
         <div style={{ display:"flex", gap:10, marginTop:16, flexWrap:"wrap" }}>
@@ -294,18 +294,18 @@ function Overview({ myGrade, owners, players, newsMap, currentOwner, setTab, vie
             if (!dep?.count) return null;
             const pr    = posRanks[pos] ?? { score:50, leagueRank:null, leagueTotal:null };
             const score = pr.score ?? pr;
-            const col   = score >= 70 ? "#22c55e" : score >= 50 ? "#60a5fa" : score >= 30 ? "#f59e0b" : "#ef4444";
+            const col   = score >= 70 ? "#9580FF" : score >= 50 ? "#00D4FF" : score >= 30 ? "#FFD700" : "#FF4757";
             return (
               <div key={pos} style={{ flex:"1 1 55px", minWidth:48 }}>
                 <div style={{ fontSize:8, color:"#7a95ae", marginBottom:3, letterSpacing:1,
                   display:"flex", justifyContent:"space-between" }}>
                   <span>{pos}</span><span style={{ color:col, fontWeight:900, fontSize:10 }}>{score}</span>
                 </div>
-                <div style={{ height:5, background:"#1e2d3d", borderRadius:2, overflow:"hidden" }}>
+                <div style={{ height:5, background:"#242d40", borderRadius:2, overflow:"hidden" }}>
                   <div style={{ height:"100%", width:`${score}%`, background:col, borderRadius:2,
                     transition:"width .4s ease" }}/>
                 </div>
-                <div style={{ fontSize:7, color:"#4d6880", marginTop:3, display:"flex", justifyContent:"space-between" }}>
+                <div style={{ fontSize:7, color:"#8892a4", marginTop:3, display:"flex", justifyContent:"space-between" }}>
                   <span>{dep.count}p</span>
                   {pr.leagueRank && <span>#{pr.leagueRank}</span>}
                 </div>
@@ -317,48 +317,48 @@ function Overview({ myGrade, owners, players, newsMap, currentOwner, setTab, vie
 
       {/* Alert strip */}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))", gap:10 }}>
-        <div style={{ background:"#0a1118", border:"1px solid #1e2d3d", borderRadius:10, padding:"14px 16px" }}>
+        <div style={{ background:"#1d2535", border:"1px solid #242d40", borderRadius:0, padding:"14px 16px" }}>
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
-            <div style={{ fontSize:9, color:"#ef4444", letterSpacing:2, fontWeight:700 }}>
+            <div style={{ fontSize:11, color:"#FF4757", letterSpacing:"0.1em", fontWeight:700 }}>
               ⚑ SELL-HIGH ({sells.length})
             </div>
             {sells.length > 0 && (
               <button onClick={() => setTab("sellhigh")}
-                style={{ fontSize:8, color:"#4d6880", background:"none", border:"none",
+                style={{ fontSize:8, color:"#8892a4", background:"none", border:"none",
                   cursor:"pointer", letterSpacing:1 }}>SEE ALL →</button>
             )}
           </div>
           {sells.length === 0
-            ? <div style={{ fontSize:9, color:"#4d6880" }}>No sell-high candidates right now</div>
+            ? <div style={{ fontSize:9, color:"#8892a4" }}>No sell-high candidates right now</div>
             : sells.map(p => (
               <div key={p.pid} style={{ display:"flex", justifyContent:"space-between",
-                alignItems:"center", padding:"5px 0", borderBottom:"1px solid #0f1923" }}>
+                alignItems:"center", padding:"5px 0", borderBottom:"1px solid #161b26" }}>
                 <div>
                   <div style={{ fontSize:11, fontWeight:700, color:"#e2e8f0" }}>{p.name}</div>
                   <div style={{ fontSize:9, color:"#7a95ae" }}>{p.pos} · Age {p.age}</div>
                 </div>
-                <span style={{ fontSize:9, color:"#ef4444", fontWeight:700 }}>{pv(p,viewMode)}</span>
+                <span style={{ fontSize:9, color:"#FF4757", fontWeight:700 }}>{pv(p,viewMode)}</span>
               </div>
             ))
           }
         </div>
 
-        <div style={{ background:"#0a1118", border:"1px solid #1e2d3d", borderRadius:10, padding:"14px 16px" }}>
-          <div style={{ fontSize:9, color:"#f59e0b", letterSpacing:2, fontWeight:700, marginBottom:10 }}>
+        <div style={{ background:"#1d2535", border:"1px solid #242d40", borderRadius:0, padding:"14px 16px" }}>
+          <div style={{ fontSize:11, color:"#FFD700", letterSpacing:"0.1em", fontWeight:700, marginBottom:10 }}>
             ◈ POSITIONAL GAPS
           </div>
           {weak.length === 0
-            ? <div style={{ fontSize:9, color:"#4d6880" }}>No significant gaps detected</div>
+            ? <div style={{ fontSize:9, color:"#8892a4" }}>No significant gaps detected</div>
             : weak.map(w => (
               <div key={w.pos} style={{ display:"flex", justifyContent:"space-between",
-                alignItems:"center", padding:"5px 0", borderBottom:"1px solid #0f1923" }}>
+                alignItems:"center", padding:"5px 0", borderBottom:"1px solid #161b26" }}>
                 <span style={{ fontSize:11, fontWeight:700, color:"#e2e8f0" }}>{w.pos}</span>
                 <div style={{ textAlign:"right" }}>
                   <div style={{ fontSize:9 }}>
-                    <span style={{ color:w.gap < -10?"#ef4444":"#f59e0b" }}>{w.mine.toFixed(0)}</span>
-                    <span style={{ color:"#4d6880" }}> vs {w.league.toFixed(0)} avg</span>
+                    <span style={{ color:w.gap < -10?"#FF4757":"#FFD700" }}>{w.mine.toFixed(0)}</span>
+                    <span style={{ color:"#8892a4" }}> vs {w.league.toFixed(0)} avg</span>
                   </div>
-                  <div style={{ fontSize:8, color:"#4d6880" }}>
+                  <div style={{ fontSize:8, color:"#8892a4" }}>
                     {w.gap < 0 ? `${Math.abs(w.gap).toFixed(0)} below avg` : "Above avg"}
                   </div>
                 </div>
@@ -368,15 +368,15 @@ function Overview({ myGrade, owners, players, newsMap, currentOwner, setTab, vie
         </div>
 
         {injured.length > 0 && (
-          <div style={{ background:"#0a1118", border:"1px solid #1e2d3d", borderRadius:10, padding:"14px 16px" }}>
-            <div style={{ fontSize:9, color:"#ef4444", letterSpacing:2, fontWeight:700, marginBottom:10 }}>
+          <div style={{ background:"#1d2535", border:"1px solid #242d40", borderRadius:0, padding:"14px 16px" }}>
+            <div style={{ fontSize:11, color:"#FF4757", letterSpacing:"0.1em", fontWeight:700, marginBottom:10 }}>
               ⚠ INJURY ALERTS ({injured.length})
             </div>
             {injured.map(p => {
-              const c = INJ_COLOR[p.injStatus] || "#ef4444";
+              const c = INJ_COLOR[p.injStatus] || "#FF4757";
               return (
                 <div key={p.pid} style={{ display:"flex", justifyContent:"space-between",
-                  alignItems:"center", padding:"5px 0", borderBottom:"1px solid #0f1923" }}>
+                  alignItems:"center", padding:"5px 0", borderBottom:"1px solid #161b26" }}>
                   <div>
                     <div style={{ fontSize:11, fontWeight:700, color:"#e2e8f0" }}>{p.name}</div>
                     <div style={{ fontSize:9, color:"#7a95ae" }}>{p.pos} · {p.team}</div>
@@ -390,8 +390,8 @@ function Overview({ myGrade, owners, players, newsMap, currentOwner, setTab, vie
       </div>
 
       {/* League standings */}
-      <div style={{ background:"#0a1118", border:"1px solid #1e2d3d", borderRadius:10, padding:"14px 16px" }}>
-        <div style={{ fontSize:9, color:"#60a5fa", letterSpacing:2, fontWeight:700, marginBottom:12 }}>
+      <div style={{ background:"#1d2535", border:"1px solid #242d40", borderRadius:0, padding:"14px 16px" }}>
+        <div style={{ fontSize:11, color:"#00D4FF", letterSpacing:"0.1em", fontWeight:700, marginBottom:12 }}>
           LEAGUE STANDINGS
         </div>
         {allGrades.map((g, i) => {
@@ -401,14 +401,14 @@ function Overview({ myGrade, owners, players, newsMap, currentOwner, setTab, vie
               padding:"6px 10px", borderRadius:6,
               background:isMe?"#0c1e35":"transparent",
               border:isMe?"1px solid #60a5f644":"1px solid transparent" }}>
-              <span style={{ fontSize:9, color:"#4d6880", minWidth:20 }}>#{i+1}</span>
+              <span style={{ fontSize:9, color:"#8892a4", minWidth:20 }}>#{i+1}</span>
               <span style={{ flex:1, fontSize:10, fontWeight:isMe?700:400,
-                color:isMe?"#60a5fa":"#e2e8f0" }}>{g.owner}</span>
+                color:isMe?"#00D4FF":"#e2e8f0" }}>{g.owner}</span>
               <span style={{ fontSize:11, fontWeight:900, color:g.gradeColor }}>{g.grade}</span>
               <span style={{ fontSize:8, color:g.windowColor, minWidth:72, textAlign:"right" }}>
                 {g.window}
               </span>
-              <span style={{ fontSize:10, color:"#4d6880", minWidth:28, textAlign:"right" }}>
+              <span style={{ fontSize:10, color:"#8892a4", minWidth:28, textAlign:"right" }}>
                 {g.contenderScore}
               </span>
             </div>
@@ -424,26 +424,26 @@ function SellHighTab({ roster, newsMap, viewMode="dynasty" }) {
   const candidates = sellHighCandidates(roster, newsMap);
   return (
     <div>
-      <div style={{ fontSize:9, color:"#4d6880", lineHeight:1.8, marginBottom:16,
-        background:"#0a1118", border:"1px solid #1e2d3d", borderRadius:8, padding:"10px 14px" }}>
+      <div style={{ fontSize:9, color:"#8892a4", lineHeight:1.8, marginBottom:16,
+        background:"#1d2535", border:"1px solid #242d40", borderRadius:0, padding:"10px 14px" }}>
         Players at or past their position's peak age who still carry high dynasty value.
         Best time to sell is while they're still producing — not after the decline starts.
         Intel Scan provides SELL signals when headlines confirm a situation.
       </div>
       {candidates.length === 0 ? (
-        <div style={{ padding:32, textAlign:"center", color:"#4d6880", fontSize:11 }}>
+        <div style={{ padding:32, textAlign:"center", color:"#8892a4", fontSize:11 }}>
           No sell-high candidates on your roster right now
         </div>
       ) : (
-        <div style={{ border:"1px solid #1e2d3d", borderRadius:10, overflow:"hidden" }}>
+        <div style={{ border:"1px solid #242d40", borderRadius:0, overflow:"hidden" }}>
           {candidates.map(p => {
             const n  = newsMap?.[p.name];
             const ts = TIER_STYLE[p.tier] || TIER_STYLE.Stash;
             const isSell = n?.signal === "SELL";
             return (
               <div key={p.pid} style={{ display:"flex", alignItems:"center", gap:12,
-                padding:"12px 16px", borderBottom:"1px solid #0f1923",
-                background:isSell?"#1a0a0a":"#080d14" }}>
+                padding:"12px 16px", borderBottom:"1px solid #161b26",
+                background:isSell?"#1a0a0a":"#0d1117" }}>
                 <div style={{ width:42, textAlign:"center", flexShrink:0 }}>
                   <div style={{ fontSize:18, fontWeight:900, color:ts.text }}>{pv(p,viewMode)}</div>
                   <div style={{ fontSize:7, color:ts.text }}>{p.tier}</div>
@@ -451,21 +451,21 @@ function SellHighTab({ roster, newsMap, viewMode="dynasty" }) {
                 <div style={{ flex:1 }}>
                   <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
                     <span style={{ fontSize:13, fontWeight:700, color:"#e2e8f0" }}>{p.name}</span>
-                    {isSell && <span style={{ fontSize:8, background:"#ef4444", color:"#080d14",
+                    {isSell && <span style={{ fontSize:8, background:"#FF4757", color:"#0d1117",
                       borderRadius:3, padding:"2px 7px", fontWeight:900 }}>SELL SIGNAL</span>}
                   </div>
                   <div style={{ fontSize:9, color:"#7a95ae", marginTop:3 }}>
                     {p.pos} · {p.team} · Age {p.age}
                     {p.ppg != null ? ` · ${p.ppg} ppg` : ""}
                   </div>
-                  {n?.note && <div style={{ fontSize:9, color:"#4d6880", marginTop:4,
+                  {n?.note && <div style={{ fontSize:9, color:"#8892a4", marginTop:4,
                     fontStyle:"italic" }}>{n.note}</div>}
                 </div>
                 <div style={{ textAlign:"right" }}>
-                  <div style={{ fontSize:9, color:"#ef4444", fontWeight:700, marginBottom:2 }}>
+                  <div style={{ fontSize:9, color:"#FF4757", fontWeight:700, marginBottom:2 }}>
                     SELL WHILE HOT
                   </div>
-                  <div style={{ fontSize:8, color:"#4d6880" }}>Age {p.age}</div>
+                  <div style={{ fontSize:8, color:"#8892a4" }}>Age {p.age}</div>
                 </div>
               </div>
             );
@@ -483,22 +483,22 @@ function TargetsTab({ currentOwner, myGrade, players, newsMap, viewMode="dynasty
   return (
     <div>
       {weak.length > 0 && (
-        <div style={{ background:"#0a1118", border:"1px solid #f59e0b44", borderRadius:10,
+        <div style={{ background:"#1d2535", border:"1px solid #FFD70044", borderRadius:0,
           padding:"12px 16px", marginBottom:14 }}>
-          <div style={{ fontSize:9, color:"#f59e0b", letterSpacing:2, fontWeight:700, marginBottom:10 }}>
+          <div style={{ fontSize:11, color:"#FFD700", letterSpacing:"0.1em", fontWeight:700, marginBottom:10 }}>
             ◈ YOUR WEAKEST POSITIONS
           </div>
           <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
             {weak.map(w => (
-              <div key={w.pos} style={{ background:"#080d14", border:"1px solid #1e2d3d",
+              <div key={w.pos} style={{ background:"#0d1117", border:"1px solid #242d40",
                 borderRadius:6, padding:"8px 12px", textAlign:"center" }}>
                 <div style={{ fontSize:16, fontWeight:900,
-                  color:w.gap < -150?"#ef4444":"#f59e0b" }}>{w.pos}</div>
-                <div style={{ fontSize:8, color:"#4d6880", marginTop:2 }}>
+                  color:w.gap < -150?"#FF4757":"#FFD700" }}>{w.pos}</div>
+                <div style={{ fontSize:8, color:"#8892a4", marginTop:2 }}>
                   {w.mine.toFixed(0)} vs {w.league.toFixed(0)} avg
                 </div>
                 <div style={{ fontSize:8, fontWeight:700,
-                  color:w.gap < 0?"#ef4444":"#22c55e" }}>
+                  color:w.gap < 0?"#FF4757":"#9580FF" }}>
                   {w.gap < 0 ? `↓${Math.abs(w.gap).toFixed(0)}` : `↑${w.gap.toFixed(0)}`}
                 </div>
               </div>
@@ -506,23 +506,23 @@ function TargetsTab({ currentOwner, myGrade, players, newsMap, viewMode="dynasty
           </div>
         </div>
       )}
-      <div style={{ fontSize:9, color:"#4d6880", marginBottom:10 }}>
+      <div style={{ fontSize:9, color:"#8892a4", marginBottom:10 }}>
         Players on other rosters sorted by fit with your positional needs + BUY signals
       </div>
       {targets.length === 0 ? (
-        <div style={{ padding:32, textAlign:"center", color:"#4d6880", fontSize:11 }}>
+        <div style={{ padding:32, textAlign:"center", color:"#8892a4", fontSize:11 }}>
           No trade targets identified — run Intel Scan for signal data
         </div>
       ) : (
-        <div style={{ border:"1px solid #1e2d3d", borderRadius:10, overflow:"hidden" }}>
+        <div style={{ border:"1px solid #242d40", borderRadius:0, overflow:"hidden" }}>
           {targets.map(p => {
             const n  = newsMap?.[p.name];
             const ts = TIER_STYLE[p.tier] || TIER_STYLE.Stash;
             const isBuy = n?.signal === "BUY";
             return (
               <div key={p.pid} style={{ display:"flex", alignItems:"center", gap:12,
-                padding:"10px 16px", borderBottom:"1px solid #0f1923",
-                background:isBuy?"#0a1f0a":"#080d14" }}>
+                padding:"10px 16px", borderBottom:"1px solid #161b26",
+                background:isBuy?"#0a1f0a":"#0d1117" }}>
                 <div style={{ width:42, textAlign:"center", flexShrink:0 }}>
                   <div style={{ fontSize:16, fontWeight:900, color:ts.text }}>{pv(p,viewMode)}</div>
                   <div style={{ fontSize:7, color:ts.text }}>{p.tier}</div>
@@ -530,7 +530,7 @@ function TargetsTab({ currentOwner, myGrade, players, newsMap, viewMode="dynasty
                 <div style={{ flex:1 }}>
                   <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
                     <span style={{ fontSize:12, fontWeight:700, color:"#e2e8f0" }}>{p.name}</span>
-                    {isBuy && <span style={{ fontSize:7, background:"#22c55e", color:"#080d14",
+                    {isBuy && <span style={{ fontSize:7, background:"#9580FF", color:"#0d1117",
                       borderRadius:3, padding:"1px 6px", fontWeight:900 }}>BUY</span>}
                   </div>
                   <div style={{ fontSize:9, color:"#7a95ae", marginTop:2 }}>
@@ -539,7 +539,7 @@ function TargetsTab({ currentOwner, myGrade, players, newsMap, viewMode="dynasty
                     {p.owner ? ` · ${p.owner}` : ""}
                   </div>
                 </div>
-                <div style={{ fontSize:9, color:"#60a5fa", fontWeight:700 }}>{p.pos}</div>
+                <div style={{ fontSize:9, color:"#00D4FF", fontWeight:700 }}>{p.pos}</div>
               </div>
             );
           })}
@@ -564,40 +564,40 @@ function RosterTab({ roster, newsMap, playerNotes, savePlayerNote, viewMode="dyn
   return (
     <div>
       <div style={{ display:"flex", gap:8, marginBottom:12, flexWrap:"wrap", alignItems:"center" }}>
-        <div style={{ display:"flex", gap:0, border:"1px solid #1e2d3d", borderRadius:6, overflow:"hidden" }}>
+        <div style={{ display:"flex", gap:0, border:"1px solid #242d40", borderRadius:6, overflow:"hidden" }}>
           {["ALL",...POS_ORDER].map(pos => (
             <button key={pos} onClick={() => setPosFilter(pos)}
               style={{ background:posFilter===pos?"#0c1e35":"transparent",
-                color:posFilter===pos?"#60a5fa":"#4d6880",
-                border:"none", padding:"5px 9px", fontFamily:"inherit",
+                color:posFilter===pos?"#00D4FF":"#8892a4",
+                border:"none", padding:"5px 9px", fontFamily:"'Bebas Neue',sans-serif",
                 fontSize:9, cursor:"pointer", fontWeight:posFilter===pos?700:400,
-                borderRight:"1px solid #1e2d3d" }}>
+                borderRight:"1px solid #242d40" }}>
               {pos}
             </button>
           ))}
         </div>
-        <div style={{ display:"flex", gap:0, border:"1px solid #1e2d3d", borderRadius:6, overflow:"hidden" }}>
+        <div style={{ display:"flex", gap:0, border:"1px solid #242d40", borderRadius:6, overflow:"hidden" }}>
           {[["score","SCORE"],["age","AGE"],["ppg","PPG"]].map(([k,l]) => (
             <button key={k} onClick={() => setSortKey(k)}
               style={{ background:sortKey===k?"#0c1e35":"transparent",
-                color:sortKey===k?"#60a5fa":"#4d6880",
-                border:"none", padding:"5px 10px", fontFamily:"inherit",
+                color:sortKey===k?"#00D4FF":"#8892a4",
+                border:"none", padding:"5px 10px", fontFamily:"'Bebas Neue',sans-serif",
                 fontSize:9, cursor:"pointer", fontWeight:sortKey===k?700:400,
-                borderRight:"1px solid #1e2d3d" }}>
+                borderRight:"1px solid #242d40" }}>
               {l}
             </button>
           ))}
         </div>
-        <span style={{ fontSize:9, color:"#4d6880" }}>{filtered.length} players</span>
+        <span style={{ fontSize:9, color:"#8892a4" }}>{filtered.length} players</span>
         {viewMode === "redraft" && (
-          <span style={{ fontSize:8, color:"#f59e0b", background:"rgba(245,158,11,0.12)",
+          <span style={{ fontSize:8, color:"#FFD700", background:"rgba(245,158,11,0.12)",
             border:"1px solid rgba(245,158,11,0.3)", borderRadius:4, padding:"2px 6px",
             fontWeight:700, letterSpacing:0.5 }}>
             SV {filtered.some(p => p.ppg != null) ? "" : "· OFFSEASON PROJ"}
           </span>
         )}
       </div>
-      <div style={{ border:"1px solid #1e2d3d", borderRadius:10, overflow:"hidden" }}>
+      <div style={{ border:"1px solid #242d40", borderRadius:0, overflow:"hidden" }}>
         {filtered.map(p => <PlayerRow key={p.pid} p={p} newsMap={newsMap} playerNotes={playerNotes} savePlayerNote={savePlayerNote} viewMode={viewMode} />)}
       </div>
     </div>
@@ -628,27 +628,27 @@ function CompareTab({ myGrade, owners, players, newsMap, currentOwner, viewMode=
     <div>
       {/* Owner selector */}
       <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:20,
-        background:"#080d14", border:"1px solid #1e2d3d", borderRadius:10, padding:"14px 16px" }}>
+        background:"#0d1117", border:"1px solid #242d40", borderRadius:0, padding:"14px 16px" }}>
         <div style={{ fontSize:9, color:"#7a95ae", letterSpacing:2, flexShrink:0 }}>COMPARE VS</div>
         <select value={oppOwner} onChange={e => setOppOwner(e.target.value)}
           style={{ flex:1, background:"#050a10", border:"1px solid #2a3f55",
-            color: oppOwner ? "#e2e8f0" : "#4d6880",
+            color: oppOwner ? "#e2e8f0" : "#8892a4",
             borderRadius:6, padding:"6px 10px", fontSize:11,
-            fontFamily:"inherit", cursor:"pointer", outline:"none" }}>
+            fontFamily:"'Bebas Neue',sans-serif", cursor:"pointer", outline:"none" }}>
           <option value="">— Select an owner —</option>
           {otherOwners.map(o => <option key={o} value={o}>{o}</option>)}
         </select>
         {oppOwner && (
           <button onClick={() => setOppOwner("")}
-            style={{ background:"none", border:"none", color:"#4d6880",
+            style={{ background:"none", border:"none", color:"#8892a4",
               fontSize:14, cursor:"pointer", padding:"0 4px" }}>✕</button>
         )}
       </div>
 
       {!oppOwner && (
         <div style={{ textAlign:"center", padding:"48px 20px",
-          border:"1px dashed #1e2d3d", borderRadius:12 }}>
-          <div style={{ fontSize:11, color:"#4d6880" }}>Select an opponent above to see the head-to-head breakdown</div>
+          border:"1px dashed #242d40", borderRadius:0 }}>
+          <div style={{ fontSize:11, color:"#8892a4" }}>Select an opponent above to see the head-to-head breakdown</div>
         </div>
       )}
 
@@ -660,9 +660,9 @@ function CompareTab({ myGrade, owners, players, newsMap, currentOwner, viewMode=
               { g: myGrade,  label: "YOUR TEAM",    you: true },
               { g: oppGrade, label: oppOwner.toUpperCase(), you: false },
             ].map(({ g, label, you }) => (
-              <div key={label} style={{ background:"#0a1118",
+              <div key={label} style={{ background:"#1d2535",
                 border:`2px solid ${you ? g.gradeColor : g.gradeColor+"88"}`,
-                borderRadius:12, padding:"16px 18px",
+                borderRadius:0, padding:"16px 18px",
                 boxShadow: you ? `0 0 20px ${g.gradeColor}22` : "none" }}>
                 <div style={{ fontSize:8, color: you ? g.gradeColor : "#7a95ae",
                   letterSpacing:2, fontWeight:700, marginBottom:6 }}>{label}</div>
@@ -674,7 +674,7 @@ function CompareTab({ myGrade, owners, players, newsMap, currentOwner, viewMode=
                     <div style={{ fontSize:11, fontWeight:700, color:g.windowColor, letterSpacing:2 }}>
                       {g.window}
                     </div>
-                    <div style={{ fontSize:9, color:"#4d6880" }}>
+                    <div style={{ fontSize:9, color:"#8892a4" }}>
                       Contender: <span style={{ color:g.gradeColor, fontWeight:700 }}>{g.contenderScore}</span>
                     </div>
                   </div>
@@ -700,17 +700,17 @@ function CompareTab({ myGrade, owners, players, newsMap, currentOwner, viewMode=
 
           {/* ── Trade intel strip ── */}
           {(gaps.length > 0 || advantages.length > 0) && (
-            <div style={{ background:"#0a1118", border:"1px solid #1e2d3d",
-              borderRadius:10, padding:"12px 16px", marginBottom:18,
+            <div style={{ background:"#1d2535", border:"1px solid #242d40",
+              borderRadius:0, padding:"12px 16px", marginBottom:18,
               display:"flex", gap:16, flexWrap:"wrap" }}>
               {advantages.length > 0 && (
                 <div style={{ flex:1, minWidth:160 }}>
-                  <div style={{ fontSize:8, color:"#22c55e", letterSpacing:2,
+                  <div style={{ fontSize:8, color:"#9580FF", letterSpacing:2,
                     fontWeight:700, marginBottom:6 }}>YOUR STRENGTHS (target their need)</div>
                   <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
                     {advantages.map(pos => (
-                      <span key={pos} style={{ fontSize:9, background:"#22c55e18",
-                        border:"1px solid #22c55e44", color:"#22c55e",
+                      <span key={pos} style={{ fontSize:9, background:"#9580FF18",
+                        border:"1px solid #9580FF44", color:"#9580FF",
                         borderRadius:4, padding:"2px 8px", fontWeight:700 }}>{pos}</span>
                     ))}
                   </div>
@@ -718,12 +718,12 @@ function CompareTab({ myGrade, owners, players, newsMap, currentOwner, viewMode=
               )}
               {gaps.length > 0 && (
                 <div style={{ flex:1, minWidth:160 }}>
-                  <div style={{ fontSize:8, color:"#f59e0b", letterSpacing:2,
+                  <div style={{ fontSize:8, color:"#FFD700", letterSpacing:2,
                     fontWeight:700, marginBottom:6 }}>YOUR NEEDS (they can fill)</div>
                   <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
                     {gaps.map(pos => (
                       <span key={pos} style={{ fontSize:9, background:"#f59e0b18",
-                        border:"1px solid #f59e0b44", color:"#f59e0b",
+                        border:"1px solid #FFD70044", color:"#FFD700",
                         borderRadius:4, padding:"2px 8px", fontWeight:700 }}>{pos}</span>
                     ))}
                   </div>
@@ -733,8 +733,8 @@ function CompareTab({ myGrade, owners, players, newsMap, currentOwner, viewMode=
           )}
 
           {/* ── Positional depth bars ── */}
-          <div style={{ background:"#080d14", border:"1px solid #1e2d3d",
-            borderRadius:10, padding:"14px 16px", marginBottom:18 }}>
+          <div style={{ background:"#0d1117", border:"1px solid #242d40",
+            borderRadius:0, padding:"14px 16px", marginBottom:18 }}>
             <div style={{ fontSize:8, color:"#7a95ae", letterSpacing:2,
               fontWeight:700, marginBottom:12 }}>POSITIONAL DEPTH</div>
             {POS_ORDER.map(pos => {
@@ -743,18 +743,18 @@ function CompareTab({ myGrade, owners, players, newsMap, currentOwner, viewMode=
               const myCount = myGrade.posDep[pos]?.count || 0;
               const theirCount = oppGrade.posDep[pos]?.count || 0;
               const max = Math.max(mine, theirs, 1);
-              const myCol   = mine >= theirs ? "#22c55e" : "#ef4444";
-              const theirCol= theirs > mine  ? "#22c55e" : "#ef4444";
+              const myCol   = mine >= theirs ? "#9580FF" : "#FF4757";
+              const theirCol= theirs > mine  ? "#9580FF" : "#FF4757";
               return (
                 <div key={pos} style={{ marginBottom:8 }}>
                   <div style={{ display:"flex", justifyContent:"space-between",
                     marginBottom:3, fontSize:9 }}>
                     <span style={{ color:myCol, fontWeight:700 }}>
-                      {mine.toFixed(0)} <span style={{ color:"#4d6880", fontWeight:400 }}>({myCount})</span>
+                      {mine.toFixed(0)} <span style={{ color:"#8892a4", fontWeight:400 }}>({myCount})</span>
                     </span>
                     <span style={{ color:"#7a95ae", fontWeight:700, letterSpacing:2 }}>{pos}</span>
                     <span style={{ color:theirCol, fontWeight:700 }}>
-                      <span style={{ color:"#4d6880", fontWeight:400 }}>({theirCount})</span> {theirs.toFixed(0)}
+                      <span style={{ color:"#8892a4", fontWeight:400 }}>({theirCount})</span> {theirs.toFixed(0)}
                     </span>
                   </div>
                   <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:3 }}>
@@ -762,14 +762,14 @@ function CompareTab({ myGrade, owners, players, newsMap, currentOwner, viewMode=
                     <div style={{ display:"flex", justifyContent:"flex-end" }}>
                       <div style={{ height:6, borderRadius:"3px 0 0 3px",
                         width:`${(mine/max)*100}%`,
-                        background: mine >= theirs ? "#22c55e" : "#334155",
+                        background: mine >= theirs ? "#9580FF" : "#334155",
                         transition:"width .3s" }} />
                     </div>
                     {/* Their bar — left-aligned */}
                     <div>
                       <div style={{ height:6, borderRadius:"0 3px 3px 0",
                         width:`${(theirs/max)*100}%`,
-                        background: theirs > mine ? "#22c55e" : "#334155",
+                        background: theirs > mine ? "#9580FF" : "#334155",
                         transition:"width .3s" }} />
                     </div>
                   </div>
@@ -787,7 +787,7 @@ function CompareTab({ myGrade, owners, players, newsMap, currentOwner, viewMode=
               <div key={label}>
                 <div style={{ fontSize:8, color:"#7a95ae", letterSpacing:2,
                   fontWeight:700, marginBottom:8 }}>{label}</div>
-                <div style={{ border:"1px solid #1e2d3d", borderRadius:10, overflow:"hidden" }}>
+                <div style={{ border:"1px solid #242d40", borderRadius:0, overflow:"hidden" }}>
                   {[...g.roster]
                     .sort((a, b) => b.dynastyValue - a.dynastyValue)
                     .slice(0, 20)
@@ -797,7 +797,7 @@ function CompareTab({ myGrade, owners, players, newsMap, currentOwner, viewMode=
                       return (
                         <div key={p.pid} style={{ display:"flex", alignItems:"center",
                           gap:8, padding:"5px 10px",
-                          background:"#080d14", borderBottom:"1px solid #0f1923" }}>
+                          background:"#0d1117", borderBottom:"1px solid #161b26" }}>
                           <div style={{ width:32, textAlign:"center", flexShrink:0 }}>
                             <div style={{ fontSize:13, fontWeight:900, color:ts2.text,
                               textShadow:`0 0 6px ${ts2.glow}` }}>{pv(p,viewMode)}</div>
@@ -810,7 +810,7 @@ function CompareTab({ myGrade, owners, players, newsMap, currentOwner, viewMode=
                               </span>
                               {nr2?.signal && (
                                 <span style={{ fontSize:6, background:SIG_COLORS[nr2.signal],
-                                  color:"#080d14", borderRadius:2, padding:"1px 4px",
+                                  color:"#0d1117", borderRadius:2, padding:"1px 4px",
                                   fontWeight:900, flexShrink:0 }}>{nr2.signal}</span>
                               )}
                             </div>
@@ -839,11 +839,11 @@ export function TeamHub({ viewMode="dynasty", phase, players, owners, currentOwn
 
   if (phase !== "done" || !currentOwner) {
     return (
-      <div style={{ textAlign:"center", padding:56, border:"1px dashed #1e2d3d", borderRadius:12 }}>
-        <div style={{ fontSize:11, color:"#f59e0b", letterSpacing:2, marginBottom:8 }}>
+      <div style={{ textAlign:"center", padding:56, border:"1px dashed #242d40", borderRadius:0 }}>
+        <div style={{ fontSize:11, color:"#FFD700", letterSpacing:2, marginBottom:8 }}>
           {!currentOwner ? "SET YOUR TEAM FIRST" : "SYNC DATA TO VIEW TEAM HUB"}
         </div>
-        <div style={{ fontSize:10, color:"#4d6880" }}>
+        <div style={{ fontSize:10, color:"#8892a4" }}>
           {!currentOwner ? "Click ◎ in the top bar to identify your team"
             : "Use ⟳ SYNC DATA in the top-right corner"}
         </div>
@@ -853,20 +853,20 @@ export function TeamHub({ viewMode="dynasty", phase, players, owners, currentOwn
 
   const myGrade = gradeRoster(currentOwner, players);
   if (!myGrade) return (
-    <div style={{ padding:40, textAlign:"center", color:"#4d6880", fontSize:11 }}>
+    <div style={{ padding:40, textAlign:"center", color:"#8892a4", fontSize:11 }}>
       No roster data for {currentOwner}
     </div>
   );
 
   return (
     <div>
-      <div style={{ display:"flex", gap:0, borderBottom:"1px solid #1e2d3d", marginBottom:20 }}>
+      <div style={{ display:"flex", gap:0, borderBottom:"1px solid #242d40", marginBottom:20 }}>
         {TABS.map(([key,label]) => (
           <button key={key} onClick={() => setTab(key)}
             style={{ background:"none", border:"none",
-              borderBottom:tab===key?"2px solid #22c55e":"2px solid transparent",
-              color:tab===key?"#22c55e":"#4b6580",
-              padding:"6px 16px", fontFamily:"inherit",
+              borderBottom:tab===key?"3px solid #9580FF":"2px solid transparent",
+              color:tab===key?"#9580FF":"#8892a4",
+              padding:"6px 16px", fontFamily:"'Bebas Neue',sans-serif",
               fontSize:10, letterSpacing:2, fontWeight:tab===key?700:400, cursor:"pointer" }}>
             {label}
           </button>

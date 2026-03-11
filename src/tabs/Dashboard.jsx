@@ -6,16 +6,16 @@ import { gradeRoster, isSellHigh, weakPositions, sellHighCandidates, tradeTarget
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 const MODE_LABEL = {
-  offseason: { label:"OFFSEASON",  color:"#4b6580",  bg:"#0a1118"   },
-  preseason: { label:"PRESEASON",  color:"#60a5fa",  bg:"#0c1e35"   },
-  inseason:  { label:"IN-SEASON",  color:"#22c55e",  bg:"#0f2b1a"   },
-  playoffs:  { label:"PLAYOFFS",   color:"#f59e0b",  bg:"#2b1f05"   },
-  complete:  { label:"COMPLETE",   color:"#6b7280",  bg:"#111827"   },
+  offseason: { label:"OFFSEASON",  color:"#8892a4",  bg:"#1d2535" },
+  preseason: { label:"PRESEASON",  color:"#00D4FF",  bg:"#0c1e35"   },
+  inseason:  { label:"IN-SEASON",  color:"#9580FF",  bg:"#0f2b1a"   },
+  playoffs:  { label:"PLAYOFFS",   color:"#FFD700",  bg:"#2b1f05"   },
+  complete:  { label:"COMPLETE",   color:"#8892a4",  bg:"#111827"   },
 };
 
 const WINDOW_COLOR = {
-  REBUILD:"#60a5fa", RISING:"#22c55e",
-  CONTEND:"#f59e0b", "WIN NOW":"#ef4444", DECLINING:"#6b7280",
+  REBUILD:"#00D4FF", RISING:"#9580FF",
+  CONTEND:"#FFD700", "WIN NOW":"#FF4757", DECLINING:"#8892a4",
 };
 
 // ── component ─────────────────────────────────────────────────────────────────
@@ -23,31 +23,31 @@ export function Dashboard({ phase, players, currentOwner, owners, newsMap, seaso
 
   if (phase === "idle") {
     return (
-      <div style={{textAlign:"center",padding:"72px 20px",border:"1px dashed #1e2d3d",borderRadius:12}}>
+      <div style={{textAlign:"center",padding:"72px 20px",border:"1px dashed #242d40",borderRadius:0}}>
         <div style={{fontSize:40,fontWeight:900,
-          background:"linear-gradient(135deg,#22c55e,#0ea5e9)",
+          background:"#9580FF",
           WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",marginBottom:12}}>Ω</div>
-        <div style={{fontSize:12,color:"#4b6580",letterSpacing:3,marginBottom:8}}>DYNASTY INTELLIGENCE SYSTEM</div>
-        <div style={{fontSize:9,color:"#2a3d52"}}>Use ⟳ SYNC DATA in the top-right corner to begin</div>
+        <div style={{fontSize:12,color:"#8892a4",letterSpacing:3,marginBottom:8}}>DYNASTY INTELLIGENCE SYSTEM</div>
+        <div style={{fontSize:9,color:"#2a3548"}}>Use ⟳ SYNC DATA in the top-right corner to begin</div>
       </div>
     );
   }
 
   if (phase === "loading") {
-    return <div style={{textAlign:"center",padding:48,color:"#22c55e",fontSize:11,letterSpacing:2}}>◌ SYNCING DATA...</div>;
+    return <div style={{textAlign:"center",padding:48,color:"#9580FF",fontSize:11,letterSpacing:2}}>◌ SYNCING DATA...</div>;
   }
 
   if (!currentOwner) {
     return (
-      <div style={{textAlign:"center",padding:56,border:"1px dashed #1e2d3d",borderRadius:12}}>
-        <div style={{fontSize:11,color:"#f59e0b",letterSpacing:2,marginBottom:8}}>SET YOUR TEAM FIRST</div>
-        <div style={{fontSize:10,color:"#4d6880"}}>Click ◎ in the top bar to identify your team</div>
+      <div style={{textAlign:"center",padding:56,border:"1px dashed #242d40",borderRadius:0}}>
+        <div style={{fontSize:11,color:"#FFD700",letterSpacing:2,marginBottom:8}}>SET YOUR TEAM FIRST</div>
+        <div style={{fontSize:10,color:"#8892a4"}}>Click ◎ in the top bar to identify your team</div>
       </div>
     );
   }
 
   const myGrade = gradeRoster(currentOwner, players);
-  if (!myGrade) return <div style={{padding:40,textAlign:"center",color:"#4d6880",fontSize:11}}>No roster data for {currentOwner}</div>;
+  if (!myGrade) return <div style={{padding:40,textAlign:"center",color:"#8892a4",fontSize:11}}>No roster data for {currentOwner}</div>;
 
   const myPlayers = players.filter(p => p.owner === currentOwner);
   const allGrades = owners
@@ -70,7 +70,7 @@ export function Dashboard({ phase, players, currentOwner, owners, newsMap, seaso
   const isInSzn   = ["inseason","playoffs"].includes(seasonState?.mode);
 
   const AlertCard = ({ title, color, icon, items, emptyMsg, renderItem }) => (
-    <div style={{background:"#0a1118",border:`1px solid ${color}33`,borderRadius:10,
+    <div style={{background:"#1d2535",border:`1px solid ${color}33`,borderRadius:0,
       padding:"14px 16px",flex:"1 1 220px",minWidth:200}}>
       <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:10}}>
         <span style={{fontSize:14,color}}>{icon}</span>
@@ -79,7 +79,7 @@ export function Dashboard({ phase, players, currentOwner, owners, newsMap, seaso
           background:color+"22",borderRadius:4,padding:"1px 7px"}}>{items.length}</span>
       </div>
       {items.length===0
-        ? <div style={{fontSize:10,color:"#4d6880",padding:"6px 0"}}>{emptyMsg}</div>
+        ? <div style={{fontSize:10,color:"#8892a4",padding:"6px 0"}}>{emptyMsg}</div>
         : <div style={{display:"flex",flexDirection:"column",gap:5}}>{items.map(renderItem)}</div>
       }
     </div>
@@ -95,26 +95,26 @@ export function Dashboard({ phase, players, currentOwner, owners, newsMap, seaso
           padding:"2px 9px",fontWeight:700,letterSpacing:2}}>
           {modeInfo.label}
         </span>
-        <span style={{fontSize:8,color:"#2a3d52",letterSpacing:1}}>
+        <span style={{fontSize:8,color:"#2a3548",letterSpacing:1}}>
           {seasonState?.season} SEASON
           {seasonState?.currentWeek ? ` · WEEK ${seasonState.currentWeek}` : ""}
-          {seasonState?._override && <span style={{color:"#f59e0b",marginLeft:6}}>· MANUAL OVERRIDE</span>}
+          {seasonState?._override && <span style={{color:"#FFD700",marginLeft:6}}>· MANUAL OVERRIDE</span>}
         </span>
       </div>
 
       {/* ══ HERO: Roster Grade ═══════════════════════════════════════════════ */}
-      <div style={{background:"linear-gradient(135deg,#0a1118,#0f1923)",
-        border:"2px solid #22c55e",borderRadius:14,padding:"22px 26px",
+      <div style={{background:"#161b26",
+        border:"2px solid #9580FF",borderRadius:0,padding:"22px 26px",
         boxShadow:"0 0 30px rgba(34,197,94,0.12)"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:16}}>
           <div style={{display:"flex",alignItems:"center",gap:20}}>
             <div style={{textAlign:"center"}}>
               <div style={{fontSize:64,fontWeight:900,color:myGrade.gradeColor,lineHeight:1,
                 textShadow:`0 0 30px ${myGrade.gradeColor}66`}}>{myGrade.grade}</div>
-              <div style={{fontSize:8,color:"#4d6880",letterSpacing:2,marginTop:2}}>DYNASTY GRADE</div>
+              <div style={{fontSize:8,color:"#8892a4",letterSpacing:2,marginTop:2}}>DYNASTY GRADE</div>
             </div>
             <div>
-              <div style={{fontSize:8,color:"#22c55e",letterSpacing:2,marginBottom:4,fontWeight:700}}>
+              <div style={{fontSize:8,color:"#9580FF",letterSpacing:2,marginBottom:4,fontWeight:700}}>
                 {currentOwner.toUpperCase()}
               </div>
               <div style={{fontSize:20,fontWeight:900,
@@ -124,7 +124,7 @@ export function Dashboard({ phase, players, currentOwner, owners, newsMap, seaso
               <div style={{fontSize:10,color:"#7a95ae"}}>
                 Ranked <strong style={{color:"#e2e8f0"}}>#{myRank}</strong> of {allGrades.length} teams
               </div>
-              <div style={{fontSize:9,color:"#4d6880",marginTop:3}}>
+              <div style={{fontSize:9,color:"#8892a4",marginTop:3}}>
                 Contender score: <span style={{color:myGrade.gradeColor,fontWeight:700}}>{myGrade.contenderScore}</span>
               </div>
             </div>
@@ -132,15 +132,15 @@ export function Dashboard({ phase, players, currentOwner, owners, newsMap, seaso
           <div style={{display:"flex",gap:18,flexWrap:"wrap"}}>
             {[
               ["AVG DV",    Math.round(myGrade.avgScore), "#e2e8f0"],
-              ["ELITE",     myGrade.eliteCount,           "#22c55e"],
-              ["STARTERS",  myGrade.starterCnt,           "#60a5fa"],
-              ["AVG AGE",   myGrade.avgAge.toFixed(1),    "#f59e0b"],
-              ["ON CLIFF",  myGrade.cliffCnt,             "#f97316"],
-              ["INJURED",   myGrade.injCnt,               "#ef4444"],
+              ["ELITE",     myGrade.eliteCount,           "#9580FF"],
+              ["STARTERS",  myGrade.starterCnt,           "#00D4FF"],
+              ["AVG AGE",   myGrade.avgAge.toFixed(1),    "#FFD700"],
+              ["ON CLIFF",  myGrade.cliffCnt,             "#FF9040"],
+              ["INJURED",   myGrade.injCnt,               "#FF4757"],
             ].map(([k,v,col]) => (
               <div key={k} style={{textAlign:"center",minWidth:46}}>
                 <div style={{fontSize:22,fontWeight:900,color:col,lineHeight:1}}>{v}</div>
-                <div style={{fontSize:7,color:"#4d6880",letterSpacing:1,marginTop:2}}>{k}</div>
+                <div style={{fontSize:7,color:"#8892a4",letterSpacing:1,marginTop:2}}>{k}</div>
               </div>
             ))}
           </div>
@@ -152,21 +152,21 @@ export function Dashboard({ phase, players, currentOwner, owners, newsMap, seaso
             if (!dep?.count) return null;
             const pr   = posRanks[pos] ?? { score:50, leagueRank:5, leagueTotal:10 };
             const score = pr.score ?? pr;  // backwards-compat if number
-            const col  = score >= 70 ? "#22c55e" : score >= 50 ? "#60a5fa" : score >= 30 ? "#f59e0b" : "#ef4444";
+            const col  = score >= 70 ? "#9580FF" : score >= 50 ? "#00D4FF" : score >= 30 ? "#FFD700" : "#FF4757";
             const isWk = weakPos.has(pos);
             return (
               <div key={pos} style={{flex:"1 1 55px",minWidth:48}}>
-                <div style={{fontSize:8,color:isWk?"#f97316":"#7a95ae",marginBottom:3,
+                <div style={{fontSize:8,color:isWk?"#FF9040":"#7a95ae",marginBottom:3,
                   letterSpacing:1,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                   <span>{pos}{isWk?" ⚠":""}</span>
                   <span style={{color:col,fontWeight:900,fontSize:10}}>{score}</span>
                 </div>
-                <div style={{height:6,background:"#1e2d3d",borderRadius:3,overflow:"hidden",
-                  border:isWk?"1px solid #f9731633":undefined}}>
-                  <div style={{height:"100%",width:`${score}%`,background:col,borderRadius:3,
+                <div style={{height:6,background:"#242d40",borderRadius:0,overflow:"hidden",
+                  border:isWk?"1px solid #FF904033":undefined}}>
+                  <div style={{height:"100%",width:`${score}%`,background:col,borderRadius:0,
                     transition:"width .4s ease"}}/>
                 </div>
-                <div style={{fontSize:7,color:"#4d6880",marginTop:3,display:"flex",justifyContent:"space-between"}}>
+                <div style={{fontSize:7,color:"#8892a4",marginTop:3,display:"flex",justifyContent:"space-between"}}>
                   <span>{dep.count} rostered</span>
                   {pr.leagueRank && <span>#{pr.leagueRank}/{pr.leagueTotal}</span>}
                 </div>
@@ -175,12 +175,12 @@ export function Dashboard({ phase, players, currentOwner, owners, newsMap, seaso
           })}
         </div>
         {isInSzn && (
-          <div style={{marginTop:14,paddingTop:12,borderTop:"1px solid #1e2d3d",
+          <div style={{marginTop:14,paddingTop:12,borderTop:"1px solid #242d40",
             display:"flex",gap:12,alignItems:"center"}}>
-            <div style={{fontSize:9,color:"#22c55e",fontWeight:700,letterSpacing:1.5}}>
+            <div style={{fontSize:9,color:"#9580FF",fontWeight:700,letterSpacing:1.5}}>
               WEEK {seasonState.currentWeek}
             </div>
-            <div style={{fontSize:9,color:"#4d6880"}}>
+            <div style={{fontSize:9,color:"#8892a4"}}>
               W/L record and matchup preview — in-season build coming
             </div>
           </div>
@@ -189,63 +189,63 @@ export function Dashboard({ phase, players, currentOwner, owners, newsMap, seaso
 
       {/* ══ ALERTS ROW ══════════════════════════════════════════════════════ */}
       <div>
-        <div style={{fontSize:9,color:"#4d6880",letterSpacing:2,fontWeight:700,marginBottom:10}}>⚑ ROSTER ALERTS</div>
+        <div style={{fontSize:11,color:"#8892a4",letterSpacing:"0.1em",fontWeight:700,marginBottom:10}}>⚑ ROSTER ALERTS</div>
         <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
 
-          <AlertCard title="SELL-HIGH CANDIDATES" color="#ef4444" icon="↑"
+          <AlertCard title="SELL-HIGH CANDIDATES" color="#FF4757" icon="↑"
             items={sellHighs} emptyMsg="No obvious sell-high candidates"
             renderItem={p => {
               const ts=TIER_STYLE[p.tier]; const n=newsMap[p.name];
               return (
                 <div key={p.pid} style={{display:"flex",justifyContent:"space-between",
-                  alignItems:"center",padding:"5px 0",borderBottom:"1px solid #0f1923"}}>
+                  alignItems:"center",padding:"5px 0",borderBottom:"1px solid #161b26"}}>
                   <div>
                     <div style={{fontSize:11,fontWeight:700,color:ts.text}}>{p.name}</div>
                     <div style={{fontSize:9,color:"#7a95ae"}}>{p.pos} · {p.team} · {p.age}y</div>
                   </div>
                   <div style={{textAlign:"right"}}>
                     <div style={{fontSize:13,fontWeight:900,color:ts.text}}>{pv(p,viewMode)}</div>
-                    {n?.signal && <span style={{fontSize:8,background:SIG_COLORS[n.signal],color:"#080d14",
-                      borderRadius:3,padding:"1px 4px",fontWeight:900}}>{n.signal}</span>}
+                    {n?.signal && <span style={{fontSize:8,background:SIG_COLORS[n.signal],color:"#0d1117",
+                      borderRadius:0,padding:"1px 4px",fontWeight:900}}>{n.signal}</span>}
                   </div>
                 </div>
               );
             }}
           />
 
-          <AlertCard title="AGE CLIFF RISKS" color="#f97316" icon="↓"
+          <AlertCard title="AGE CLIFF RISKS" color="#FF9040" icon="↓"
             items={ageCliffs} emptyMsg="No players past their position cliff"
             renderItem={p => {
               const ts=TIER_STYLE[p.tier]; const [,,cliff]=PRIME[p.pos]||[23,29,33];
               return (
                 <div key={p.pid} style={{display:"flex",justifyContent:"space-between",
-                  alignItems:"center",padding:"5px 0",borderBottom:"1px solid #0f1923"}}>
+                  alignItems:"center",padding:"5px 0",borderBottom:"1px solid #161b26"}}>
                   <div>
                     <div style={{fontSize:11,fontWeight:700,color:ts.text}}>{p.name}</div>
                     <div style={{fontSize:9,color:"#7a95ae"}}>{p.pos} · {p.age}y · cliff:{cliff}</div>
                   </div>
                   <div style={{textAlign:"right"}}>
-                    <div style={{fontSize:13,fontWeight:900,color:"#f97316"}}>{pv(p,viewMode)}</div>
-                    <div style={{fontSize:8,color:"#f97316"}}>+{(p.age-cliff).toFixed(1)}y past</div>
+                    <div style={{fontSize:13,fontWeight:900,color:"#FF9040"}}>{pv(p,viewMode)}</div>
+                    <div style={{fontSize:8,color:"#FF9040"}}>+{(p.age-cliff).toFixed(1)}y past</div>
                   </div>
                 </div>
               );
             }}
           />
 
-          <AlertCard title="INJURY CONCERNS" color="#ef4444" icon="⚠"
+          <AlertCard title="INJURY CONCERNS" color="#FF4757" icon="⚠"
             items={injured} emptyMsg="No significant injuries on your roster"
             renderItem={p => {
               const ts=TIER_STYLE[p.tier];
               return (
                 <div key={p.pid} style={{display:"flex",justifyContent:"space-between",
-                  alignItems:"center",padding:"5px 0",borderBottom:"1px solid #0f1923"}}>
+                  alignItems:"center",padding:"5px 0",borderBottom:"1px solid #161b26"}}>
                   <div>
                     <div style={{fontSize:11,fontWeight:700,color:ts.text}}>{p.name}</div>
                     <div style={{fontSize:9,color:"#7a95ae"}}>{p.pos} · {p.team}</div>
                   </div>
                   <div style={{textAlign:"right"}}>
-                    <div style={{fontSize:9,fontWeight:700,color:INJ_COLOR[p.injStatus]||"#ef4444"}}>{p.injStatus}</div>
+                    <div style={{fontSize:9,fontWeight:700,color:INJ_COLOR[p.injStatus]||"#FF4757"}}>{p.injStatus}</div>
                     <div style={{fontSize:11,color:ts.text,fontWeight:700}}>{pv(p,viewMode)}</div>
                   </div>
                 </div>
@@ -259,8 +259,8 @@ export function Dashboard({ phase, players, currentOwner, owners, newsMap, seaso
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
 
         {/* Position gaps */}
-        <div style={{background:"#0a1118",border:"1px solid #1e2d3d",borderRadius:10,padding:"14px 16px"}}>
-          <div style={{fontSize:9,fontWeight:700,letterSpacing:1.5,color:"#0ea5e9",marginBottom:12}}>
+        <div style={{background:"#1d2535",border:"1px solid #242d40",borderRadius:0,padding:"14px 16px"}}>
+          <div style={{fontSize:9,fontWeight:700,letterSpacing:1.5,color:""#00D4FF"",marginBottom:12}}>
             ⬡ POSITION GAPS VS LEAGUE AVG
           </div>
           <div style={{display:"flex",flexDirection:"column",gap:10}}>
@@ -268,21 +268,21 @@ export function Dashboard({ phase, players, currentOwner, owners, newsMap, seaso
               const pr     = posRanks[pos] ?? { score:50 };
               const score  = pr.score ?? pr;
               const delta  = score - 50; // positive = above league midpoint, negative = below
-              const gCol   = score >= 60 ? "#22c55e" : score >= 40 ? "#f59e0b" : "#ef4444";
+              const gCol   = score >= 60 ? "#9580FF" : score >= 40 ? "#FFD700" : "#FF4757";
               return (
                 <div key={pos}>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
-                    <span style={{fontSize:10,fontWeight:700,color:"#60a5fa"}}>{pos}</span>
+                    <span style={{fontSize:10,fontWeight:700,color:"#00D4FF"}}>{pos}</span>
                     <span style={{fontSize:9,color:gCol,fontWeight:700}}>
                       {delta >= 0 ? `+${delta}` : delta} vs avg (50)
-                      {pr.leagueRank ? <span style={{color:"#4d6880",fontWeight:400,marginLeft:5}}>#{pr.leagueRank}/{pr.leagueTotal}</span> : null}
+                      {pr.leagueRank ? <span style={{color:"#8892a4",fontWeight:400,marginLeft:5}}>#{pr.leagueRank}/{pr.leagueTotal}</span> : null}
                     </span>
                   </div>
                   <div style={{display:"flex",alignItems:"center",gap:6}}>
-                    <div style={{flex:1,height:6,background:"#1e2d3d",borderRadius:3,overflow:"hidden",position:"relative"}}>
+                    <div style={{flex:1,height:6,background:"#242d40",borderRadius:0,overflow:"hidden",position:"relative"}}>
                       {/* Average marker at 50% */}
-                      <div style={{position:"absolute",left:"50%",top:0,bottom:0,width:1,background:"#2a3d52",zIndex:1}}/>
-                      <div style={{height:"100%",width:`${score}%`,background:gCol,borderRadius:3}}/>
+                      <div style={{position:"absolute",left:"50%",top:0,bottom:0,width:1,background:"#2a3548",zIndex:1}}/>
+                      <div style={{height:"100%",width:`${score}%`,background:gCol,borderRadius:0}}/>
                     </div>
                     <div style={{width:28,fontSize:9,color:gCol,fontWeight:700,textAlign:"right"}}>{score}</div>
                   </div>
@@ -293,29 +293,29 @@ export function Dashboard({ phase, players, currentOwner, owners, newsMap, seaso
         </div>
 
         {/* Trade targets */}
-        <div style={{background:"#0a1118",border:"1px solid #1e2d3d",borderRadius:10,padding:"14px 16px"}}>
-          <div style={{fontSize:9,fontWeight:700,letterSpacing:1.5,color:"#22c55e",marginBottom:12}}>
+        <div style={{background:"#1d2535",border:"1px solid #242d40",borderRadius:0,padding:"14px 16px"}}>
+          <div style={{fontSize:9,fontWeight:700,letterSpacing:1.5,color:"#9580FF",marginBottom:12}}>
             ⇄ TRADE TARGETS
-            <span style={{fontSize:8,color:"#4d6880",fontWeight:400,marginLeft:8}}>weighted to your gaps</span>
+            <span style={{fontSize:8,color:"#8892a4",fontWeight:400,marginLeft:8}}>weighted to your gaps</span>
           </div>
           {targets.length===0
-            ? <div style={{fontSize:10,color:"#4d6880",padding:"12px 0"}}>Run ◈ Intel Scan to surface targets</div>
+            ? <div style={{fontSize:10,color:"#8892a4",padding:"12px 0"}}>Run ◈ Intel Scan to surface targets</div>
             : <div style={{display:"flex",flexDirection:"column",gap:6}}>
                 {targets.map((p,i) => {
                   const ts=TIER_STYLE[p.tier]; const n=newsMap[p.name]; const isWk=weakPos.has(p.pos);
                   return (
                     <div key={p.pid} style={{display:"flex",alignItems:"center",gap:10,
                       padding:"6px 8px",background:isWk?"#0f2b1a":"transparent",
-                      border:`1px solid ${isWk?"#22c55e22":"#1e2d3d"}`,borderRadius:6}}>
-                      <div style={{fontSize:9,color:"#2a3d52",width:14,textAlign:"center"}}>{i+1}</div>
+                      border:`1px solid ${isWk?"#9580FF22":"#242d40"}`,borderRadius:6}}>
+                      <div style={{fontSize:9,color:"#2a3548",width:14,textAlign:"center"}}>{i+1}</div>
                       <div style={{flex:1}}>
                         <div style={{fontSize:11,fontWeight:700,color:ts.text}}>{p.name}</div>
                         <div style={{fontSize:9,color:"#7a95ae"}}>{p.pos} · {p.team} · {p.age}y · {p.owner}</div>
                       </div>
                       <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:2}}>
                         <span style={{fontSize:14,fontWeight:900,color:ts.text}}>{pv(p,viewMode)}</span>
-                        {isWk && <span style={{fontSize:7,color:"#22c55e",fontWeight:700,letterSpacing:0.5}}>FILLS GAP</span>}
-                        {n?.signal==="BUY" && <span style={{fontSize:7,background:"#22c55e",color:"#080d14",
+                        {isWk && <span style={{fontSize:7,color:"#9580FF",fontWeight:700,letterSpacing:0.5}}>FILLS GAP</span>}
+                        {n?.signal==="BUY" && <span style={{fontSize:7,background:"#9580FF",color:"#0d1117",
                           borderRadius:2,padding:"1px 4px",fontWeight:900}}>BUY</span>}
                       </div>
                     </div>
@@ -328,44 +328,44 @@ export function Dashboard({ phase, players, currentOwner, owners, newsMap, seaso
 
       {/* ══ COMPACT LEAGUE SNAPSHOT ══════════════════════════════════════════ */}
       <div>
-        <div style={{fontSize:9,color:"#4d6880",letterSpacing:2,fontWeight:700,marginBottom:10}}>⬡ LEAGUE SNAPSHOT</div>
-        <div style={{borderRadius:8,border:"1px solid #1e2d3d",overflow:"hidden"}}>
+        <div style={{fontSize:11,color:"#8892a4",letterSpacing:"0.1em",fontWeight:700,marginBottom:10}}>⬡ LEAGUE SNAPSHOT</div>
+        <div style={{borderRadius:0,border:"1px solid #242d40",overflow:"hidden"}}>
           <table style={{width:"100%",borderCollapse:"collapse"}}>
             <thead>
               <tr>
                 {[["#",30],["TEAM",170],["GRD",46],["WINDOW",85],["AVG",50],["ELITE",50],["AGE",50]].map(([h,w])=>(
                   <th key={h} style={{padding:"6px 8px",background:"#0c151e",color:"#7a95ae",
                     fontSize:9,letterSpacing:1.5,fontWeight:700,textAlign:"center",
-                    borderRight:"1px solid #1e2d3d",width:w}}>{h}</th>
+                    borderRight:"1px solid #242d40",width:w}}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {allGrades.map((g,i) => {
                 const isMe=g.owner===currentOwner;
-                const wc=WINDOW_COLOR[g.window]||"#6b7280";
+                const wc=WINDOW_COLOR[g.window]||"#8892a4";
                 return (
-                  <tr key={g.owner} style={{background:isMe?"#0f2b1a":i%2===0?"#080d14":"#0a1118"}}>
-                    <td style={{padding:"6px 8px",textAlign:"center",borderBottom:"1px solid #0f1923",
-                      fontSize:9,color:isMe?"#22c55e":"#4d6880",fontWeight:isMe?900:400}}>{i+1}</td>
-                    <td style={{padding:"6px 10px",borderBottom:"1px solid #0f1923",
-                      fontWeight:isMe?900:500,color:isMe?"#22c55e":"#e2e8f0",fontSize:11}}>
-                      {g.owner}{isMe&&<span style={{fontSize:7,color:"#22c55e",marginLeft:5}}>YOU</span>}
+                  <tr key={g.owner} style={{background:isMe?"#0f2b1a":i%2===0?"#0d1117":"#1d2535"}}>
+                    <td style={{padding:"6px 8px",textAlign:"center",borderBottom:"1px solid #161b26",
+                      fontSize:9,color:isMe?"#9580FF":"#8892a4",fontWeight:isMe?900:400}}>{i+1}</td>
+                    <td style={{padding:"6px 10px",borderBottom:"1px solid #161b26",
+                      fontWeight:isMe?900:500,color:isMe?"#9580FF":"#e2e8f0",fontSize:11}}>
+                      {g.owner}{isMe&&<span style={{fontSize:7,color:"#9580FF",marginLeft:5}}>YOU</span>}
                     </td>
-                    <td style={{padding:"6px 8px",textAlign:"center",borderBottom:"1px solid #0f1923"}}>
+                    <td style={{padding:"6px 8px",textAlign:"center",borderBottom:"1px solid #161b26"}}>
                       <span style={{fontSize:13,fontWeight:900,color:g.gradeColor}}>{g.grade}</span>
                     </td>
-                    <td style={{padding:"6px 8px",textAlign:"center",borderBottom:"1px solid #0f1923"}}>
+                    <td style={{padding:"6px 8px",textAlign:"center",borderBottom:"1px solid #161b26"}}>
                       <span style={{fontSize:8,background:wc+"22",color:wc,
-                        border:`1px solid ${wc}44`,borderRadius:3,
+                        border:`1px solid ${wc}44`,borderRadius:0,
                         padding:"2px 5px",fontWeight:700,letterSpacing:0.5}}>{g.window}</span>
                     </td>
-                    <td style={{padding:"6px 8px",textAlign:"center",borderBottom:"1px solid #0f1923",
+                    <td style={{padding:"6px 8px",textAlign:"center",borderBottom:"1px solid #161b26",
                       fontSize:10,color:"#e2e8f0",fontWeight:700}}>{Math.round(g.avgScore)}</td>
-                    <td style={{padding:"6px 8px",textAlign:"center",borderBottom:"1px solid #0f1923",
-                      fontSize:10,color:"#22c55e",fontWeight:700}}>{g.eliteCount}</td>
-                    <td style={{padding:"6px 8px",textAlign:"center",borderBottom:"1px solid #0f1923",
-                      fontSize:10,color:"#f59e0b"}}>{g.avgAge.toFixed(1)}</td>
+                    <td style={{padding:"6px 8px",textAlign:"center",borderBottom:"1px solid #161b26",
+                      fontSize:10,color:"#9580FF",fontWeight:700}}>{g.eliteCount}</td>
+                    <td style={{padding:"6px 8px",textAlign:"center",borderBottom:"1px solid #161b26",
+                      fontSize:10,color:"#FFD700"}}>{g.avgAge.toFixed(1)}</td>
                   </tr>
                 );
               })}
@@ -373,8 +373,8 @@ export function Dashboard({ phase, players, currentOwner, owners, newsMap, seaso
           </table>
         </div>
         {isInSzn && (
-          <div style={{marginTop:8,padding:"8px 12px",background:"#0a1118",
-            border:"1px solid #22c55e22",borderRadius:6,fontSize:9,color:"#4d6880"}}>
+          <div style={{marginTop:8,padding:"8px 12px",background:"#1d2535",
+            border:"1px solid #9580FF22",borderRadius:6,fontSize:9,color:"#8892a4"}}>
             ▸ In-season: W/L standings, PF/PA, streak overlay — coming with in-season build
           </div>
         )}
