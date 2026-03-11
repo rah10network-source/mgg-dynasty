@@ -2,8 +2,8 @@
 // Your team's command centre — grade, sell-high alerts, trade targets,
 // positional depth vs league, and your full roster breakdown.
 import { useState, useMemo } from "react";
-import { TIER_STYLE, INJ_COLOR, SIG_COLORS, POS_ORDER, SCARCITY, SITUATION_FLAGS, pv, pvColor } from "../constants";
-import { gradeRoster, isSellHigh, sellHighCandidates, tradeTargets, weakPositions } from "../roster";
+import { TIER_STYLE, INJ_COLOR, SIG_COLORS, POS_ORDER, SCARCITY, SITUATION_FLAGS, pv, pvColor, POS_DV_MAX } from "../constants";
+import { gradeRoster, isSellHigh, sellHighCandidates, tradeTargets, weakPositions, posLeagueRank } from "../roster";
 import { sitMultiplier } from "../scoring";
 
 const TABS = [
@@ -246,6 +246,7 @@ function Overview({ myGrade, owners, players, newsMap, currentOwner, setTab, vie
   const myRank  = allGrades.findIndex(g => g.owner === currentOwner) + 1;
   const sells   = sellHighCandidates(myGrade.roster, newsMap).slice(0,3);
   const weak    = weakPositions(myGrade, players);
+  const posRanks = posLeagueRank(myGrade, players);
   const injured = myGrade.roster.filter(p =>
     ["Out","IR","PUP","Doubtful"].includes(p.injStatus)).slice(0,4);
 
@@ -289,24 +290,25 @@ function Overview({ myGrade, owners, players, newsMap, currentOwner, setTab, vie
         </div>
         <div style={{ display:"flex", gap:10, marginTop:16, flexWrap:"wrap" }}>
           {POS_ORDER.map(pos => {
-            const dep = myGrade.posDep[pos];
+            const dep  = myGrade.posDep[pos];
             if (!dep?.count) return null;
-            // League-relative: bar 100% = at or above league avg for this position
-            const lgAtPos = players.filter(p => p.pos === pos);
-            const lgAvg   = lgAtPos.length ? lgAtPos.reduce((s,p)=>s+(p.dynastyValue||0),0)/lgAtPos.length : 1;
-            const ratio   = lgAvg > 0 ? dep.avg / lgAvg : 0;
-            const fill    = Math.min(100, Math.round(ratio * 100));
-            const col     = ratio>=0.90?"#22c55e":ratio>=0.70?"#60a5fa":ratio>=0.50?"#f59e0b":"#ef4444";
+            const pr    = posRanks[pos] ?? { score:50, leagueRank:null, leagueTotal:null };
+            const score = pr.score ?? pr;
+            const col   = score >= 70 ? "#22c55e" : score >= 50 ? "#60a5fa" : score >= 30 ? "#f59e0b" : "#ef4444";
             return (
               <div key={pos} style={{ flex:"1 1 55px", minWidth:48 }}>
                 <div style={{ fontSize:8, color:"#7a95ae", marginBottom:3, letterSpacing:1,
                   display:"flex", justifyContent:"space-between" }}>
-                  <span>{pos}</span><span style={{ color:col }}>{dep.avg.toFixed(0)}</span>
+                  <span>{pos}</span><span style={{ color:col, fontWeight:900, fontSize:10 }}>{score}</span>
                 </div>
-                <div style={{ height:4, background:"#1e2d3d", borderRadius:2, overflow:"hidden" }}>
-                  <div style={{ height:"100%", width:`${fill}%`, background:col, borderRadius:2 }}/>
+                <div style={{ height:5, background:"#1e2d3d", borderRadius:2, overflow:"hidden" }}>
+                  <div style={{ height:"100%", width:`${score}%`, background:col, borderRadius:2,
+                    transition:"width .4s ease" }}/>
                 </div>
-                <div style={{ fontSize:7, color:"#4d6880", marginTop:2 }}>{dep.count}p</div>
+                <div style={{ fontSize:7, color:"#4d6880", marginTop:3, display:"flex", justifyContent:"space-between" }}>
+                  <span>{dep.count}p</span>
+                  {pr.leagueRank && <span>#{pr.leagueRank}</span>}
+                </div>
               </div>
             );
           })}

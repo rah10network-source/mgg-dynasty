@@ -20,6 +20,17 @@ export const PRIME = {
 
 export const POS_ORDER = ["QB","RB","WR","TE","DL","LB","DB","K"];
 
+// Starting lineup slot counts — used to compute "starter average" DV in position bars.
+// QB:2 (QB + SUPERFLEX), RB:3 (2RB + 1 typical FLEX), WR:4 (3WR + 1 FLEX + 1 WT-FLEX),
+// TE:2 (TE + WT-FLEX), IDP:1 each, K:1.
+// Bars show avg DV of your top N players at each position — not full depth average.
+export const LINEUP_SLOTS = { QB:2, RB:3, WR:4, TE:2, DL:1, LB:1, DB:1, K:1 };
+
+// Theoretical DV ceiling per position (used to normalise bars to 0-100 health score).
+// QB uses 999 since the SF premium can push the #1 QB above DV_TOP[QB]=900.
+// 100 = you hold the absolute best starter(s) at this position in the entire league.
+export const POS_DV_MAX = { QB:999, RB:950, WR:980, TE:820, DL:720, LB:750, DB:700, K:200 };
+
 // ─── FANTASY SCORING (MGG Dynasty league settings — verified vs constitution) ──
 // CRITICAL: Sleeper's stats API uses "idp_" prefix for individual defensive
 // player stats. The old "def_" prefix was for Team DEF — completely wrong.

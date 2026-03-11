@@ -14,7 +14,7 @@
 // Canonical threshold is now dynastyValue >= top 35% of owner's roster (relative),
 // with a minimum absolute floor of 45 to catch value regardless of roster depth.
 
-import { PRIME, POS_ORDER } from "./constants";
+import { PRIME, POS_ORDER, LINEUP_SLOTS, POS_DV_MAX } from "./constants";
 
 // ─── GRADE ROSTER ─────────────────────────────────────────────────────────────
 // Takes an owner name and full player list.
@@ -47,13 +47,18 @@ export function gradeRoster(owner, players) {
     ["Out", "IR", "PUP", "Doubtful", "Questionable"].includes(p.injStatus)).length;
 
   // Positional depth map — dynastyValue (asset strength per position)
+  // avg = average DV of your top LINEUP_SLOTS[pos] players (starter-level quality signal).
+  // avgAll = full roster average (kept for depth context elsewhere).
   const posDep = {};
   POS_ORDER.forEach(pos => {
-    const atPos = roster.filter(p => p.pos === pos);
+    const atPos  = roster.filter(p => p.pos === pos).sort((a, b) => b.dynastyValue - a.dynastyValue);
+    const slots  = LINEUP_SLOTS[pos] || 1;
+    const starters = atPos.slice(0, slots);
     posDep[pos] = {
-      count: atPos.length,
-      avg:   atPos.length ? atPos.reduce((s, p) => s + p.dynastyValue, 0) / atPos.length : 0,
-      top:   atPos[0]?.dynastyValue || 0,
+      count:  atPos.length,
+      avg:    starters.length ? starters.reduce((s, p) => s + p.dynastyValue, 0) / starters.length : 0,
+      avgAll: atPos.length    ? atPos.reduce((s, p) => s + p.dynastyValue, 0) / atPos.length : 0,
+      top:    atPos[0]?.dynastyValue || 0,
     };
   });
 
@@ -146,13 +151,27 @@ export function isSellHigh(p, newsMap, ownerRoster = []) {
 }
 
 // ─── LEAGUE AVERAGE BY POSITION ───────────────────────────────────────────────
-// Used by Dashboard and TeamHub to show positional strength vs league.
+// Returns the AVERAGE of each team's starter-slot DV at each position.
+// Matches posDep.avg methodology (top LINEUP_SLOTS[pos] per team) for
+// apples-to-apples comparison in the position bar league-relative fill.
 
 export function leagueAvgByPos(players) {
+  const owners = [...new Set(players.map(p => p.owner).filter(Boolean))];
   const result = {};
   POS_ORDER.forEach(pos => {
-    const atPos = players.filter(p => p.pos === pos);
-    result[pos] = atPos.length ? atPos.reduce((s, p) => s + p.dynastyValue, 0) / atPos.length : 0;
+    const slots = LINEUP_SLOTS[pos] || 1;
+    let total = 0, count = 0;
+    owners.forEach(owner => {
+      const atPos = players
+        .filter(p => p.owner === owner && p.pos === pos)
+        .sort((a, b) => b.dynastyValue - a.dynastyValue)
+        .slice(0, slots);
+      if (atPos.length) {
+        total += atPos.reduce((s, p) => s + p.dynastyValue, 0) / atPos.length;
+        count++;
+      }
+    });
+    result[pos] = count > 0 ? total / count : 0;
   });
   return result;
 }
@@ -212,4 +231,56 @@ export function tradeTargets(currentOwner, myGrade, players, newsMap, topN = 8) 
     }))
     .sort((a, b) => b._priority - a._priority)
     .slice(0, topN);
+}
+
+// ─── POSITION LEAGUE RANK (0-100) ─────────────────────────────────────────────
+// For each position, ranks every team by their starter-slot avg DV
+// (matching posDep.avg methodology), then converts to a 0-100 score where:
+//   100 = best team in the league at this position
+//   50  = exactly median
+//   0   = worst team
+// Used to drive the position bars in TeamHub and Dashboard.
+//
+// Returns: { QB: 87, RB: 42, WR: 71, ... }
+
+// ─── POSITION HEALTH SCORES ───────────────────────────────────────────────────
+// Returns a 0-100 health score per position where:
+//   100 = you hold the theoretical maximum (top-ranked starter(s) in the game)
+//   50  = average starter-level quality at this position
+//   0   = no meaningful starters
+//
+// Scale is ABSOLUTE (vs POS_DV_MAX), not percentile-relative, so a weak
+// position reads low even if it's the best in this particular 10-team league.
+// leagueRank is provided for supplementary "X of N teams" context only.
+
+export function posLeagueRank(myGrade, players) {
+  const owners = [...new Set(players.map(p => p.owner).filter(Boolean))];
+  const n      = owners.length;
+
+  const result = {};
+  POS_ORDER.forEach(pos => {
+    const slots  = LINEUP_SLOTS[pos] || 1;
+    const maxDV  = POS_DV_MAX[pos] || 500;
+    const myAvg  = myGrade.posDep[pos]?.avg ?? 0;
+
+    // Absolute 0-100 score: how close are your starters to the theoretical max?
+    const score = Math.min(100, Math.round(myAvg / maxDV * 100));
+
+    // League rank (1 = best) for supplementary display
+    let leagueRank = 1;
+    if (n > 1) {
+      const teamAvgs = owners.map(owner => {
+        const atPos = players
+          .filter(p => p.owner === owner && p.pos === pos)
+          .sort((a, b) => b.dynastyValue - a.dynastyValue)
+          .slice(0, slots);
+        return atPos.length ? atPos.reduce((s, p) => s + p.dynastyValue, 0) / atPos.length : 0;
+      });
+      leagueRank = teamAvgs.filter(v => v > myAvg).length + 1; // 1-indexed, lower = better
+    }
+
+    result[pos] = { score, leagueRank, leagueTotal: n };
+  });
+
+  return result;
 }

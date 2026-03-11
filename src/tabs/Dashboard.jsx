@@ -1,8 +1,8 @@
 // ─── DASHBOARD ────────────────────────────────────────────────────────────────
 // Primary focus: your team health (grade, alerts, cliff risks)
 // Offseason: dynasty value lens · In-season: adds record + matchup context
-import { TIER_STYLE, INJ_COLOR, SIG_COLORS, POS_ORDER, PRIME, pv, pvLabel, pvColor } from "../constants";
-import { gradeRoster, isSellHigh, weakPositions, sellHighCandidates, tradeTargets } from "../roster";
+import { TIER_STYLE, INJ_COLOR, SIG_COLORS, POS_ORDER, PRIME, pv, pvLabel, pvColor, POS_DV_MAX } from "../constants";
+import { gradeRoster, isSellHigh, weakPositions, sellHighCandidates, tradeTargets, posLeagueRank } from "../roster";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 const MODE_LABEL = {
@@ -61,7 +61,9 @@ export function Dashboard({ phase, players, currentOwner, owners, newsMap, seaso
   const injured   = myPlayers.filter(p => ["Out","IR","PUP","Doubtful"].includes(p.injStatus)).slice(0, 5);
 
   const weak    = weakPositions(myGrade, players);
-  const weakPos = new Set(weak.filter(w => w.gap < -50).map(w => w.pos));
+  const posRanks = posLeagueRank(myGrade, players);
+  // Weak = absolute health score below 40 (below 40% of theoretical max)
+  const weakPos = new Set(Object.entries(posRanks).filter(([,v]) => (v?.score ?? v) < 40).map(([pos]) => pos));
   const targets = tradeTargets(currentOwner, myGrade, players, newsMap, 5);
 
   const modeInfo  = MODE_LABEL[seasonState?.mode] || MODE_LABEL.offseason;
@@ -148,24 +150,26 @@ export function Dashboard({ phase, players, currentOwner, owners, newsMap, seaso
           {POS_ORDER.map(pos => {
             const dep  = myGrade.posDep[pos];
             if (!dep?.count) return null;
-            const lgAtPos = players.filter(p => p.pos === pos);
-            const lgAvg   = lgAtPos.length ? lgAtPos.reduce((s,p)=>s+(p.dynastyValue||0),0)/lgAtPos.length : 1;
-            const ratio   = lgAvg > 0 ? dep.avg / lgAvg : 0;
-            const fill    = Math.min(100, Math.round(ratio * 100));
-            const col     = ratio>=0.90?"#22c55e":ratio>=0.70?"#60a5fa":ratio>=0.50?"#f59e0b":"#ef4444";
+            const pr   = posRanks[pos] ?? { score:50, leagueRank:5, leagueTotal:10 };
+            const score = pr.score ?? pr;  // backwards-compat if number
+            const col  = score >= 70 ? "#22c55e" : score >= 50 ? "#60a5fa" : score >= 30 ? "#f59e0b" : "#ef4444";
             const isWk = weakPos.has(pos);
             return (
               <div key={pos} style={{flex:"1 1 55px",minWidth:48}}>
                 <div style={{fontSize:8,color:isWk?"#f97316":"#7a95ae",marginBottom:3,
                   letterSpacing:1,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                   <span>{pos}{isWk?" ⚠":""}</span>
-                  <span style={{color:col,fontWeight:700}}>{dep.avg.toFixed(0)}</span>
+                  <span style={{color:col,fontWeight:900,fontSize:10}}>{score}</span>
                 </div>
-                <div style={{height:5,background:"#1e2d3d",borderRadius:3,overflow:"hidden",
+                <div style={{height:6,background:"#1e2d3d",borderRadius:3,overflow:"hidden",
                   border:isWk?"1px solid #f9731633":undefined}}>
-                  <div style={{height:"100%",width:`${fill}%`,background:col,borderRadius:3}}/>
+                  <div style={{height:"100%",width:`${score}%`,background:col,borderRadius:3,
+                    transition:"width .4s ease"}}/>
                 </div>
-                <div style={{fontSize:7,color:"#4d6880",marginTop:2}}>{dep.count} rostered</div>
+                <div style={{fontSize:7,color:"#4d6880",marginTop:3,display:"flex",justifyContent:"space-between"}}>
+                  <span>{dep.count} rostered</span>
+                  {pr.leagueRank && <span>#{pr.leagueRank}/{pr.leagueTotal}</span>}
+                </div>
               </div>
             );
           })}
@@ -260,31 +264,27 @@ export function Dashboard({ phase, players, currentOwner, owners, newsMap, seaso
             ⬡ POSITION GAPS VS LEAGUE AVG
           </div>
           <div style={{display:"flex",flexDirection:"column",gap:10}}>
-            {weak.map(({ pos, mine, league, gap }) => {
-              const mx   = Math.max(mine, league, 1);
-              const gCol = gap>=0?"#22c55e":gap>-100?"#f59e0b":"#ef4444";
+            {POS_ORDER.filter(pos => (myGrade.posDep[pos]?.count ?? 0) > 0).map(pos => {
+              const pr     = posRanks[pos] ?? { score:50 };
+              const score  = pr.score ?? pr;
+              const delta  = score - 50; // positive = above league midpoint, negative = below
+              const gCol   = score >= 60 ? "#22c55e" : score >= 40 ? "#f59e0b" : "#ef4444";
               return (
                 <div key={pos}>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
                     <span style={{fontSize:10,fontWeight:700,color:"#60a5fa"}}>{pos}</span>
                     <span style={{fontSize:9,color:gCol,fontWeight:700}}>
-                      {gap>=0?"+":""}{gap.toFixed(1)} vs avg
+                      {delta >= 0 ? `+${delta}` : delta} vs avg (50)
+                      {pr.leagueRank ? <span style={{color:"#4d6880",fontWeight:400,marginLeft:5}}>#{pr.leagueRank}/{pr.leagueTotal}</span> : null}
                     </span>
                   </div>
-                  <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:2}}>
-                    <div style={{width:30,fontSize:8,color:"#7a95ae",textAlign:"right"}}>YOU</div>
-                    <div style={{flex:1,height:5,background:"#1e2d3d",borderRadius:3,overflow:"hidden"}}>
-                      <div style={{height:"100%",width:`${(mine/mx)*100}%`,
-                        background:gap>=0?"#22c55e":"#ef4444",borderRadius:3}}/>
-                    </div>
-                    <div style={{width:24,fontSize:9,color:gCol,fontWeight:700,textAlign:"right"}}>{mine.toFixed(0)}</div>
-                  </div>
                   <div style={{display:"flex",alignItems:"center",gap:6}}>
-                    <div style={{width:30,fontSize:8,color:"#4d6880",textAlign:"right"}}>LG</div>
-                    <div style={{flex:1,height:5,background:"#1e2d3d",borderRadius:3,overflow:"hidden"}}>
-                      <div style={{height:"100%",width:`${(league/mx)*100}%`,background:"#4b6580",borderRadius:3}}/>
+                    <div style={{flex:1,height:6,background:"#1e2d3d",borderRadius:3,overflow:"hidden",position:"relative"}}>
+                      {/* Average marker at 50% */}
+                      <div style={{position:"absolute",left:"50%",top:0,bottom:0,width:1,background:"#2a3d52",zIndex:1}}/>
+                      <div style={{height:"100%",width:`${score}%`,background:gCol,borderRadius:3}}/>
                     </div>
-                    <div style={{width:24,fontSize:9,color:"#7a95ae",textAlign:"right"}}>{league.toFixed(0)}</div>
+                    <div style={{width:28,fontSize:9,color:gCol,fontWeight:700,textAlign:"right"}}>{score}</div>
                   </div>
                 </div>
               );

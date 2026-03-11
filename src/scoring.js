@@ -108,8 +108,20 @@ export const idpScarcity = (pos, t) => {
 // Value falls exponentially from rank — the cliff accelerates through tiers,
 // matching how the real dynasty trade market prices players.
 
-const DV_TOP = { QB:900, RB:950, WR:980, TE:820, DL:720, LB:750, DB:700, K:200 };
-const DV_K   = { QB:0.15, RB:0.18, WR:0.12, TE:0.18, DL:0.15, LB:0.15, DB:0.15, K:0.10 };
+// Dynasty-appropriate decay rates. Flatter curves vs redraft because every
+// rostered player in a 33-man dynasty roster has real trade value.
+// Old k values (0.12-0.18) were calibrated for a top-300 redraft list where
+// the bottom half of any position pool is worthless — wrong for dynasty.
+const DV_TOP   = { QB:900, RB:950, WR:980, TE:820, DL:720, LB:750, DB:700, K:200 };
+const DV_K     = { QB:0.08, RB:0.075, WR:0.065, TE:0.09, DL:0.10, LB:0.09, DB:0.10, K:0.06 };
+// Floor: even the last rostered player at a position gets at least 7% of DV_TOP.
+// Dynasty leagues roster 30-35 players — depth pieces have real trade value.
+// 0.04 produced near-zero values (RB floor ~9) after age mult, which misrepresents
+// depth pieces and drags position averages to nonsensical lows.
+const DV_FLOOR = 0.07;
+// QB superflex premium: in a SF league every team MUST start a QB in flex,
+// making QB2 nearly as scarce as WR1. +18% multiplier reflects that reality.
+const QB_SF_MULT = 1.18;
 
 export const calcDynastyValues = (players, eloScores = {}) => {
   const byPos = {};
@@ -129,16 +141,32 @@ export const calcDynastyValues = (players, eloScores = {}) => {
     const top = DV_TOP[pos] || 500;
     const k   = DV_K[pos]   || 0.15;
 
-    // Sort by dynasty-relevant composite: age upside + production + demand
-    const ranked = [...group].sort((a, b) => {
-      const ra = (a.ageGated_n || 0) * 0.50 + (a.prodProxy_n || 0) * 0.30 + (a.demandRaw_n || 0) * 0.20;
-      const rb = (b.ageGated_n || 0) * 0.50 + (b.prodProxy_n || 0) * 0.30 + (b.demandRaw_n || 0) * 0.20;
-      return rb - ra;
-    });
+    // Sort by dynasty-relevant composite using POSITION-LOCAL normalisation.
+    // Cross-position _n values (ageGated_n, prodProxy_n) can't be used here:
+    // WRs dominate the top of those distributions by sheer volume (140 WRs vs
+    // 90 QBs), so a starting QB like Dak ends up with lower _n than WR60, gets
+    // assigned a wrong position-rank idx, and receives a much lower DV than he
+    // deserves. Fix: normalise ageGated, prodProxy, demandRaw within this
+    // position group only, then sort on the local composite.
+    const localNorm = (arr, key) => {
+      const vals = arr.map(x => x[key] ?? 0);
+      const mn = Math.min(...vals), mx = Math.max(...vals);
+      const range = mx - mn;
+      return arr.map(x => range > 0 ? ((x[key] ?? 0) - mn) / range : 0.5);
+    };
+    const ageNorm  = localNorm(group, "ageGated");
+    const prodNorm = localNorm(group, "prodProxy");
+    const demNorm  = localNorm(group, "demandRaw");
+
+    const ranked = [...group]
+      .map((p, i) => ({ p, score: ageNorm[i] * 0.50 + prodNorm[i] * 0.30 + demNorm[i] * 0.20 }))
+      .sort((a, b) => b.score - a.score)
+      .map(x => x.p);
 
     ranked.forEach((p, idx) => {
-      // Exponential base from rank
-      let dv = top * Math.exp(-k * idx);
+      // Exponential base from rank, with dynasty floor so depth pieces aren't ~0
+      const floor = top * DV_FLOOR;
+      let dv = Math.max(floor, top * Math.exp(-k * idx));
 
       // Age multiplier — young players get dynasty premium, old past cliff get steep discount
       const [rise, peak, cliff] = PRIME[p.pos] || [23, 28, 33];
@@ -150,6 +178,10 @@ export const calcDynastyValues = (players, eloScores = {}) => {
       else                   ageMult = Math.max(0.25, 0.65 - (age - cliff) * 0.12);
 
       dv *= ageMult;
+
+      // QB superflex premium — SF leagues require a QB in every flex,
+      // making QB2 nearly as valuable as WR1. Applied after age mult.
+      if (pos === "QB") dv = Math.min(999, dv * QB_SF_MULT);
 
       // Elo peer blend (15% once active, keeps the community signal in range)
       if (eloActive && eloScores[p.pid]) {
