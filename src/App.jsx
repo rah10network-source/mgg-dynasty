@@ -378,257 +378,393 @@ export default function App() {
       return sortAsc?r:-r;
     });
 
-  return(
-    <div style={{background:"#0d1117",color:"#e2e8f0",minHeight:"100vh",fontFamily:"'JetBrains Mono','Courier New',monospace"}}>
 
-      {isViewMode&&(
-        <div style={{background:"#0d1f14",borderBottom:"1px solid #9580FF33",padding:"6px 22px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-          <div style={{display:"flex",alignItems:"center",gap:10}}>
-            <span style={{fontSize:9,color:"#9580FF",fontWeight:700,letterSpacing:2}}>👁 VIEWING</span>
-            <span style={{fontSize:12,color:"#e2e8f0",fontWeight:700}}>{viewingOwner}</span>
-            <span style={{fontSize:9,color:"#8892a4"}}>· read-only · your personal data is unchanged</span>
+  // ── Nav config with SVG icons ─────────────────────────────────────────────
+  const NAV_ITEMS = [
+    { id:"dashboard",  label:"DASHBOARD",       icon:(a)=>(
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={a?"#9580FF":"#4a5568"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+        <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+      </svg>
+    )},
+    { id:"leaguehub", label:"LEAGUE HUB",       icon:(a)=>(
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={a?"#9580FF":"#4a5568"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="8" r="4"/><path d="M6 20v-2a6 6 0 0 1 12 0v2"/>
+        <circle cx="4" cy="10" r="2.5"/><path d="M1 20v-1a4 4 0 0 1 6-3.5"/>
+        <circle cx="20" cy="10" r="2.5"/><path d="M23 20v-1a4 4 0 0 0-6-3.5"/>
+      </svg>
+    )},
+    { id:"teamhub",   label:"TEAM HUB",         icon:(a)=>(
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={a?"#9580FF":"#4a5568"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/>
+      </svg>
+    )},
+    { id:"playerhub", label:"PLAYER HUB",       icon:(a)=>(
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={a?"#9580FF":"#4a5568"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+      </svg>
+    )},
+    { id:"tools",     label:"ANALYSIS TOOLS",   icon:(a)=>(
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={a?"#9580FF":"#4a5568"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+      </svg>
+    )},
+    { id:"drafthub",  label:"DRAFT HUB",        icon:(a)=>(
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={a?"#9580FF":"#4a5568"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/>
+      </svg>
+    )},
+    { id:"log",       label:"SYNC LOG",         icon:(a)=>(
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={a?"#9580FF":"#4a5568"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/>
+        <line x1="8" y1="17" x2="16" y2="17"/><line x1="8" y1="9" x2="10" y2="9"/>
+      </svg>
+    )},
+  ];
+
+  const SEASON_MODE_COLORS = {
+    offseason:"#8892a4", preseason:"#00D4FF", inseason:"#9580FF",
+    playoffs:"#FFD700",  complete:"#4a5568",
+  };
+
+  // ── Sidebar component (desktop) ───────────────────────────────────────────
+  const Sidebar = () => (
+    <div style={{
+      position:"fixed", top:0, left:0, height:"100vh", width:210,
+      background:"#161b26", borderRight:"1px solid #242d40",
+      display:"flex", flexDirection:"column", zIndex:100, overflowY:"auto",
+    }}>
+      {/* Logo */}
+      <div style={{padding:"18px 16px 14px", borderBottom:"1px solid #242d40"}}>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <div style={{
+            width:32, height:32, background:"#9580FF",
+            display:"flex", alignItems:"center", justifyContent:"center",
+            fontSize:18, fontWeight:900, color:"#0d1117", flexShrink:0,
+          }}>Ω</div>
+          <div>
+            <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:16,letterSpacing:"0.12em",color:"#9580FF",lineHeight:1}}>MGG DYNASTY</div>
+            <div style={{fontSize:8,color:"#2a3548",letterSpacing:"0.15em",marginTop:2}}>INTELLIGENCE BOARD</div>
           </div>
-          <button onClick={exitViewMode} style={{background:"none",border:"1px solid #9580FF44",color:"#9580FF",borderRadius:4,padding:"3px 10px",fontFamily:"inherit",fontSize:9,cursor:"pointer",letterSpacing:1,fontWeight:700}}>✕ EXIT VIEW</button>
+        </div>
+        {/* Identity button */}
+        <button onClick={()=>setLoginOpen(true)} style={{
+          width:"100%", marginTop:12, background:"none",
+          border:`1px solid ${isCommissioner?"#FFD70033":"#242d40"}`,
+          color:isCommissioner?"#FFD700":"#4a5568",
+          padding:"6px 10px", fontFamily:"'Inter',sans-serif",
+          fontSize:10, cursor:"pointer", textAlign:"left",
+          display:"flex", alignItems:"center", gap:6, borderRadius:0,
+        }}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+          {isCommissioner && <span>★ </span>}
+          <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+            {identity ? (currentOwner || identity.displayName) : "LOG IN"}
+          </span>
+        </button>
+      </div>
+
+      {/* Nav items */}
+      <nav style={{padding:"8px 0", flex:1}}>
+        <div style={{fontSize:9,color:"#2a3548",letterSpacing:"0.18em",fontFamily:"'Bebas Neue',sans-serif",padding:"8px 16px 4px"}}>NAVIGATE</div>
+        {NAV_ITEMS.map(({id,label,icon}) => {
+          const active = tab === id;
+          return (
+            <button key={id} onClick={()=>setTab(id)} style={{
+              width:"100%", display:"flex", alignItems:"center", gap:12,
+              background: active ? "#9580FF14" : "transparent",
+              border:"none",
+              borderLeft: active ? "3px solid #9580FF" : "3px solid transparent",
+              padding:"10px 16px",
+              color: active ? "#9580FF" : "#4a5568",
+              fontFamily:"'Bebas Neue',sans-serif",
+              fontSize:13, letterSpacing:"0.1em",
+              cursor:"pointer", textAlign:"left",
+              transition:"all .12s",
+            }}
+            onMouseEnter={e=>{ if(!active){ e.currentTarget.style.background="#9580FF0a"; e.currentTarget.style.color="#8892a4"; }}}
+            onMouseLeave={e=>{ if(!active){ e.currentTarget.style.background="transparent"; e.currentTarget.style.color="#4a5568"; }}}
+            >
+              {icon(active)}
+              {label}
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* DV / SV toggle */}
+      <div style={{padding:"10px 14px", borderTop:"1px solid #242d40"}}>
+        <div style={{fontSize:9,color:"#2a3548",letterSpacing:"0.18em",fontFamily:"'Bebas Neue',sans-serif",marginBottom:6}}>VIEW MODE</div>
+        <div style={{display:"flex", border:"1px solid #242d40", overflow:"hidden"}}>
+          {[["dynasty","DV","#9580FF"],["redraft","SV","#00D4FF"]].map(([m,lbl,col])=>{
+            const active = viewMode===m;
+            return (
+              <button key={m} onClick={()=>{setViewMode(m);try{localStorage.setItem("mgg_view_mode",m);}catch{}}} style={{
+                flex:1, background:active?col+"22":"transparent",
+                color:active?col:"#2a3548", border:"none",
+                padding:"7px 0", fontFamily:"'Bebas Neue',sans-serif",
+                fontSize:13, letterSpacing:"0.1em",
+                cursor:"pointer", transition:"all .15s",
+              }}>{lbl}</button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Season mode */}
+      <div style={{padding:"8px 14px", borderTop:"1px solid #242d40"}}>
+        <div style={{fontSize:9,color:"#2a3548",letterSpacing:"0.18em",fontFamily:"'Bebas Neue',sans-serif",marginBottom:6}}>SEASON</div>
+        <div style={{display:"flex",flexWrap:"wrap",gap:3}}>
+          {SEASON_MODES.map(m=>{
+            const active=seasonState.mode===m;
+            const col=SEASON_MODE_COLORS[m];
+            return (
+              <button key={m} onClick={()=>overrideSeasonMode(m)} style={{
+                background:active?col+"22":"transparent",
+                color:active?col:"#2a3548",
+                border:`1px solid ${active?col+"44":"#242d40"}`,
+                padding:"3px 7px", fontFamily:"'Bebas Neue',sans-serif",
+                fontSize:10, letterSpacing:"0.08em", cursor:"pointer",
+              }}>{m.slice(0,3).toUpperCase()}</button>
+            );
+          })}
+          {seasonState._override && (
+            <button onClick={clearSeasonOverride} style={{background:"#FFD70022",color:"#FFD700",border:"1px solid #FFD70044",padding:"3px 7px",fontFamily:"'Bebas Neue',sans-serif",fontSize:10,cursor:"pointer"}}>AUTO</button>
+          )}
+        </div>
+      </div>
+
+      {/* Action buttons */}
+      <div style={{padding:"10px 14px 20px", borderTop:"1px solid #242d40", display:"flex", flexDirection:"column", gap:6}}>
+        <button onClick={doLoad} disabled={phase==="loading"} style={{
+          background: phase==="loading" ? "#1d2535" : "#9580FF22",
+          color: phase==="loading" ? "#4a5568" : "#9580FF",
+          border:`1px solid ${phase==="loading"?"#242d40":"#9580FF66"}`,
+          padding:"8px 0", width:"100%", fontFamily:"'Bebas Neue',sans-serif",
+          fontSize:13, letterSpacing:"0.12em", cursor:phase==="loading"?"not-allowed":"pointer",
+          display:"flex", alignItems:"center", justifyContent:"center", gap:8,
+        }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          {phase==="loading" ? "SYNCING..." : "SYNC DATA"}
+        </button>
+        <button onClick={doIntel} disabled={newsPhase==="loading"||!players.length} style={{
+          background: (newsPhase==="loading"||!players.length) ? "#1d2535" : "#FFD70022",
+          color: (newsPhase==="loading"||!players.length) ? "#4a5568" : "#FFD700",
+          border:`1px solid ${(newsPhase==="loading"||!players.length)?"#242d40":"#FFD70066"}`,
+          padding:"8px 0", width:"100%", fontFamily:"'Bebas Neue',sans-serif",
+          fontSize:13, letterSpacing:"0.12em",
+          cursor:(newsPhase==="loading"||!players.length)?"not-allowed":"pointer",
+          display:"flex", alignItems:"center", justifyContent:"center", gap:8,
+        }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          {newsPhase==="loading" ? "SCANNING..." : "INTEL SCAN"}
+        </button>
+        <button onClick={()=>doExport(players,newsMap)} disabled={!players.length} style={{
+          background:!players.length?"#1d2535":"#00D4FF22",
+          color:!players.length?"#4a5568":"#00D4FF",
+          border:`1px solid ${!players.length?"#242d40":"#00D4FF66"}`,
+          padding:"8px 0", width:"100%", fontFamily:"'Bebas Neue',sans-serif",
+          fontSize:13, letterSpacing:"0.12em",
+          cursor:!players.length?"not-allowed":"pointer",
+          display:"flex", alignItems:"center", justifyContent:"center", gap:8,
+        }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          EXPORT XLSX
+        </button>
+        {syncedAt && <div style={{fontSize:8,color:"#2a3548",letterSpacing:"0.12em",textAlign:"center",fontFamily:"'Bebas Neue',sans-serif"}}>SYNCED {syncedAt}</div>}
+      </div>
+    </div>
+  );
+
+  // ── Mobile bottom nav ─────────────────────────────────────────────────────
+  const MobileNav = () => (
+    <div style={{
+      position:"fixed", bottom:0, left:0, right:0, height:56,
+      background:"#161b26", borderTop:"1px solid #242d40",
+      display:"flex", alignItems:"stretch", zIndex:100,
+    }}>
+      {NAV_ITEMS.slice(0,5).map(({id,icon,label})=>{
+        const active = tab===id;
+        return (
+          <button key={id} onClick={()=>setTab(id)} style={{
+            flex:1, display:"flex", flexDirection:"column",
+            alignItems:"center", justifyContent:"center", gap:3,
+            background: active ? "#9580FF14" : "transparent",
+            border:"none",
+            borderTop: active ? "2px solid #9580FF" : "2px solid transparent",
+            color: active ? "#9580FF" : "#4a5568",
+            cursor:"pointer", padding:0,
+          }}>
+            {icon(active)}
+            <span style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:8,letterSpacing:"0.1em"}}>{label.split(" ")[0]}</span>
+          </button>
+        );
+      })}
+      {/* More button for tools/draft/log */}
+      <button onClick={()=>setMobileMoreOpen(x=>!x)} style={{
+        flex:1, display:"flex", flexDirection:"column",
+        alignItems:"center", justifyContent:"center", gap:3,
+        background:"transparent", border:"none", borderTop:"2px solid transparent",
+        color:"#4a5568", cursor:"pointer", padding:0,
+      }}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4a5568" strokeWidth="2"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+        <span style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:8,letterSpacing:"0.1em"}}>MORE</span>
+      </button>
+    </div>
+  );
+
+  // ── Mobile "more" sheet ───────────────────────────────────────────────────
+  const MobileMoreSheet = () => mobileMoreOpen ? (
+    <>
+      <div onClick={()=>setMobileMoreOpen(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:199}}/>
+      <div style={{
+        position:"fixed", bottom:56, left:0, right:0,
+        background:"#161b26", borderTop:"1px solid #242d40",
+        zIndex:200, padding:"12px 0",
+      }}>
+        {NAV_ITEMS.slice(5).map(({id,icon,label})=>(
+          <button key={id} onClick={()=>{setTab(id);setMobileMoreOpen(false);}} style={{
+            width:"100%", display:"flex", alignItems:"center", gap:14,
+            background:tab===id?"#9580FF14":"transparent", border:"none",
+            borderLeft:tab===id?"3px solid #9580FF":"3px solid transparent",
+            padding:"12px 20px", color:tab===id?"#9580FF":"#8892a4",
+            fontFamily:"'Bebas Neue',sans-serif", fontSize:14,
+            letterSpacing:"0.1em", cursor:"pointer",
+          }}>
+            {icon(tab===id)}
+            {label}
+          </button>
+        ))}
+        <div style={{borderTop:"1px solid #242d40",margin:"10px 0"}}/>
+        <div style={{display:"flex",gap:8,padding:"4px 16px"}}>
+          <button onClick={()=>{doLoad();setMobileMoreOpen(false);}} disabled={phase==="loading"} style={{flex:1,background:"#9580FF22",color:"#9580FF",border:"1px solid #9580FF44",padding:"9px 0",fontFamily:"'Bebas Neue',sans-serif",fontSize:12,letterSpacing:"0.1em",cursor:"pointer"}}>⟳ SYNC</button>
+          <button onClick={()=>{doIntel();setMobileMoreOpen(false);}} disabled={newsPhase==="loading"||!players.length} style={{flex:1,background:"#FFD70022",color:"#FFD700",border:"1px solid #FFD70044",padding:"9px 0",fontFamily:"'Bebas Neue',sans-serif",fontSize:12,letterSpacing:"0.1em",cursor:"pointer"}}>◈ INTEL</button>
+        </div>
+        <button onClick={()=>setLoginOpen(true)} style={{display:"flex",alignItems:"center",gap:10,width:"100%",background:"none",border:"none",padding:"10px 20px",color:"#4a5568",fontFamily:"'Inter',sans-serif",fontSize:11,cursor:"pointer"}}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4a5568" strokeWidth="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+          {identity ? (currentOwner || identity.displayName) : "LOG IN"}
+        </button>
+      </div>
+    </>
+  ) : null;
+
+  const [isMobile, setIsMobile] = useState(()=>typeof window!=="undefined"&&window.innerWidth<768);
+  const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
+  useEffect(()=>{
+    const h=()=>setIsMobile(window.innerWidth<768);
+    window.addEventListener("resize",h);
+    return()=>window.removeEventListener("resize",h);
+  },[]);
+
+  // ── Main content area ─────────────────────────────────────────────────────
+  const CONTENT_PADDING = isMobile ? "12px 12px 72px" : "20px 24px";
+  const CONTENT_MARGIN_LEFT = isMobile ? 0 : 210;
+
+  return (
+    <div style={{background:"#0d1117",color:"#e2e8f0",minHeight:"100vh",fontFamily:"'Inter',sans-serif"}}>
+
+      {/* Sidebar — desktop only */}
+      {!isMobile && <Sidebar />}
+
+      {/* Mobile nav */}
+      {isMobile && <MobileNav />}
+      {isMobile && <MobileMoreSheet />}
+
+      {/* View mode banner */}
+      {isViewMode && (
+        <div style={{
+          position:"fixed", top:0, left:isMobile?0:210, right:0,
+          background:"#0d1f14", borderBottom:"1px solid #9580FF33",
+          padding:"6px 20px", display:"flex", alignItems:"center",
+          justifyContent:"space-between", zIndex:90,
+        }}>
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <span style={{fontSize:9,color:"#9580FF",fontWeight:700,letterSpacing:2,fontFamily:"'Bebas Neue',sans-serif"}}>👁 VIEWING</span>
+            <span style={{fontSize:12,color:"#e2e8f0",fontWeight:700}}>{viewingOwner}</span>
+            <span style={{fontSize:9,color:"#4a5568"}}>· read-only</span>
+          </div>
+          <button onClick={exitViewMode} style={{background:"none",border:"1px solid #9580FF44",color:"#9580FF",padding:"3px 10px",fontFamily:"'Bebas Neue',sans-serif",fontSize:11,cursor:"pointer",letterSpacing:"0.1em"}}>✕ EXIT VIEW</button>
         </div>
       )}
 
-      {/* ── MOBILE NAV DRAWER ──────────────────────────────────────────────── */}
-      {isMobile && (
-        <>
-          {menuOpen && (
-            <div onClick={()=>setMenuOpen(false)}
-              style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.65)",zIndex:999,backdropFilter:"blur(2px)"}}/>
-          )}
-          <div style={{
-            position:"fixed",top:0,left:0,height:"100%",width:272,
-            background:"#161b26",
-            borderRight:"1px solid #242d40",
-            transform:menuOpen?"translateX(0)":"translateX(-100%)",
-            transition:"transform .25s cubic-bezier(.4,0,.2,1)",
-            zIndex:1000,display:"flex",flexDirection:"column",overflowY:"auto",
-          }}>
-            <div style={{padding:"18px 16px 12px",borderBottom:"1px solid #242d40",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-              <div style={{display:"flex",alignItems:"center",gap:10}}>
-                <div style={{width:28,height:28,background:"#9580FF",borderRadius:6,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:900,color:"#0d1117"}}>Ω</div>
-                <div style={{fontSize:12,fontWeight:900,letterSpacing:2,color:"#9580FF"}}>MGG DYNASTY</div>
-              </div>
-              <button onClick={()=>setMenuOpen(false)}
-                style={{background:"none",border:"none",color:"#8892a4",fontSize:16,cursor:"pointer",padding:4,lineHeight:1}}>✕</button>
-            </div>
+      {/* Main content */}
+      <div style={{marginLeft:CONTENT_MARGIN_LEFT, padding:CONTENT_PADDING, marginTop:isViewMode?36:0}}>
 
-            <div style={{padding:"8px 12px",borderBottom:"1px solid #242d40"}}>
-              <button onClick={()=>{setLoginOpen(true);setMenuOpen(false);}}
-                style={{width:"100%",background:"none",border:`1px solid ${isCommissioner?"#f59e0b44":"#242d40"}`,
-                  color:isCommissioner?"#FFD700":"#8892a4",borderRadius:5,padding:"7px 10px",
-                  fontFamily:"inherit",fontSize:9,cursor:"pointer",letterSpacing:1,textAlign:"left",
-                  display:"flex",alignItems:"center",gap:6}}>
-                {isCommissioner&&<span>★</span>}
-                {identity ? `◎ ${currentOwner||identity.displayName}` : "◎ LOG IN"}
-              </button>
+        {/* Page header — tab title + season badge */}
+        {!isMobile && (
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20,paddingBottom:14,borderBottom:"1px solid #242d40"}}>
+            <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:22,letterSpacing:"0.12em",color:"#e2e8f0"}}>
+              {NAV_ITEMS.find(n=>n.id===tab)?.label || "DASHBOARD"}
             </div>
-
-            <div style={{padding:"6px 10px",flex:1}}>
-              <div style={{fontSize:8,color:"#2a3548",letterSpacing:2,fontWeight:700,padding:"6px 6px 4px"}}>NAVIGATE</div>
-              {[
-                ["dashboard","Ω","DASHBOARD"],
-                ["leaguehub","⬡","LEAGUE HUB"],
-                ["teamhub","◎","TEAM HUB"],
-                ["playerhub","◈","PLAYER HUB"],
-                ["tools","⇄","ANALYSIS TOOLS"],
-                ["drafthub","◈","DRAFT HUB"],
-                ["log","▸","LOG"],
-              ].map(([id,icon,lbl])=>{
-                const active = tab === id;
-                return (
-                  <button key={id} onClick={()=>{setTab(id);setMenuOpen(false);}}
-                    style={{width:"100%",display:"flex",alignItems:"center",gap:10,
-                      background:active?"rgba(149,128,255,0.1)":"transparent",
-                      border:"none",borderRadius:6,padding:"10px 10px",
-                      color:active?"#9580FF":"#8892a4",fontFamily:"inherit",
-                      fontSize:11,fontWeight:active?900:400,letterSpacing:active?1.5:1,
-                      cursor:"pointer",textAlign:"left",marginBottom:2,
-                      borderLeft:active?"3px solid #9580FF":"2px solid transparent",
-                      transition:"all .12s"}}>
-                    <span style={{fontSize:12,width:16,textAlign:"center"}}>{icon}</span>
-                    {lbl}
-                  </button>
-                );
-              })}
-            </div>
-
-            <div style={{padding:"8px 12px",borderTop:"1px solid #242d40"}}>
-              <div style={{fontSize:8,color:"#2a3548",letterSpacing:2,fontWeight:700,marginBottom:6}}>VIEW MODE</div>
-              <div style={{display:"flex",background:"#1d2535",border:"1px solid #242d40",borderRadius:5,overflow:"hidden"}}>
-                {[["dynasty","DV","#9580FF"],["redraft","SV","#00D4FF"]].map(([m,lbl,col])=>{
-                  const active = viewMode === m;
-                  return (
-                    <button key={m} onClick={()=>{setViewMode(m);try{localStorage.setItem("mgg_view_mode",m);}catch{}}}
-                      style={{flex:1,background:active?col+"22":"transparent",color:active?col:"#2a3548",
-                        border:"none",padding:"8px 0",fontFamily:"inherit",fontSize:9,
-                        fontWeight:active?900:400,letterSpacing:1,cursor:"pointer",transition:"all .15s"}}>
-                      {lbl}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div style={{padding:"6px 12px",borderTop:"1px solid #242d40"}}>
-              <div style={{fontSize:8,color:"#2a3548",letterSpacing:2,fontWeight:700,marginBottom:5}}>SEASON MODE</div>
-              <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
-                {SEASON_MODES.map(m=>{
-                  const active=seasonState.mode===m;
-                  const col={offseason:"#8892a4",preseason:"#00D4FF",inseason:"#9580FF",playoffs:"#FFD700",complete:"#8892a4"}[m];
-                  return (
-                    <button key={m} onClick={()=>overrideSeasonMode(m)}
-                      style={{background:active?col+"22":"transparent",color:active?col:"#2a3548",
-                        border:`1px solid ${active?col+"55":"#242d40"}`,borderRadius:4,
-                        padding:"4px 7px",fontFamily:"inherit",fontSize:8,fontWeight:active?900:400,
-                        letterSpacing:1,cursor:"pointer"}}>
-                      {m.slice(0,3).toUpperCase()}
-                    </button>
-                  );
-                })}
-                {seasonState._override&&<button onClick={clearSeasonOverride} style={{background:"#f59e0b22",color:"#FFD700",border:"1px solid #f59e0b44",borderRadius:4,padding:"4px 7px",fontFamily:"inherit",fontSize:8,cursor:"pointer"}}>AUTO</button>}
-              </div>
-            </div>
-
-            <div style={{padding:"10px 12px 22px",borderTop:"1px solid #242d40",display:"flex",flexDirection:"column",gap:6}}>
-              <Btn onClick={()=>{doLoad();setMenuOpen(false);}} disabled={phase==="loading"} grad="#9580FF22">{phase==="loading"?"◌ SYNCING...":"⟳ SYNC DATA"}</Btn>
-              <Btn onClick={()=>{doIntel();setMenuOpen(false);}} disabled={newsPhase==="loading"||!players.length} grad="linear-gradient(135deg,#f59e0b,#d97706)">{newsPhase==="loading"?"◌ SCANNING...":"◈ INTEL SCAN"}</Btn>
-              <Btn onClick={()=>doExport(players,newsMap)} disabled={!players.length} grad="linear-gradient(135deg,#6366f1,#4f46e5)">⬇ EXPORT XLSX</Btn>
-              {syncedAt&&<div style={{fontSize:8,color:"#2a3548",letterSpacing:1,textAlign:"center",marginTop:2}}>SYNCED {syncedAt}</div>}
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* ── HEADER ─────────────────────────────────────────────────────────── */}
-      <div style={{background:"#161b26",borderBottom:"1px solid #242d40",padding:isMobile?"10px 14px":"16px 22px"}}>
-        {isMobile ? (
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
             <div style={{display:"flex",alignItems:"center",gap:10}}>
-              <div style={{width:30,height:30,background:"#9580FF",borderRadius:7,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,fontWeight:900,color:"#0d1117"}}>Ω</div>
-              <div>
-                <div style={{fontSize:13,fontWeight:900,letterSpacing:2,color:"#9580FF"}}>MGG DYNASTY</div>
-                <div style={{fontSize:8,color:"#9580FF",letterSpacing:1,fontWeight:700,marginTop:1}}>
-                  {[["dashboard","Ω DASHBOARD"],["leaguehub","⬡ LEAGUE HUB"],["teamhub","◎ TEAM HUB"],["playerhub","◈ PLAYER HUB"],["tools","⇄ ANALYSIS TOOLS"],["drafthub","◈ DRAFT HUB"],["log","▸ LOG"]].find(([id])=>id===tab)?.[1]||""}
-                </div>
-              </div>
-            </div>
-            <div style={{display:"flex",alignItems:"center",gap:6}}>
-              <button onClick={doLoad} disabled={phase==="loading"}
-                style={{background:"#9580FF22",border:"none",borderRadius:6,
-                  padding:"7px 11px",color:"#0d1117",fontFamily:"inherit",fontSize:10,fontWeight:900,
-                  cursor:"pointer",opacity:phase==="loading"?0.5:1,lineHeight:1}}>
-                {phase==="loading"?"◌":"⟳"}
-              </button>
-              <button onClick={doIntel} disabled={newsPhase==="loading"||!players.length}
-                style={{background:"linear-gradient(135deg,#f59e0b,#d97706)",border:"none",borderRadius:6,
-                  padding:"7px 11px",color:"#0d1117",fontFamily:"inherit",fontSize:10,fontWeight:900,
-                  cursor:"pointer",opacity:(newsPhase==="loading"||!players.length)?0.5:1,lineHeight:1}}>
-                {newsPhase==="loading"?"◌":"◈"}
-              </button>
-              <button onClick={()=>setMenuOpen(true)}
-                style={{background:"#1d2535",border:"1px solid #242d40",borderRadius:6,
-                  width:34,height:34,cursor:"pointer",display:"flex",flexDirection:"column",
-                  alignItems:"center",justifyContent:"center",gap:4,padding:0}}>
-                <span style={{display:"block",width:14,height:2,background:"#e2e8f0",borderRadius:1}}/>
-                <span style={{display:"block",width:14,height:2,background:"#e2e8f0",borderRadius:1}}/>
-                <span style={{display:"block",width:14,height:2,background:"#e2e8f0",borderRadius:1}}/>
-              </button>
+              {syncedAt && <span style={{fontSize:9,color:"#2a3548",letterSpacing:"0.12em",fontFamily:"'Bebas Neue',sans-serif"}}>SYNCED {syncedAt}</span>}
+              <span style={{
+                fontSize:9, fontFamily:"'Bebas Neue',sans-serif", letterSpacing:"0.12em",
+                background:SEASON_MODE_COLORS[seasonState.mode]+"22",
+                color:SEASON_MODE_COLORS[seasonState.mode],
+                border:`1px solid ${SEASON_MODE_COLORS[seasonState.mode]}44`,
+                padding:"3px 10px",
+              }}>
+                {seasonState.season} · {seasonState.mode.toUpperCase()}
+                {seasonState.currentWeek ? ` · WK ${seasonState.currentWeek}` : ""}
+              </span>
+              {seasonState._override && (
+                <button onClick={clearSeasonOverride} style={{background:"#FFD70022",color:"#FFD700",border:"1px solid #FFD70044",padding:"3px 8px",fontFamily:"'Bebas Neue',sans-serif",fontSize:9,cursor:"pointer",letterSpacing:"0.1em"}}>OVERRIDE ON</button>
+              )}
             </div>
           </div>
-        ) : (
-          <>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:10}}>
-              <div style={{display:"flex",alignItems:"center",gap:12}}>
-                <div style={{width:36,height:36,background:"#9580FF",borderRadius:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,fontWeight:900,color:"#0d1117"}}>Ω</div>
-                <div>
-                  <div style={{fontSize:19,fontWeight:900,letterSpacing:3,color:"#9580FF"}}>MGG DYNASTY</div>
-                  <div style={{fontSize:8,color:"#2a3548",letterSpacing:4,marginTop:1}}>LIVE INTELLIGENCE BOARD · {LEAGUE_ID}</div>
-                </div>
-              </div>
-              <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
-                {syncedAt&&<span style={{fontSize:9,color:"#2a3548",letterSpacing:1}}>SYNCED {syncedAt}</span>}
-                <button onClick={()=>setLoginOpen(true)}
-                  style={{background:"none",border:`1px solid ${isCommissioner?"#f59e0b44":"#242d40"}`,
-                    color:isCommissioner?"#FFD700":"#8892a4",borderRadius:5,padding:"5px 12px",
-                    fontFamily:"inherit",fontSize:9,cursor:"pointer",letterSpacing:1,
-                    display:"flex",alignItems:"center",gap:5}}>
-                  {isCommissioner&&<span>★</span>}
-                  {identity ? `◎ ${currentOwner||identity.displayName}` : "◎ LOG IN"}
-                </button>
-                <div style={{display:"flex",alignItems:"center",background:"#1d2535",border:"1px solid #242d40",borderRadius:5,overflow:"hidden"}}>
-                  {SEASON_MODES.map(m=>{const active=seasonState.mode===m;const col={offseason:"#8892a4",preseason:"#00D4FF",inseason:"#9580FF",playoffs:"#FFD700",complete:"#8892a4"}[m];return(
-                    <button key={m} onClick={()=>overrideSeasonMode(m)} title={seasonState._override?"Manual override":"Auto-detected"}
-                      style={{background:active?col+"22":"transparent",color:active?col:"#2a3548",border:"none",padding:"4px 8px",fontFamily:"inherit",fontSize:8,fontWeight:active?900:400,letterSpacing:1,cursor:"pointer",borderRight:"1px solid #242d40",transition:"all .15s"}}>
-                      {m.slice(0,3).toUpperCase()}
-                    </button>
-                  );})}
-                  {seasonState._override&&<button onClick={clearSeasonOverride} style={{background:"#f59e0b22",color:"#FFD700",border:"none",padding:"4px 6px",fontFamily:"inherit",fontSize:8,cursor:"pointer"}}>AUTO</button>}
-                </div>
-                <Btn onClick={doLoad}   disabled={phase==="loading"}                      grad="#9580FF22">{phase==="loading"?"◌ SYNCING...":"⟳ SYNC DATA"}</Btn>
-                <Btn onClick={doIntel}  disabled={newsPhase==="loading"||!players.length}  grad="linear-gradient(135deg,#f59e0b,#d97706)">{newsPhase==="loading"?"◌ SCANNING...":"◈ INTEL SCAN"}</Btn>
-                <div style={{display:"flex",alignItems:"center",background:"#1d2535",border:"1px solid #242d40",borderRadius:5,overflow:"hidden"}}>
-                  {[["dynasty","DV","#9580FF"],["redraft","SV","#00D4FF"]].map(([m,lbl,col])=>{
-                    const active = viewMode === m;
-                    return (
-                      <button key={m} onClick={()=>{setViewMode(m);try{localStorage.setItem("mgg_view_mode",m);}catch{}}}
-                        title={m==="dynasty"?"Dynasty Value (0-1000) — trade & asset view":"Start Value (0-100) — weekly redraft view"}
-                        style={{background:active?col+"22":"transparent",color:active?col:"#2a3548",
-                          border:"none",padding:"5px 10px",fontFamily:"inherit",fontSize:8,
-                          fontWeight:active?900:400,letterSpacing:1,cursor:"pointer",transition:"all .15s"}}>
-                        {lbl}
-                      </button>
-                    );
-                  })}
-                </div>
-                <Btn onClick={()=>doExport(players,newsMap)} disabled={!players.length} grad="linear-gradient(135deg,#6366f1,#4f46e5)">⬇ EXPORT XLSX</Btn>
-              </div>
-            </div>
-            <div style={{display:"flex",gap:0,marginTop:16,borderBottom:"1px solid #242d40"}}>
-              {[["dashboard","Ω DASHBOARD"],["leaguehub","⬡ LEAGUE HUB"],["teamhub","◎ TEAM HUB"],["playerhub","◈ PLAYER HUB"],["tools","⇄ ANALYSIS TOOLS"],["drafthub","◈ DRAFT HUB"],["log","▸ LOG"]]
-                .map(([id,lbl])=>(<button key={id} onClick={()=>setTab(id)} style={{background:"none",border:"none",borderBottom:tab===id?"3px solid #9580FF":"2px solid transparent",color:tab===id?"#9580FF":"#8892a4",padding:"7px 16px",fontFamily:"inherit",fontSize:10,letterSpacing:2,fontWeight:700,cursor:"pointer"}}>{lbl}</button>))}
-            </div>
-          </>
         )}
-      </div>
 
-      <div style={{padding:isMobile?"12px 10px":"18px 22px"}}>
-        {phase==="idle"&&(
-          <div style={{textAlign:"center",padding:"72px 20px",border:"1px dashed #242d40",borderRadius:0}}>
-            <div style={{fontSize:48,fontWeight:900,color:"#9580FF",marginBottom:14}}>Ω</div>
-            <div style={{fontSize:13,color:"#8892a4",letterSpacing:3,marginBottom:8}}>DYNASTY INTELLIGENCE SYSTEM</div>
-            <div style={{fontSize:11,color:"#2a3548",maxWidth:420,margin:"0 auto 6px",lineHeight:1.9}}>
+        {/* Idle state */}
+        {phase==="idle" && (
+          <div style={{textAlign:"center",padding:"80px 20px",border:"1px dashed #242d40"}}>
+            <div style={{fontSize:56,fontWeight:900,color:"#9580FF",marginBottom:16,fontFamily:"'Bebas Neue',sans-serif",letterSpacing:"0.1em"}}>Ω</div>
+            <div style={{fontSize:20,color:"#8892a4",letterSpacing:"0.15em",marginBottom:10,fontFamily:"'Bebas Neue',sans-serif"}}>DYNASTY INTELLIGENCE SYSTEM</div>
+            <div style={{fontSize:11,color:"#2a3548",maxWidth:380,margin:"0 auto 8px",lineHeight:2}}>
               <span style={{color:"#9580FF"}}>Sleeper API</span> — live rosters, depth charts, transactions<br/>
               <span style={{color:"#00D4FF"}}>Sleeper Stats</span> — season PPG + stat lines per player<br/>
               <span style={{color:"#FFD700"}}>Intel Scan</span> — ESPN headlines + BUY/SELL/HOLD signals
             </div>
-            <div style={{fontSize:10,color:"#242d40",marginBottom:26}}>⬇ EXPORT XLSX generates a formatted workbook snapshot anytime</div>
-            <button onClick={doLoad} style={{background:"#9580FF",color:"#0d1117",border:"none",borderRadius:0,padding:"11px 34px",fontFamily:"inherit",fontWeight:900,fontSize:12,letterSpacing:3,cursor:"pointer"}}>⟳ INITIALIZE</button>
-          </div>
-        )}
-        {phase==="loading"&&(
-          <div style={{background:"#161b26",border:"1px solid #242d40",borderRadius:0,padding:22,marginBottom:18}}>
-            <div style={{fontSize:9,color:"#9580FF",letterSpacing:2,marginBottom:10,fontWeight:700}}>▸ LIVE SYNC</div>
-            {progress.map((e,i)=>(<div key={i} style={{fontSize:11,padding:"3px 0",color:e.type==="success"?"#9580FF":e.type==="error"?"#FF4757":e.type==="done"?"#00D4FF":"#8892a4"}}><span style={{color:"#2a3548",marginRight:8,fontSize:9}}>{e.ts}</span>{e.msg}</div>))}
-            <div style={{marginTop:14,height:3,background:"#242d40",borderRadius:2,overflow:"hidden"}}><div style={{height:"100%",width:`${Math.min(100,progress.length/10*100)}%`,background:"#9580FF",transition:"width .4s"}}/></div>
-          </div>
-        )}
-        {phase==="error"&&(
-          <div style={{background:"#1d0a0d",border:"1px solid #ef4444",borderRadius:0,padding:"16px 20px",marginBottom:16}}>
-            <div style={{color:"#FF4757",fontWeight:700,marginBottom:8}}>⚠ SYNC FAILED</div>
-            {progress.filter(e=>e.type==="error").map((e,i)=>(<div key={i} style={{fontSize:11,color:"#FF4757"}}>{e.msg}</div>))}
-            <div style={{fontSize:11,color:"#8892a4",marginTop:10,lineHeight:1.7}}>Common causes: Sleeper API CORS, network timeout, invalid league ID.<br/>League ID: <strong style={{color:"#e2e8f0"}}>{LEAGUE_ID}</strong></div>
-            <button onClick={doLoad} style={{marginTop:12,background:"#242d40",color:"#e2e8f0",border:"1px solid #374151",borderRadius:6,padding:"7px 16px",fontFamily:"inherit",fontSize:10,cursor:"pointer",letterSpacing:1}}>⟳ RETRY</button>
+            <div style={{fontSize:10,color:"#2a3548",marginBottom:28}}>⬇ EXPORT XLSX generates a snapshot anytime</div>
+            <button onClick={doLoad} style={{
+              background:"#9580FF", color:"#0d1117", border:"none",
+              padding:"12px 40px", fontFamily:"'Bebas Neue',sans-serif",
+              fontWeight:400, fontSize:16, letterSpacing:"0.15em", cursor:"pointer",
+            }}>⟳ INITIALIZE</button>
           </div>
         )}
 
-        {tab==="dashboard"&&<Dashboard phase={phase} players={players} currentOwner={activeOwner} owners={owners} newsMap={newsMap} seasonState={seasonState} viewMode={viewMode} onViewTeam={isCommissioner?enterViewMode:undefined}/>}
-        {tab==="leaguehub"&&<LeagueHub phase={phase} players={players} owners={owners} currentOwner={activeOwner} newsMap={newsMap} setDetail={setDetail} setActiveTab={setTab} seasonState={seasonState} viewMode={viewMode} onViewTeam={isCommissioner?enterViewMode:undefined}/>}
-        {tab==="teamhub"&&<TeamHub phase={phase} players={players} owners={owners} currentOwner={activeOwner} newsMap={newsMap} setDetail={setDetail} isViewMode={isViewMode} viewingOwner={viewingOwner} isCommissioner={isCommissioner} onViewTeam={enterViewMode} onExitView={exitViewMode} playerNotes={playerNotes} savePlayerNote={savePlayerNote} viewMode={viewMode}/>}
-        {tab==="playerhub"&&<PlayerHub
+        {/* Loading state */}
+        {phase==="loading" && (
+          <div style={{background:"#161b26",border:"1px solid #242d40",padding:22,marginBottom:18}}>
+            <div style={{fontSize:11,color:"#9580FF",letterSpacing:"0.15em",marginBottom:10,fontWeight:700,fontFamily:"'Bebas Neue',sans-serif"}}>▸ LIVE SYNC</div>
+            {progress.map((e,i)=>(
+              <div key={i} style={{fontSize:11,padding:"3px 0",color:e.type==="success"?"#9580FF":e.type==="error"?"#FF4757":e.type==="done"?"#00D4FF":"#4a5568",fontFamily:"'JetBrains Mono','Courier New',monospace"}}>
+                <span style={{color:"#2a3548",marginRight:8,fontSize:9}}>{e.ts}</span>{e.msg}
+              </div>
+            ))}
+            <div style={{marginTop:14,height:2,background:"#242d40",overflow:"hidden"}}>
+              <div style={{height:"100%",width:`${Math.min(100,progress.length/10*100)}%`,background:"#9580FF",transition:"width .4s"}}/>
+            </div>
+          </div>
+        )}
+
+        {/* Error state */}
+        {phase==="error" && (
+          <div style={{background:"#1d0a0d",border:"1px solid #FF4757",padding:"16px 20px",marginBottom:16}}>
+            <div style={{color:"#FF4757",fontWeight:700,marginBottom:8,fontFamily:"'Bebas Neue',sans-serif",letterSpacing:"0.1em"}}>⚠ SYNC FAILED</div>
+            {progress.filter(e=>e.type==="error").map((e,i)=>(<div key={i} style={{fontSize:11,color:"#FF4757",fontFamily:"'JetBrains Mono','Courier New',monospace"}}>{e.msg}</div>))}
+            <div style={{fontSize:11,color:"#4a5568",marginTop:10,lineHeight:1.7}}>Common causes: Sleeper API CORS, network timeout, invalid league ID.<br/>League ID: <strong style={{color:"#e2e8f0"}}>{LEAGUE_ID}</strong></div>
+            <button onClick={doLoad} style={{marginTop:12,background:"#1d2535",color:"#e2e8f0",border:"1px solid #2a3548",padding:"7px 16px",fontFamily:"'Bebas Neue',sans-serif",fontSize:12,cursor:"pointer",letterSpacing:"0.1em"}}>⟳ RETRY</button>
+          </div>
+        )}
+
+        {/* Tab content */}
+        {tab==="dashboard"  && <Dashboard phase={phase} players={players} currentOwner={activeOwner} owners={owners} newsMap={newsMap} seasonState={seasonState} viewMode={viewMode} onViewTeam={isCommissioner?enterViewMode:undefined}/>}
+        {tab==="leaguehub" && <LeagueHub phase={phase} players={players} owners={owners} currentOwner={activeOwner} newsMap={newsMap} setDetail={setDetail} setActiveTab={setTab} seasonState={seasonState} viewMode={viewMode} onViewTeam={isCommissioner?enterViewMode:undefined}/>}
+        {tab==="teamhub"   && <TeamHub phase={phase} players={players} owners={owners} currentOwner={activeOwner} newsMap={newsMap} setDetail={setDetail} isViewMode={isViewMode} viewingOwner={viewingOwner} isCommissioner={isCommissioner} onViewTeam={enterViewMode} onExitView={exitViewMode} playerNotes={playerNotes} savePlayerNote={savePlayerNote} viewMode={viewMode}/>}
+        {tab==="playerhub" && <PlayerHub
           currentOwner={currentOwner} activeOwner={activeOwner} isViewMode={isViewMode}
           owners={owners} phase={phase} players={players} newsMap={newsMap} nflDb={nflDb} view={view}
           detail={detail} setDetail={setDetail} tierFilter={tierFilter} setTierFilter={setTierFilter}
@@ -648,7 +784,7 @@ export default function App() {
           addToFaWatchlist={addToFaWatchlist} removeFromFaWatchlist={removeFromFaWatchlist}
           viewMode={viewMode}
         />}
-        {tab==="tools"&&<AnalysisTools
+        {tab==="tools"     && <AnalysisTools
           phase={phase} owners={owners} players={players} nflDb={nflDb}
           currentOwner={currentOwner} newsMap={newsMap}
           faWatchlist={faWatchlist} onAddToFaWatchlist={addToFaWatchlist}
@@ -666,7 +802,7 @@ export default function App() {
           requestClaudeTradeNarrative={requestClaudeTradeNarrative} hasApiKey={hasApiKey()}
           viewMode={viewMode}
         />}
-        {tab==="drafthub"&&<DraftHub
+        {tab==="drafthub"  && <DraftHub
           phase={phase} players={players} nflDb={nflDb} currentOwner={currentOwner} owners={owners}
           rosterIdToOwner={rosterIdToOwner} draftPicksByOwner={draftPicksByOwner} seasonState={seasonState}
           bigBoard={bigBoard} bigBoardMode={bigBoardMode} setBigBoardMode={setBigBoardMode}
@@ -675,190 +811,128 @@ export default function App() {
           liveDraftId={liveDraftId} setLiveDraftId={setLiveDraftId}
           viewMode={viewMode}
         />}
-        {tab==="log"&&<Log progress={progress}/>}
+        {tab==="log" && <Log progress={progress}/>}
+
       </div>
 
-      {/* ── TEAM SELECT MODAL — shown after Sleeper verify when name can't auto-match ── */}
+      {/* Team select modal */}
       {needsTeamSelect && identity && owners.length > 0 && (
-        <div style={{position:"fixed",inset:0,background:"rgba(8,13,20,0.97)",display:"flex",
-          alignItems:"center",justifyContent:"center",zIndex:1001}}>
-          <div style={{background:"#161b26",border:"2px solid #9580FF",borderRadius:0,
-            padding:"28px 30px",width:400,maxWidth:"92vw"}}>
-            <div style={{fontSize:16,fontWeight:900,letterSpacing:2,color:"#00D4FF",marginBottom:4}}>
-              WHICH TEAM IS YOURS?
-            </div>
-            <div style={{fontSize:9,color:"#8892a4",letterSpacing:2,marginBottom:6}}>
-              Sleeper verified: <span style={{color:"#e2e8f0",fontWeight:700}}>@{identity.username}</span>
-            </div>
-            <div style={{fontSize:10,color:"#7a95ae",lineHeight:1.7,marginBottom:18}}>
-              We couldn't automatically match your Sleeper account to a roster.
-              Tap your team name below — this is saved and won't be asked again.
-            </div>
+        <div style={{position:"fixed",inset:0,background:"rgba(13,17,23,0.97)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1001}}>
+          <div style={{background:"#161b26",border:"2px solid #9580FF",padding:"28px 30px",width:400,maxWidth:"92vw"}}>
+            <div style={{fontSize:20,fontFamily:"'Bebas Neue',sans-serif",letterSpacing:"0.12em",color:"#9580FF",marginBottom:4}}>WHICH TEAM IS YOURS?</div>
+            <div style={{fontSize:9,color:"#4a5568",letterSpacing:2,marginBottom:6}}>Sleeper verified: <span style={{color:"#e2e8f0",fontWeight:700}}>@{identity.username}</span></div>
+            <div style={{fontSize:10,color:"#8892a4",lineHeight:1.7,marginBottom:18}}>We couldn't automatically match your Sleeper account to a roster. Tap your team name below.</div>
             <div style={{display:"flex",flexDirection:"column",gap:5,maxHeight:260,overflowY:"auto",marginBottom:18}}>
-              {owners.map(o => (
-                <button key={o} onClick={()=>{
-                    setOwnerMapping(o);
-                    setTradeOwnerA(o);
-                    setNeedsTeamSelect(false);
-                    setLoginOpen(false);
-                  }}
-                  style={{background:"#1d2535",border:"1px solid #242d40",color:"#e2e8f0",
-                    borderRadius:7,padding:"11px 14px",fontFamily:"inherit",fontSize:12,
-                    cursor:"pointer",textAlign:"left",display:"flex",
-                    justifyContent:"space-between",alignItems:"center",
-                    transition:"all .12s"}}
-                  onMouseEnter={e=>{e.currentTarget.style.borderColor="#00D4FF";e.currentTarget.style.color="#00D4FF";}}
+              {owners.map(o=>(
+                <button key={o} onClick={()=>{setOwnerMapping(o);setTradeOwnerA(o);setNeedsTeamSelect(false);setLoginOpen(false);}}
+                  style={{background:"#1d2535",border:"1px solid #242d40",color:"#e2e8f0",padding:"11px 14px",fontFamily:"'Inter',sans-serif",fontSize:12,cursor:"pointer",textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center"}}
+                  onMouseEnter={e=>{e.currentTarget.style.borderColor="#9580FF";e.currentTarget.style.color="#9580FF";}}
                   onMouseLeave={e=>{e.currentTarget.style.borderColor="#242d40";e.currentTarget.style.color="#e2e8f0";}}>
                   <span style={{fontWeight:700}}>{o}</span>
-                  <span style={{fontSize:9,color:"#8892a4"}}>{players.filter(p=>p.owner===o).length} players</span>
+                  <span style={{fontSize:9,color:"#4a5568"}}>{players.filter(p=>p.owner===o).length} players</span>
                 </button>
               ))}
-            </div>
-            <div style={{fontSize:8,color:"#2a3548",textAlign:"center",letterSpacing:1}}>
-              You can always change this in ACCOUNT settings
             </div>
           </div>
         </div>
       )}
 
-      {/* ── QUICK RANK MODAL ──────────────────────────────────────────────── */}
+      {/* QuickRank modal */}
       {showQuickRank && players.length > 0 && (
         <QuickRank
-          players={players}
-          eloScores={eloScores}
-          onComplete={(newScores) => {
-            saveEloScores(newScores);
-            lsSet(userKey, "last_quickrank", Date.now());
-            setShowQuickRank(false);
-          }}
-          onSkip={() => {
-            lsSet(userKey, "last_quickrank", Date.now());
-            setShowQuickRank(false);
-          }}
+          players={players} eloScores={eloScores}
+          onComplete={(newScores)=>{saveEloScores(newScores);lsSet(userKey,"last_quickrank",Date.now());setShowQuickRank(false);}}
+          onSkip={()=>{lsSet(userKey,"last_quickrank",Date.now());setShowQuickRank(false);}}
         />
       )}
 
-      {/* ── LOGIN / ACCOUNT MODAL ─────────────────────────────────────────── */}
-      {loginOpen&&(
+      {/* Login / account modal */}
+      {loginOpen && (
         <div onClick={e=>e.target===e.currentTarget&&identity&&setLoginOpen(false)}
-          style={{position:"fixed",inset:0,background:"rgba(8,13,20,0.95)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}}>
-          <div style={{background:"#161b26",border:"3px solid #9580FF",borderRadius:0,padding:"28px 32px",width:420,maxWidth:"92vw"}}>
-
-            <div style={{fontSize:18,fontWeight:900,letterSpacing:2,color:"#9580FF",marginBottom:4}}>
-              {identity?"ACCOUNT":"MGG DYNASTY"}
+          style={{position:"fixed",inset:0,background:"rgba(13,17,23,0.95)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}}>
+          <div style={{background:"#161b26",border:"2px solid #9580FF",padding:"28px 32px",width:420,maxWidth:"92vw"}}>
+            <div style={{fontSize:22,fontFamily:"'Bebas Neue',sans-serif",letterSpacing:"0.12em",color:"#9580FF",marginBottom:4}}>
+              {identity ? "ACCOUNT" : "MGG DYNASTY"}
             </div>
-            <div style={{fontSize:9,color:"#2a3548",letterSpacing:3,marginBottom:20}}>
-              {identity?"MANAGE YOUR IDENTITY":"LEAGUE ACCESS · SLEEPER VERIFICATION"}
+            <div style={{fontSize:9,color:"#2a3548",letterSpacing:3,marginBottom:20,fontFamily:"'Bebas Neue',sans-serif"}}>
+              {identity ? "MANAGE YOUR IDENTITY" : "LEAGUE ACCESS · SLEEPER VERIFICATION"}
             </div>
 
             {identity ? (
               <div>
-                {/* Identity card */}
-                <div style={{background:"#1d2535",border:"1px solid #242d40",borderRadius:0,padding:"12px 16px",marginBottom:16}}>
-                  <div style={{fontSize:9,color:"#8892a4",letterSpacing:1,marginBottom:4}}>LOGGED IN AS</div>
+                <div style={{background:"#1d2535",border:"1px solid #242d40",padding:"12px 16px",marginBottom:16}}>
+                  <div style={{fontSize:9,color:"#4a5568",letterSpacing:1,marginBottom:4,fontFamily:"'Bebas Neue',sans-serif"}}>LOGGED IN AS</div>
                   <div style={{fontSize:14,fontWeight:700,color:"#e2e8f0"}}>{identity.displayName}</div>
-                  <div style={{fontSize:9,color:"#8892a4",marginTop:2}}>
-                    @{identity.username} · {identity.ownerName}
-                    {isCommissioner&&<span style={{color:"#FFD700",marginLeft:8,fontWeight:700}}>★ COMMISSIONER</span>}
-                  </div>
+                  <div style={{fontSize:9,color:"#4a5568",marginTop:2}}>@{identity.username} · {identity.ownerName}{isCommissioner&&<span style={{color:"#FFD700",marginLeft:8,fontWeight:700}}>★ COMMISSIONER</span>}</div>
                 </div>
-                {/* Owner mapping correction */}
-                {owners.length>0&&(
+                {owners.length>0 && (
                   <div style={{marginBottom:16}}>
-                    <div style={{fontSize:9,color:"#8892a4",letterSpacing:1,marginBottom:6}}>YOUR TEAM — tap to change</div>
+                    <div style={{fontSize:9,color:"#4a5568",letterSpacing:1,marginBottom:6,fontFamily:"'Bebas Neue',sans-serif"}}>YOUR TEAM — tap to change</div>
                     <div style={{display:"flex",flexDirection:"column",gap:4,maxHeight:200,overflowY:"auto"}}>
-                      {owners.map(o=>(<button key={o} onClick={()=>{setOwnerMapping(o);setTradeOwnerA(o);setLoginOpen(false);}}
-                        style={{background:identity.ownerName===o?"#0d1f14":"#1d2535",
-                          border:`1px solid ${identity.ownerName===o?"#9580FF":"#242d40"}`,
-                          color:identity.ownerName===o?"#9580FF":"#e2e8f0",borderRadius:6,
-                          padding:"8px 12px",fontFamily:"inherit",fontSize:11,
-                          fontWeight:identity.ownerName===o?700:400,cursor:"pointer",
-                          textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                        <span>{o}</span>
-                        <span style={{fontSize:9,color:"#8892a4"}}>{players.filter(p=>p.owner===o).length} players</span>
-                      </button>))}
+                      {owners.map(o=>(
+                        <button key={o} onClick={()=>{setOwnerMapping(o);setTradeOwnerA(o);setLoginOpen(false);}}
+                          style={{background:identity.ownerName===o?"#9580FF14":"#1d2535",border:`1px solid ${identity.ownerName===o?"#9580FF":"#242d40"}`,color:identity.ownerName===o?"#9580FF":"#e2e8f0",padding:"8px 12px",fontFamily:"'Inter',sans-serif",fontSize:11,fontWeight:identity.ownerName===o?700:400,cursor:"pointer",textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                          <span>{o}</span>
+                          <span style={{fontSize:9,color:"#4a5568"}}>{players.filter(p=>p.owner===o).length} players</span>
+                        </button>
+                      ))}
                     </div>
                   </div>
                 )}
-                {/* Commissioner mode */}
-                <div style={{marginBottom:16,padding:"12px 14px",background:"#1d2535",border:"1px solid #242d40",borderRadius:0}}>
-                  <div style={{fontSize:9,color:"#FFD700",letterSpacing:2,fontWeight:700,marginBottom:6}}>★ COMMISSIONER MODE</div>
-                  {isCommissioner?(
+                <div style={{marginBottom:16,padding:"12px 14px",background:"#1d2535",border:"1px solid #242d40"}}>
+                  <div style={{fontSize:11,color:"#FFD700",letterSpacing:2,fontWeight:700,marginBottom:6,fontFamily:"'Bebas Neue',sans-serif"}}>★ COMMISSIONER MODE</div>
+                  {isCommissioner ? (
                     <div>
                       <div style={{fontSize:9,color:"#FFD700",marginBottom:8}}>Active — view any team read-only</div>
-                      {owners.filter(o=>o!==currentOwner).length>0&&(
+                      {owners.filter(o=>o!==currentOwner).length>0 && (
                         <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:8}}>
                           {owners.filter(o=>o!==currentOwner).map(o=>(
-                            <button key={o} onClick={()=>{enterViewMode(o);setLoginOpen(false);}}
-                              style={{background:"#1a1000",border:"1px solid #f59e0b33",color:"#FFD700",borderRadius:4,padding:"3px 8px",fontFamily:"inherit",fontSize:9,cursor:"pointer"}}>
-                              👁 {o}
-                            </button>
+                            <button key={o} onClick={()=>{enterViewMode(o);setLoginOpen(false);}} style={{background:"#1a1000",border:"1px solid #FFD70033",color:"#FFD700",padding:"3px 8px",fontFamily:"'Bebas Neue',sans-serif",fontSize:10,cursor:"pointer",letterSpacing:"0.08em"}}>👁 {o}</button>
                           ))}
                         </div>
                       )}
-                      <button onClick={deactivateCommissioner} style={{background:"none",border:"1px solid #374151",color:"#8892a4",borderRadius:4,padding:"5px 10px",fontFamily:"inherit",fontSize:9,cursor:"pointer"}}>DEACTIVATE</button>
+                      <button onClick={deactivateCommissioner} style={{background:"none",border:"1px solid #2a3548",color:"#4a5568",padding:"5px 10px",fontFamily:"'Bebas Neue',sans-serif",fontSize:11,cursor:"pointer",letterSpacing:"0.08em"}}>DEACTIVATE</button>
                     </div>
-                  ):(
+                  ) : (
                     <div style={{display:"flex",gap:6}}>
-                      <input type="password" value={commPassInput} onChange={e=>setCommPassInput(e.target.value)}
-                        onKeyDown={e=>e.key==="Enter"&&activateCommissioner()}
-                        placeholder="Commissioner passphrase..."
-                        style={{flex:1,background:"#0d1117",border:`1px solid ${commPassError?"#FF4757":"#242d40"}`,color:"#e2e8f0",padding:"7px 10px",borderRadius:5,fontFamily:"monospace",fontSize:10}}/>
-                      <button onClick={activateCommissioner} disabled={!commPassInput}
-                        style={{background:commPassInput?"linear-gradient(135deg,#f59e0b,#d97706)":"#242d40",color:commPassInput?"#0d1117":"#8892a4",border:"none",borderRadius:5,padding:"7px 12px",fontFamily:"inherit",fontWeight:900,fontSize:9,cursor:commPassInput?"pointer":"not-allowed"}}>
-                        ★ UNLOCK
-                      </button>
+                      <input type="password" value={commPassInput} onChange={e=>setCommPassInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&activateCommissioner()} placeholder="Commissioner passphrase..."
+                        style={{flex:1,background:"#0d1117",border:`1px solid ${commPassError?"#FF4757":"#242d40"}`,color:"#e2e8f0",padding:"7px 10px",fontFamily:"'JetBrains Mono','Courier New',monospace",fontSize:10}}/>
+                      <button onClick={activateCommissioner} disabled={!commPassInput} style={{background:commPassInput?"#FFD70022":"#1d2535",color:commPassInput?"#FFD700":"#4a5568",border:`1px solid ${commPassInput?"#FFD70044":"#242d40"}`,padding:"7px 12px",fontFamily:"'Bebas Neue',sans-serif",fontWeight:400,fontSize:12,cursor:commPassInput?"pointer":"not-allowed",letterSpacing:"0.08em"}}>★ UNLOCK</button>
                     </div>
                   )}
-                  {commPassError&&<div style={{fontSize:9,color:"#FF4757",marginTop:4}}>⚠ {commPassError}</div>}
+                  {commPassError && <div style={{fontSize:9,color:"#FF4757",marginTop:4}}>⚠ {commPassError}</div>}
                 </div>
                 <div style={{display:"flex",gap:8}}>
-                  <button onClick={()=>setLoginOpen(false)} style={{flex:1,background:"#0d1f14",border:"1px solid #9580FF44",color:"#9580FF",borderRadius:6,padding:"9px",fontFamily:"inherit",fontSize:10,cursor:"pointer",fontWeight:700,letterSpacing:1}}>✓ DONE</button>
-                  <button onClick={doLogout} style={{background:"#1d0a0d",border:"1px solid #ef444433",color:"#FF4757",borderRadius:6,padding:"9px 14px",fontFamily:"inherit",fontSize:10,cursor:"pointer",letterSpacing:1}}>LOG OUT</button>
+                  <button onClick={()=>setLoginOpen(false)} style={{flex:1,background:"#9580FF14",border:"1px solid #9580FF44",color:"#9580FF",padding:"9px",fontFamily:"'Bebas Neue',sans-serif",fontSize:13,cursor:"pointer",letterSpacing:"0.1em"}}>✓ DONE</button>
+                  <button onClick={doLogout} style={{background:"#1d0a0d",border:"1px solid #FF475733",color:"#FF4757",padding:"9px 14px",fontFamily:"'Bebas Neue',sans-serif",fontSize:13,cursor:"pointer",letterSpacing:"0.1em"}}>LOG OUT</button>
                 </div>
               </div>
-            ):(
+            ) : (
               <div>
-                <div style={{fontSize:10,color:"#7a95ae",lineHeight:1.8,marginBottom:20}}>
+                <div style={{fontSize:10,color:"#8892a4",lineHeight:1.8,marginBottom:20}}>
                   This tool is for <span style={{color:"#9580FF",fontWeight:700}}>MGG Dynasty league members only</span>.<br/>
                   Enter your Sleeper username to verify and get access.
                 </div>
                 <div style={{marginBottom:12}}>
-                  <div style={{fontSize:9,color:"#8892a4",letterSpacing:1,marginBottom:6}}>SLEEPER USERNAME</div>
-                  <input value={loginInput}
-                    onChange={e=>{setLoginInput(e.target.value);setLoginError("");}}
-                    onKeyDown={e=>e.key==="Enter"&&handleSleeperLogin()}
-                    placeholder="your_sleeper_username" autoFocus
-                    style={{width:"100%",boxSizing:"border-box",background:"#0d1117",
-                      border:`1px solid ${loginError?"#FF4757":"#242d40"}`,
-                      color:"#e2e8f0",padding:"11px 14px",borderRadius:6,
-                      fontFamily:"monospace",fontSize:13,outline:"none"}}/>
-                  {loginError&&(
-                    <div style={{fontSize:10,color:"#FF4757",marginTop:6,padding:"6px 10px",background:"#1d0a0d",borderRadius:4,border:"1px solid #ef444422"}}>
-                      ⚠ {loginError}
-                    </div>
-                  )}
+                  <div style={{fontSize:9,color:"#4a5568",letterSpacing:1,marginBottom:6,fontFamily:"'Bebas Neue',sans-serif"}}>SLEEPER USERNAME</div>
+                  <input value={loginInput} onChange={e=>{setLoginInput(e.target.value);setLoginError("");}} onKeyDown={e=>e.key==="Enter"&&handleSleeperLogin()} placeholder="your_sleeper_username" autoFocus
+                    style={{width:"100%",boxSizing:"border-box",background:"#0d1117",border:`1px solid ${loginError?"#FF4757":"#242d40"}`,color:"#e2e8f0",padding:"11px 14px",fontFamily:"'JetBrains Mono','Courier New',monospace",fontSize:13,outline:"none"}}/>
+                  {loginError && <div style={{fontSize:10,color:"#FF4757",marginTop:6,padding:"6px 10px",background:"#1d0a0d",border:"1px solid #FF475722"}}>{loginError}</div>}
                 </div>
                 <button onClick={handleSleeperLogin} disabled={loginLoading||!loginInput.trim()}
-                  style={{width:"100%",background:loginLoading||!loginInput.trim()?"#242d40":"#9580FF22",
-                    color:loginLoading||!loginInput.trim()?"#8892a4":"#0d1117",border:"none",
-                    borderRadius:6,padding:"12px",fontFamily:"inherit",fontWeight:900,
-                    fontSize:11,letterSpacing:2,cursor:loginLoading||!loginInput.trim()?"not-allowed":"pointer",marginBottom:16}}>
-                  {loginLoading?"◌ VERIFYING WITH SLEEPER...":"▸ VERIFY & ENTER"}
+                  style={{width:"100%",background:loginLoading||!loginInput.trim()?"#1d2535":"#9580FF22",color:loginLoading||!loginInput.trim()?"#4a5568":"#9580FF",border:`1px solid ${loginLoading||!loginInput.trim()?"#242d40":"#9580FF66"}`,padding:"12px",fontFamily:"'Bebas Neue',sans-serif",fontWeight:400,fontSize:14,letterSpacing:"0.12em",cursor:loginLoading||!loginInput.trim()?"not-allowed":"pointer",marginBottom:16}}>
+                  {loginLoading ? "◌ VERIFYING WITH SLEEPER..." : "▸ VERIFY & ENTER"}
                 </button>
-                <div style={{fontSize:9,color:"#2a3548",textAlign:"center",lineHeight:1.7}}>
-                  Your Sleeper account must be a member of this league.<br/>Non-members will be denied access.
-                </div>
-                {phase==="done"&&owners.length>0&&(
+                <div style={{fontSize:9,color:"#2a3548",textAlign:"center",lineHeight:1.7}}>Your Sleeper account must be a member of this league.<br/>Non-members will be denied access.</div>
+                {phase==="done" && owners.length>0 && (
                   <details style={{marginTop:14}}>
-                    <summary style={{fontSize:9,color:"#8892a4",cursor:"pointer",letterSpacing:1}}>▸ SKIP VERIFICATION (pick manually)</summary>
+                    <summary style={{fontSize:9,color:"#4a5568",cursor:"pointer",letterSpacing:1,fontFamily:"'Bebas Neue',sans-serif"}}>▸ SKIP VERIFICATION (pick manually)</summary>
                     <div style={{display:"flex",flexDirection:"column",gap:4,marginTop:8,maxHeight:160,overflowY:"auto"}}>
-                      {owners.map(o=>(<button key={o} onClick={()=>doManualLogin(o)}
-                        style={{background:"#1d2535",border:"1px solid #242d40",color:"#7a95ae",borderRadius:5,
-                          padding:"8px 12px",fontFamily:"inherit",fontSize:10,cursor:"pointer",
-                          textAlign:"left",display:"flex",justifyContent:"space-between"}}>
-                        <span>{o}</span><span style={{fontSize:9,color:"#2a3548"}}>{players.filter(p=>p.owner===o).length} players</span>
-                      </button>))}
+                      {owners.map(o=>(
+                        <button key={o} onClick={()=>doManualLogin(o)} style={{background:"#1d2535",border:"1px solid #242d40",color:"#8892a4",padding:"8px 12px",fontFamily:"'Inter',sans-serif",fontSize:10,cursor:"pointer",textAlign:"left",display:"flex",justifyContent:"space-between"}}>
+                          <span>{o}</span><span style={{fontSize:9,color:"#2a3548"}}>{players.filter(p=>p.owner===o).length} players</span>
+                        </button>
+                      ))}
                     </div>
                   </details>
                 )}
