@@ -649,13 +649,7 @@ export default function App() {
     </>
   ) : null;
 
-  const [isMobile, setIsMobile] = useState(()=>typeof window!=="undefined"&&window.innerWidth<768);
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
-  useEffect(()=>{
-    const h=()=>setIsMobile(window.innerWidth<768);
-    window.addEventListener("resize",h);
-    return()=>window.removeEventListener("resize",h);
-  },[]);
 
   // ── Main content area ─────────────────────────────────────────────────────
   const CONTENT_PADDING = isMobile ? "12px 12px 72px" : "20px 24px";
