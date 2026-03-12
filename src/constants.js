@@ -38,43 +38,10 @@ export const PICK_YEARS   = [2026,2027,2028];
 export const pickValue    = (round, yearOffset) =>
   (PICK_VALUES[round]||[10,8,6])[Math.min(yearOffset,2)];
 
-// ─── DESIGN TOKENS (Flat 2.0 — Sleeper-inspired) ─────────────────────────────
-// bg:     #0d1117  deep navy base
-// s1:     #161b26  card surface
-// s2:     #1d2535  elevated surface
-// border: #242d40  default border
-// purple: #9580FF  primary accent — active states, YOUR team, grades
-// green:  #00FF87  elite / positive values
-// cyan:   #00D4FF  neutral data, secondary accent
-// yellow: #FFD700  warnings, contend window
-// orange: #FF9040  depth/flex tier, age cliff
-// red:    #FF4757  gaps, risks, alerts, sell signals
-//
-// Typography:
-//   Bebas Neue    → labels, headings, nav, grades, stat labels
-//   Inter         → body, descriptions, notes
-//   JetBrains Mono→ all numeric data values
-
-export const C = {
-  bg:"#0d1117", s1:"#161b26", s2:"#1d2535", s3:"#232e42",
-  border:"#242d40", border2:"#2e3a50",
-  purple:"#9580FF", green:"#00FF87", cyan:"#00D4FF",
-  yellow:"#FFD700", orange:"#FF9040", red:"#FF4757",
-  muted:"#4a5568", dim:"#2a3548",
-  text:"#e2e8f0", text2:"#8892a4", text3:"#4a5568",
-};
-
-export const FONT = {
-  display: "'Bebas Neue', sans-serif",
-  body:    "'Inter', sans-serif",
-  mono:    "'JetBrains Mono', 'Courier New', monospace",
-};
-
 // ─── TIER STYLES ─────────────────────────────────────────────────────────────
-// Flat 2.0: no glows, use left-border accent bars, muted bg tints
 export const TIER_STYLE = {
-  Elite:   { bg:"#0d1f14", border:"#00FF87", text:"#00FF87", glow:"rgba(0,255,135,0.15)"  },
-  Starter: { bg:"#0d1626", border:"#9580FF", text:"#9580FF", glow:"rgba(149,128,255,0.15)" },
+  Elite:   { bg:"#0d1f14", border:"#00FF87", text:"#00FF87", glow:"rgba(0,255,135,0.15)"   },
+  Starter: { bg:"#130f2e", border:"#9580FF", text:"#9580FF", glow:"rgba(149,128,255,0.15)" },
   Flex:    { bg:"#1a1800", border:"#FFD700", text:"#FFD700", glow:"rgba(255,215,0,0.12)"   },
   Depth:   { bg:"#1a1000", border:"#FF9040", text:"#FF9040", glow:"rgba(255,144,64,0.12)"  },
   Stash:   { bg:"#161b26", border:"#2e3a50", text:"#4a5568", glow:"rgba(74,85,104,0.08)"   },
@@ -84,7 +51,6 @@ export const INJ_COLOR = {
   Out:"#FF4757", Doubtful:"#FF9040", Questionable:"#FFD700", IR:"#9580FF", PUP:"#9580FF",
 };
 
-// BUY=green, HOLD=cyan, SELL=red, WATCH=yellow
 export const SIG_COLORS = {
   BUY:"#00FF87", HOLD:"#00D4FF", SELL:"#FF4757", WATCH:"#FFD700",
 };

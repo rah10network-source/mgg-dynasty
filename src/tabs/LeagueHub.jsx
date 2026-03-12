@@ -16,7 +16,7 @@ export function LeagueHub({ phase, players, owners, currentOwner, newsMap, setDe
   const tabBtn = (id, lbl) => (
     <button key={id} onClick={() => setSub(id)} style={{
       background: "none", border: "none",
-      borderBottom: sub===id ? "3px solid #9580FF" : "2px solid transparent",
+      borderBottom: sub===id ? "2px solid #9580FF" : "2px solid transparent",
       color:        sub===id ? "#00D4FF" : "#8892a4",
       padding: "6px 16px", fontFamily: "inherit",
       fontSize: 10, letterSpacing: 2, fontWeight: 700, cursor: "pointer",
@@ -85,8 +85,8 @@ export function LeagueHub({ phase, players, owners, currentOwner, newsMap, setDe
                 <div style={{fontSize:9,color:"#2a3548",flex:1}}>
                   Offseason — official W/L standings available during the season
                 </div>
-                <span style={{fontSize:8,background:"#8892a422",color:"#8892a4",
-                  border:"1px solid #8892a444",borderRadius:3,
+                <span style={{fontSize:8,background:"#4b658022",color:"#8892a4",
+                  border:"1px solid #4b658044",borderRadius:3,
                   padding:"2px 8px",fontWeight:700,letterSpacing:1}}>OFFSEASON</span>
               </div>
 
@@ -132,7 +132,7 @@ export function LeagueHub({ phase, players, owners, currentOwner, newsMap, setDe
                           <div key={g.owner}
                             style={{display:"flex",alignItems:"center",gap:8,
                               padding:"5px 8px",borderRadius:5,
-                              background:isMe?"#0f2b1a":"transparent",
+                              background:isMe?"#0d1f14":"transparent",
                               border:isMe?"1px solid #9580FF33":"1px solid transparent"}}>
                             <span style={{fontSize:9,color:isMe?"#9580FF":"#8892a4",
                               fontWeight:isMe?900:400,minWidth:16,textAlign:"center"}}>{i+1}</span>
@@ -151,7 +151,7 @@ export function LeagueHub({ phase, players, owners, currentOwner, newsMap, setDe
               {/* Season mode note */}
               <div style={{fontSize:9,color:"#2a3548",lineHeight:1.7}}>
                 When the season starts, Sleeper will report{" "}
-                <code style={{color:"#00D4FF",background:"#0c1e35",padding:"1px 5px",borderRadius:3}}>
+                <code style={{color:"#00D4FF",background:"#1d2535",padding:"1px 5px",borderRadius:3}}>
                   league.status = "in_season"
                 </code>{" "}
                 and the app will auto-detect the change on next ⟳ SYNC, replacing this view with official standings.

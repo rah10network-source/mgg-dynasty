@@ -379,16 +379,16 @@ export default function App() {
     });
 
   return(
-    <div style={{background:"#0d1117",color:"#e2e8f0",minHeight:"100vh",fontFamily:"'Inter','Courier New',sans-serif"}}>
+    <div style={{background:"#0d1117",color:"#e2e8f0",minHeight:"100vh",fontFamily:"'JetBrains Mono','Courier New',monospace"}}>
 
       {isViewMode&&(
-        <div style={{background:"linear-gradient(90deg,#0c1e0c,#1d2535)",borderBottom:"1px solid #9580FF33",padding:"6px 22px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <div style={{background:"#0d1f14",borderBottom:"1px solid #9580FF33",padding:"6px 22px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
           <div style={{display:"flex",alignItems:"center",gap:10}}>
             <span style={{fontSize:9,color:"#9580FF",fontWeight:700,letterSpacing:2}}>👁 VIEWING</span>
             <span style={{fontSize:12,color:"#e2e8f0",fontWeight:700}}>{viewingOwner}</span>
             <span style={{fontSize:9,color:"#8892a4"}}>· read-only · your personal data is unchanged</span>
           </div>
-          <button onClick={exitViewMode} style={{background:"none",border:"1px solid #9580FF44",color:"#9580FF",borderRadius:4,padding:"3px 10px",fontFamily:"'Bebas Neue',sans-serif",fontSize:9,cursor:"pointer",letterSpacing:1,fontWeight:700}}>✕ EXIT VIEW</button>
+          <button onClick={exitViewMode} style={{background:"none",border:"1px solid #9580FF44",color:"#9580FF",borderRadius:4,padding:"3px 10px",fontFamily:"inherit",fontSize:9,cursor:"pointer",letterSpacing:1,fontWeight:700}}>✕ EXIT VIEW</button>
         </div>
       )}
 
@@ -418,9 +418,9 @@ export default function App() {
 
             <div style={{padding:"8px 12px",borderBottom:"1px solid #242d40"}}>
               <button onClick={()=>{setLoginOpen(true);setMenuOpen(false);}}
-                style={{width:"100%",background:"none",border:`1px solid ${isCommissioner?"#FFD70044":"#242d40"}`,
+                style={{width:"100%",background:"none",border:`1px solid ${isCommissioner?"#f59e0b44":"#242d40"}`,
                   color:isCommissioner?"#FFD700":"#8892a4",borderRadius:5,padding:"7px 10px",
-                  fontFamily:"'Bebas Neue',sans-serif",fontSize:9,cursor:"pointer",letterSpacing:1,textAlign:"left",
+                  fontFamily:"inherit",fontSize:9,cursor:"pointer",letterSpacing:1,textAlign:"left",
                   display:"flex",alignItems:"center",gap:6}}>
                 {isCommissioner&&<span>★</span>}
                 {identity ? `◎ ${currentOwner||identity.displayName}` : "◎ LOG IN"}
@@ -442,9 +442,9 @@ export default function App() {
                 return (
                   <button key={id} onClick={()=>{setTab(id);setMenuOpen(false);}}
                     style={{width:"100%",display:"flex",alignItems:"center",gap:10,
-                      background:active?"#9580FF18":"transparent",
+                      background:active?"rgba(149,128,255,0.1)":"transparent",
                       border:"none",borderRadius:6,padding:"10px 10px",
-                      color:active?"#9580FF":"#8892a4",fontFamily:"'Bebas Neue',sans-serif",
+                      color:active?"#9580FF":"#8892a4",fontFamily:"inherit",
                       fontSize:11,fontWeight:active?900:400,letterSpacing:active?1.5:1,
                       cursor:"pointer",textAlign:"left",marginBottom:2,
                       borderLeft:active?"3px solid #9580FF":"2px solid transparent",
@@ -464,7 +464,7 @@ export default function App() {
                   return (
                     <button key={m} onClick={()=>{setViewMode(m);try{localStorage.setItem("mgg_view_mode",m);}catch{}}}
                       style={{flex:1,background:active?col+"22":"transparent",color:active?col:"#2a3548",
-                        border:"none",padding:"8px 0",fontFamily:"'Bebas Neue',sans-serif",fontSize:9,
+                        border:"none",padding:"8px 0",fontFamily:"inherit",fontSize:9,
                         fontWeight:active?900:400,letterSpacing:1,cursor:"pointer",transition:"all .15s"}}>
                       {lbl}
                     </button>
@@ -478,25 +478,25 @@ export default function App() {
               <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
                 {SEASON_MODES.map(m=>{
                   const active=seasonState.mode===m;
-                  const col={offseason:"#8892a4",preseason:"#00D4FF",inseason:"#9580FF",playoffs:"#FFD700",complete:"#6b7280"}[m];
+                  const col={offseason:"#8892a4",preseason:"#00D4FF",inseason:"#9580FF",playoffs:"#FFD700",complete:"#8892a4"}[m];
                   return (
                     <button key={m} onClick={()=>overrideSeasonMode(m)}
                       style={{background:active?col+"22":"transparent",color:active?col:"#2a3548",
                         border:`1px solid ${active?col+"55":"#242d40"}`,borderRadius:4,
-                        padding:"4px 7px",fontFamily:"'Bebas Neue',sans-serif",fontSize:8,fontWeight:active?900:400,
+                        padding:"4px 7px",fontFamily:"inherit",fontSize:8,fontWeight:active?900:400,
                         letterSpacing:1,cursor:"pointer"}}>
                       {m.slice(0,3).toUpperCase()}
                     </button>
                   );
                 })}
-                {seasonState._override&&<button onClick={clearSeasonOverride} style={{background:"#FFD70022",color:"#FFD700",border:"1px solid #FFD70044",borderRadius:4,padding:"4px 7px",fontFamily:"'Bebas Neue',sans-serif",fontSize:8,cursor:"pointer"}}>AUTO</button>}
+                {seasonState._override&&<button onClick={clearSeasonOverride} style={{background:"#f59e0b22",color:"#FFD700",border:"1px solid #f59e0b44",borderRadius:4,padding:"4px 7px",fontFamily:"inherit",fontSize:8,cursor:"pointer"}}>AUTO</button>}
               </div>
             </div>
 
             <div style={{padding:"10px 12px 22px",borderTop:"1px solid #242d40",display:"flex",flexDirection:"column",gap:6}}>
-              <Btn onClick={()=>{doLoad();setMenuOpen(false);}} disabled={phase==="loading"} grad="#9580FF">{phase==="loading"?"◌ SYNCING...":"⟳ SYNC DATA"}</Btn>
-              <Btn onClick={()=>{doIntel();setMenuOpen(false);}} disabled={newsPhase==="loading"||!players.length} grad="linear-gradient(135deg,#f59e0b,#ccad00)">{newsPhase==="loading"?"◌ SCANNING...":"◈ INTEL SCAN"}</Btn>
-              <Btn onClick={()=>doExport(players,newsMap)} disabled={!players.length} grad="linear-gradient(135deg,#9580FF,#7060ee)">⬇ EXPORT XLSX</Btn>
+              <Btn onClick={()=>{doLoad();setMenuOpen(false);}} disabled={phase==="loading"} grad="#9580FF22">{phase==="loading"?"◌ SYNCING...":"⟳ SYNC DATA"}</Btn>
+              <Btn onClick={()=>{doIntel();setMenuOpen(false);}} disabled={newsPhase==="loading"||!players.length} grad="linear-gradient(135deg,#f59e0b,#d97706)">{newsPhase==="loading"?"◌ SCANNING...":"◈ INTEL SCAN"}</Btn>
+              <Btn onClick={()=>doExport(players,newsMap)} disabled={!players.length} grad="linear-gradient(135deg,#6366f1,#4f46e5)">⬇ EXPORT XLSX</Btn>
               {syncedAt&&<div style={{fontSize:8,color:"#2a3548",letterSpacing:1,textAlign:"center",marginTop:2}}>SYNCED {syncedAt}</div>}
             </div>
           </div>
@@ -518,14 +518,14 @@ export default function App() {
             </div>
             <div style={{display:"flex",alignItems:"center",gap:6}}>
               <button onClick={doLoad} disabled={phase==="loading"}
-                style={{background:"#9580FF",border:"none",borderRadius:6,
-                  padding:"7px 11px",color:"#0d1117",fontFamily:"'Bebas Neue',sans-serif",fontSize:10,fontWeight:900,
+                style={{background:"#9580FF22",border:"none",borderRadius:6,
+                  padding:"7px 11px",color:"#0d1117",fontFamily:"inherit",fontSize:10,fontWeight:900,
                   cursor:"pointer",opacity:phase==="loading"?0.5:1,lineHeight:1}}>
                 {phase==="loading"?"◌":"⟳"}
               </button>
               <button onClick={doIntel} disabled={newsPhase==="loading"||!players.length}
-                style={{background:"linear-gradient(135deg,#f59e0b,#ccad00)",border:"none",borderRadius:6,
-                  padding:"7px 11px",color:"#0d1117",fontFamily:"'Bebas Neue',sans-serif",fontSize:10,fontWeight:900,
+                style={{background:"linear-gradient(135deg,#f59e0b,#d97706)",border:"none",borderRadius:6,
+                  padding:"7px 11px",color:"#0d1117",fontFamily:"inherit",fontSize:10,fontWeight:900,
                   cursor:"pointer",opacity:(newsPhase==="loading"||!players.length)?0.5:1,lineHeight:1}}>
                 {newsPhase==="loading"?"◌":"◈"}
               </button>
@@ -552,24 +552,24 @@ export default function App() {
               <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
                 {syncedAt&&<span style={{fontSize:9,color:"#2a3548",letterSpacing:1}}>SYNCED {syncedAt}</span>}
                 <button onClick={()=>setLoginOpen(true)}
-                  style={{background:"none",border:`1px solid ${isCommissioner?"#FFD70044":"#242d40"}`,
+                  style={{background:"none",border:`1px solid ${isCommissioner?"#f59e0b44":"#242d40"}`,
                     color:isCommissioner?"#FFD700":"#8892a4",borderRadius:5,padding:"5px 12px",
-                    fontFamily:"'Bebas Neue',sans-serif",fontSize:9,cursor:"pointer",letterSpacing:1,
+                    fontFamily:"inherit",fontSize:9,cursor:"pointer",letterSpacing:1,
                     display:"flex",alignItems:"center",gap:5}}>
                   {isCommissioner&&<span>★</span>}
                   {identity ? `◎ ${currentOwner||identity.displayName}` : "◎ LOG IN"}
                 </button>
                 <div style={{display:"flex",alignItems:"center",background:"#1d2535",border:"1px solid #242d40",borderRadius:5,overflow:"hidden"}}>
-                  {SEASON_MODES.map(m=>{const active=seasonState.mode===m;const col={offseason:"#8892a4",preseason:"#00D4FF",inseason:"#9580FF",playoffs:"#FFD700",complete:"#6b7280"}[m];return(
+                  {SEASON_MODES.map(m=>{const active=seasonState.mode===m;const col={offseason:"#8892a4",preseason:"#00D4FF",inseason:"#9580FF",playoffs:"#FFD700",complete:"#8892a4"}[m];return(
                     <button key={m} onClick={()=>overrideSeasonMode(m)} title={seasonState._override?"Manual override":"Auto-detected"}
-                      style={{background:active?col+"22":"transparent",color:active?col:"#2a3548",border:"none",padding:"4px 8px",fontFamily:"'Bebas Neue',sans-serif",fontSize:8,fontWeight:active?900:400,letterSpacing:1,cursor:"pointer",borderRight:"1px solid #242d40",transition:"all .15s"}}>
+                      style={{background:active?col+"22":"transparent",color:active?col:"#2a3548",border:"none",padding:"4px 8px",fontFamily:"inherit",fontSize:8,fontWeight:active?900:400,letterSpacing:1,cursor:"pointer",borderRight:"1px solid #242d40",transition:"all .15s"}}>
                       {m.slice(0,3).toUpperCase()}
                     </button>
                   );})}
-                  {seasonState._override&&<button onClick={clearSeasonOverride} style={{background:"#FFD70022",color:"#FFD700",border:"none",padding:"4px 6px",fontFamily:"'Bebas Neue',sans-serif",fontSize:8,cursor:"pointer"}}>AUTO</button>}
+                  {seasonState._override&&<button onClick={clearSeasonOverride} style={{background:"#f59e0b22",color:"#FFD700",border:"none",padding:"4px 6px",fontFamily:"inherit",fontSize:8,cursor:"pointer"}}>AUTO</button>}
                 </div>
-                <Btn onClick={doLoad}   disabled={phase==="loading"}                      grad="#9580FF">{phase==="loading"?"◌ SYNCING...":"⟳ SYNC DATA"}</Btn>
-                <Btn onClick={doIntel}  disabled={newsPhase==="loading"||!players.length}  grad="linear-gradient(135deg,#f59e0b,#ccad00)">{newsPhase==="loading"?"◌ SCANNING...":"◈ INTEL SCAN"}</Btn>
+                <Btn onClick={doLoad}   disabled={phase==="loading"}                      grad="#9580FF22">{phase==="loading"?"◌ SYNCING...":"⟳ SYNC DATA"}</Btn>
+                <Btn onClick={doIntel}  disabled={newsPhase==="loading"||!players.length}  grad="linear-gradient(135deg,#f59e0b,#d97706)">{newsPhase==="loading"?"◌ SCANNING...":"◈ INTEL SCAN"}</Btn>
                 <div style={{display:"flex",alignItems:"center",background:"#1d2535",border:"1px solid #242d40",borderRadius:5,overflow:"hidden"}}>
                   {[["dynasty","DV","#9580FF"],["redraft","SV","#00D4FF"]].map(([m,lbl,col])=>{
                     const active = viewMode === m;
@@ -577,19 +577,19 @@ export default function App() {
                       <button key={m} onClick={()=>{setViewMode(m);try{localStorage.setItem("mgg_view_mode",m);}catch{}}}
                         title={m==="dynasty"?"Dynasty Value (0-1000) — trade & asset view":"Start Value (0-100) — weekly redraft view"}
                         style={{background:active?col+"22":"transparent",color:active?col:"#2a3548",
-                          border:"none",padding:"5px 10px",fontFamily:"'Bebas Neue',sans-serif",fontSize:8,
+                          border:"none",padding:"5px 10px",fontFamily:"inherit",fontSize:8,
                           fontWeight:active?900:400,letterSpacing:1,cursor:"pointer",transition:"all .15s"}}>
                         {lbl}
                       </button>
                     );
                   })}
                 </div>
-                <Btn onClick={()=>doExport(players,newsMap)} disabled={!players.length} grad="linear-gradient(135deg,#9580FF,#7060ee)">⬇ EXPORT XLSX</Btn>
+                <Btn onClick={()=>doExport(players,newsMap)} disabled={!players.length} grad="linear-gradient(135deg,#6366f1,#4f46e5)">⬇ EXPORT XLSX</Btn>
               </div>
             </div>
             <div style={{display:"flex",gap:0,marginTop:16,borderBottom:"1px solid #242d40"}}>
               {[["dashboard","Ω DASHBOARD"],["leaguehub","⬡ LEAGUE HUB"],["teamhub","◎ TEAM HUB"],["playerhub","◈ PLAYER HUB"],["tools","⇄ ANALYSIS TOOLS"],["drafthub","◈ DRAFT HUB"],["log","▸ LOG"]]
-                .map(([id,lbl])=>(<button key={id} onClick={()=>setTab(id)} style={{background:"none",border:"none",borderBottom:tab===id?"3px solid #9580FF":"2px solid transparent",color:tab===id?"#9580FF":"#8892a4",padding:"7px 16px",fontFamily:"'Bebas Neue',sans-serif",fontSize:10,letterSpacing:2,fontWeight:700,cursor:"pointer"}}>{lbl}</button>))}
+                .map(([id,lbl])=>(<button key={id} onClick={()=>setTab(id)} style={{background:"none",border:"none",borderBottom:tab===id?"3px solid #9580FF":"2px solid transparent",color:tab===id?"#9580FF":"#8892a4",padding:"7px 16px",fontFamily:"inherit",fontSize:10,letterSpacing:2,fontWeight:700,cursor:"pointer"}}>{lbl}</button>))}
             </div>
           </>
         )}
@@ -606,12 +606,12 @@ export default function App() {
               <span style={{color:"#FFD700"}}>Intel Scan</span> — ESPN headlines + BUY/SELL/HOLD signals
             </div>
             <div style={{fontSize:10,color:"#242d40",marginBottom:26}}>⬇ EXPORT XLSX generates a formatted workbook snapshot anytime</div>
-            <button onClick={doLoad} style={{background:"#9580FF",color:"#0d1117",border:"none",borderRadius:0,padding:"11px 34px",fontFamily:"'Bebas Neue',sans-serif",fontWeight:900,fontSize:12,letterSpacing:3,cursor:"pointer"}}>⟳ INITIALIZE</button>
+            <button onClick={doLoad} style={{background:"#9580FF",color:"#0d1117",border:"none",borderRadius:0,padding:"11px 34px",fontFamily:"inherit",fontWeight:900,fontSize:12,letterSpacing:3,cursor:"pointer"}}>⟳ INITIALIZE</button>
           </div>
         )}
         {phase==="loading"&&(
           <div style={{background:"#161b26",border:"1px solid #242d40",borderRadius:0,padding:22,marginBottom:18}}>
-            <div style={{fontSize:11,color:"#9580FF",letterSpacing:"0.1em",marginBottom:10,fontWeight:700}}>▸ LIVE SYNC</div>
+            <div style={{fontSize:9,color:"#9580FF",letterSpacing:2,marginBottom:10,fontWeight:700}}>▸ LIVE SYNC</div>
             {progress.map((e,i)=>(<div key={i} style={{fontSize:11,padding:"3px 0",color:e.type==="success"?"#9580FF":e.type==="error"?"#FF4757":e.type==="done"?"#00D4FF":"#8892a4"}}><span style={{color:"#2a3548",marginRight:8,fontSize:9}}>{e.ts}</span>{e.msg}</div>))}
             <div style={{marginTop:14,height:3,background:"#242d40",borderRadius:2,overflow:"hidden"}}><div style={{height:"100%",width:`${Math.min(100,progress.length/10*100)}%`,background:"#9580FF",transition:"width .4s"}}/></div>
           </div>
@@ -620,8 +620,8 @@ export default function App() {
           <div style={{background:"#1d0a0d",border:"1px solid #ef4444",borderRadius:0,padding:"16px 20px",marginBottom:16}}>
             <div style={{color:"#FF4757",fontWeight:700,marginBottom:8}}>⚠ SYNC FAILED</div>
             {progress.filter(e=>e.type==="error").map((e,i)=>(<div key={i} style={{fontSize:11,color:"#FF4757"}}>{e.msg}</div>))}
-            <div style={{fontSize:11,color:"#6b7280",marginTop:10,lineHeight:1.7}}>Common causes: Sleeper API CORS, network timeout, invalid league ID.<br/>League ID: <strong style={{color:"#e2e8f0"}}>{LEAGUE_ID}</strong></div>
-            <button onClick={doLoad} style={{marginTop:12,background:"#242d40",color:"#e2e8f0",border:"1px solid #374151",borderRadius:6,padding:"7px 16px",fontFamily:"'Bebas Neue',sans-serif",fontSize:10,cursor:"pointer",letterSpacing:1}}>⟳ RETRY</button>
+            <div style={{fontSize:11,color:"#8892a4",marginTop:10,lineHeight:1.7}}>Common causes: Sleeper API CORS, network timeout, invalid league ID.<br/>League ID: <strong style={{color:"#e2e8f0"}}>{LEAGUE_ID}</strong></div>
+            <button onClick={doLoad} style={{marginTop:12,background:"#242d40",color:"#e2e8f0",border:"1px solid #374151",borderRadius:6,padding:"7px 16px",fontFamily:"inherit",fontSize:10,cursor:"pointer",letterSpacing:1}}>⟳ RETRY</button>
           </div>
         )}
 
@@ -683,7 +683,7 @@ export default function App() {
         <div style={{position:"fixed",inset:0,background:"rgba(8,13,20,0.97)",display:"flex",
           alignItems:"center",justifyContent:"center",zIndex:1001}}>
           <div style={{background:"#161b26",border:"2px solid #9580FF",borderRadius:0,
-            padding:"28px 30px",width:400,maxWidth:"92vw",}}>
+            padding:"28px 30px",width:400,maxWidth:"92vw"}}>
             <div style={{fontSize:16,fontWeight:900,letterSpacing:2,color:"#00D4FF",marginBottom:4}}>
               WHICH TEAM IS YOURS?
             </div>
@@ -703,7 +703,7 @@ export default function App() {
                     setLoginOpen(false);
                   }}
                   style={{background:"#1d2535",border:"1px solid #242d40",color:"#e2e8f0",
-                    borderRadius:7,padding:"11px 14px",fontFamily:"'Bebas Neue',sans-serif",fontSize:12,
+                    borderRadius:7,padding:"11px 14px",fontFamily:"inherit",fontSize:12,
                     cursor:"pointer",textAlign:"left",display:"flex",
                     justifyContent:"space-between",alignItems:"center",
                     transition:"all .12s"}}
@@ -742,7 +742,7 @@ export default function App() {
       {loginOpen&&(
         <div onClick={e=>e.target===e.currentTarget&&identity&&setLoginOpen(false)}
           style={{position:"fixed",inset:0,background:"rgba(8,13,20,0.95)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}}>
-          <div style={{background:"#161b26",border:"3px solid #9580FF",borderRadius:0,padding:"28px 32px",width:420,maxWidth:"92vw",}}>
+          <div style={{background:"#161b26",border:"3px solid #9580FF",borderRadius:0,padding:"28px 32px",width:420,maxWidth:"92vw"}}>
 
             <div style={{fontSize:18,fontWeight:900,letterSpacing:2,color:"#9580FF",marginBottom:4}}>
               {identity?"ACCOUNT":"MGG DYNASTY"}
@@ -768,10 +768,10 @@ export default function App() {
                     <div style={{fontSize:9,color:"#8892a4",letterSpacing:1,marginBottom:6}}>YOUR TEAM — tap to change</div>
                     <div style={{display:"flex",flexDirection:"column",gap:4,maxHeight:200,overflowY:"auto"}}>
                       {owners.map(o=>(<button key={o} onClick={()=>{setOwnerMapping(o);setTradeOwnerA(o);setLoginOpen(false);}}
-                        style={{background:identity.ownerName===o?"#0f2b1a":"#1d2535",
+                        style={{background:identity.ownerName===o?"#0d1f14":"#1d2535",
                           border:`1px solid ${identity.ownerName===o?"#9580FF":"#242d40"}`,
                           color:identity.ownerName===o?"#9580FF":"#e2e8f0",borderRadius:6,
-                          padding:"8px 12px",fontFamily:"'Bebas Neue',sans-serif",fontSize:11,
+                          padding:"8px 12px",fontFamily:"inherit",fontSize:11,
                           fontWeight:identity.ownerName===o?700:400,cursor:"pointer",
                           textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                         <span>{o}</span>
@@ -782,7 +782,7 @@ export default function App() {
                 )}
                 {/* Commissioner mode */}
                 <div style={{marginBottom:16,padding:"12px 14px",background:"#1d2535",border:"1px solid #242d40",borderRadius:0}}>
-                  <div style={{fontSize:11,color:"#FFD700",letterSpacing:"0.1em",fontWeight:700,marginBottom:6}}>★ COMMISSIONER MODE</div>
+                  <div style={{fontSize:9,color:"#FFD700",letterSpacing:2,fontWeight:700,marginBottom:6}}>★ COMMISSIONER MODE</div>
                   {isCommissioner?(
                     <div>
                       <div style={{fontSize:9,color:"#FFD700",marginBottom:8}}>Active — view any team read-only</div>
@@ -790,22 +790,22 @@ export default function App() {
                         <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:8}}>
                           {owners.filter(o=>o!==currentOwner).map(o=>(
                             <button key={o} onClick={()=>{enterViewMode(o);setLoginOpen(false);}}
-                              style={{background:"#1a1000",border:"1px solid #FFD70033",color:"#FFD700",borderRadius:4,padding:"3px 8px",fontFamily:"'Bebas Neue',sans-serif",fontSize:9,cursor:"pointer"}}>
+                              style={{background:"#1a1000",border:"1px solid #f59e0b33",color:"#FFD700",borderRadius:4,padding:"3px 8px",fontFamily:"inherit",fontSize:9,cursor:"pointer"}}>
                               👁 {o}
                             </button>
                           ))}
                         </div>
                       )}
-                      <button onClick={deactivateCommissioner} style={{background:"none",border:"1px solid #374151",color:"#8892a4",borderRadius:4,padding:"5px 10px",fontFamily:"'Bebas Neue',sans-serif",fontSize:9,cursor:"pointer"}}>DEACTIVATE</button>
+                      <button onClick={deactivateCommissioner} style={{background:"none",border:"1px solid #374151",color:"#8892a4",borderRadius:4,padding:"5px 10px",fontFamily:"inherit",fontSize:9,cursor:"pointer"}}>DEACTIVATE</button>
                     </div>
                   ):(
                     <div style={{display:"flex",gap:6}}>
                       <input type="password" value={commPassInput} onChange={e=>setCommPassInput(e.target.value)}
                         onKeyDown={e=>e.key==="Enter"&&activateCommissioner()}
                         placeholder="Commissioner passphrase..."
-                        style={{flex:1,background:"#0d1117",border:`1px solid ${commPassError?"#FF4757":"#242d40"}`,color:"#e2e8f0",padding:"7px 10px",borderRadius:5,fontFamily:"'JetBrains Mono','JetBrains Mono','Courier New',monospace",fontSize:10}}/>
+                        style={{flex:1,background:"#0d1117",border:`1px solid ${commPassError?"#FF4757":"#242d40"}`,color:"#e2e8f0",padding:"7px 10px",borderRadius:5,fontFamily:"monospace",fontSize:10}}/>
                       <button onClick={activateCommissioner} disabled={!commPassInput}
-                        style={{background:commPassInput?"linear-gradient(135deg,#f59e0b,#ccad00)":"#242d40",color:commPassInput?"#0d1117":"#8892a4",border:"none",borderRadius:5,padding:"7px 12px",fontFamily:"'Bebas Neue',sans-serif",fontWeight:900,fontSize:9,cursor:commPassInput?"pointer":"not-allowed"}}>
+                        style={{background:commPassInput?"linear-gradient(135deg,#f59e0b,#d97706)":"#242d40",color:commPassInput?"#0d1117":"#8892a4",border:"none",borderRadius:5,padding:"7px 12px",fontFamily:"inherit",fontWeight:900,fontSize:9,cursor:commPassInput?"pointer":"not-allowed"}}>
                         ★ UNLOCK
                       </button>
                     </div>
@@ -813,8 +813,8 @@ export default function App() {
                   {commPassError&&<div style={{fontSize:9,color:"#FF4757",marginTop:4}}>⚠ {commPassError}</div>}
                 </div>
                 <div style={{display:"flex",gap:8}}>
-                  <button onClick={()=>setLoginOpen(false)} style={{flex:1,background:"#0f2b1a",border:"1px solid #9580FF44",color:"#9580FF",borderRadius:6,padding:"9px",fontFamily:"'Bebas Neue',sans-serif",fontSize:10,cursor:"pointer",fontWeight:700,letterSpacing:1}}>✓ DONE</button>
-                  <button onClick={doLogout} style={{background:"#1d0a0d",border:"1px solid #FF475733",color:"#FF4757",borderRadius:6,padding:"9px 14px",fontFamily:"'Bebas Neue',sans-serif",fontSize:10,cursor:"pointer",letterSpacing:1}}>LOG OUT</button>
+                  <button onClick={()=>setLoginOpen(false)} style={{flex:1,background:"#0d1f14",border:"1px solid #9580FF44",color:"#9580FF",borderRadius:6,padding:"9px",fontFamily:"inherit",fontSize:10,cursor:"pointer",fontWeight:700,letterSpacing:1}}>✓ DONE</button>
+                  <button onClick={doLogout} style={{background:"#1d0a0d",border:"1px solid #ef444433",color:"#FF4757",borderRadius:6,padding:"9px 14px",fontFamily:"inherit",fontSize:10,cursor:"pointer",letterSpacing:1}}>LOG OUT</button>
                 </div>
               </div>
             ):(
@@ -832,17 +832,17 @@ export default function App() {
                     style={{width:"100%",boxSizing:"border-box",background:"#0d1117",
                       border:`1px solid ${loginError?"#FF4757":"#242d40"}`,
                       color:"#e2e8f0",padding:"11px 14px",borderRadius:6,
-                      fontFamily:"'JetBrains Mono','JetBrains Mono','Courier New',monospace",fontSize:13,outline:"none"}}/>
+                      fontFamily:"monospace",fontSize:13,outline:"none"}}/>
                   {loginError&&(
-                    <div style={{fontSize:10,color:"#FF4757",marginTop:6,padding:"6px 10px",background:"#1d0a0d",borderRadius:4,border:"1px solid #FF475722"}}>
+                    <div style={{fontSize:10,color:"#FF4757",marginTop:6,padding:"6px 10px",background:"#1d0a0d",borderRadius:4,border:"1px solid #ef444422"}}>
                       ⚠ {loginError}
                     </div>
                   )}
                 </div>
                 <button onClick={handleSleeperLogin} disabled={loginLoading||!loginInput.trim()}
-                  style={{width:"100%",background:loginLoading||!loginInput.trim()?"#242d40":"#9580FF",
+                  style={{width:"100%",background:loginLoading||!loginInput.trim()?"#242d40":"#9580FF22",
                     color:loginLoading||!loginInput.trim()?"#8892a4":"#0d1117",border:"none",
-                    borderRadius:6,padding:"12px",fontFamily:"'Bebas Neue',sans-serif",fontWeight:900,
+                    borderRadius:6,padding:"12px",fontFamily:"inherit",fontWeight:900,
                     fontSize:11,letterSpacing:2,cursor:loginLoading||!loginInput.trim()?"not-allowed":"pointer",marginBottom:16}}>
                   {loginLoading?"◌ VERIFYING WITH SLEEPER...":"▸ VERIFY & ENTER"}
                 </button>
@@ -855,7 +855,7 @@ export default function App() {
                     <div style={{display:"flex",flexDirection:"column",gap:4,marginTop:8,maxHeight:160,overflowY:"auto"}}>
                       {owners.map(o=>(<button key={o} onClick={()=>doManualLogin(o)}
                         style={{background:"#1d2535",border:"1px solid #242d40",color:"#7a95ae",borderRadius:5,
-                          padding:"8px 12px",fontFamily:"'Bebas Neue',sans-serif",fontSize:10,cursor:"pointer",
+                          padding:"8px 12px",fontFamily:"inherit",fontSize:10,cursor:"pointer",
                           textAlign:"left",display:"flex",justifyContent:"space-between"}}>
                         <span>{o}</span><span style={{fontSize:9,color:"#2a3548"}}>{players.filter(p=>p.owner===o).length} players</span>
                       </button>))}

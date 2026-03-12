@@ -34,7 +34,7 @@ function PlayerRow({ p, newsMap, playerNotes, savePlayerNote, viewMode = "dynast
   const savedNote = playerNotes?.[p.pid] || "";
 
   return (
-    <div style={{ borderBottom:"1px solid #161b26" }}>
+    <div style={{ borderBottom:"1px solid #242d40" }}>
       {/* ── Summary row ── */}
       <div onClick={() => setExpanded(x => !x)}
         style={{ display:"flex", alignItems:"center", gap:10, padding:"7px 10px",
@@ -54,14 +54,14 @@ function PlayerRow({ p, newsMap, playerNotes, savePlayerNote, viewMode = "dynast
         <div style={{ flex:1, minWidth:0 }}>
           <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
             <span style={{ fontSize:12, fontWeight:700, color:"#e2e8f0" }}>{p.name}</span>
-            {p.onTaxi && <span style={{ fontSize:7, background:"#0c1e35", color:"#00D4FF",
-              border:"1px solid "#9580FF"44", borderRadius:3, padding:"1px 5px" }}>TAXI</span>}
+            {p.onTaxi && <span style={{ fontSize:7, background:"#1d2535", color:"#00D4FF",
+              border:"1px solid #3b82f644", borderRadius:3, padding:"1px 5px" }}>TAXI</span>}
             {inj && <span style={{ fontSize:7, background:inj+"22", color:inj,
               border:`1px solid ${inj}44`, borderRadius:3, padding:"1px 5px" }}>{p.injStatus}</span>}
             {n?.signal && <span style={{ fontSize:7, background:SIG_COLORS[n.signal],
               color:"#0d1117", borderRadius:3, padding:"1px 5px", fontWeight:900 }}>{n.signal}</span>}
             {savedNote && <span style={{ fontSize:7, color:"#FFD700", background:"#f59e0b18",
-              border:"1px solid #FFD70044", borderRadius:3, padding:"1px 5px" }}>✎ NOTE</span>}
+              border:"1px solid #f59e0b44", borderRadius:3, padding:"1px 5px" }}>✎ NOTE</span>}
           </div>
           <div style={{ fontSize:9, color:"#7a95ae", marginTop:2 }}>
             {p.pos} · {p.team}{p.age ? ` · ${p.age}y` : ""}{p.ppg != null ? ` · ${p.ppg} ppg` : ""}
@@ -178,7 +178,7 @@ function PlayerRow({ p, newsMap, playerNotes, savePlayerNote, viewMode = "dynast
                 <button onClick={() => { setEditingNote(true); setNoteVal(savedNote); }}
                   style={{ fontSize:8, background:"none", border:"1px solid #2a3f55",
                     color:"#00D4FF", borderRadius:4, padding:"2px 8px",
-                    cursor:"pointer", fontFamily:"'Bebas Neue',sans-serif" }}>
+                    cursor:"pointer", fontFamily:"inherit" }}>
                   {savedNote ? "EDIT" : "+ ADD NOTE"}
                 </button>
               )}
@@ -192,27 +192,27 @@ function PlayerRow({ p, newsMap, playerNotes, savePlayerNote, viewMode = "dynast
                   autoFocus
                   style={{ width:"100%", minHeight:64, background:"#050a10",
                     border:"1px solid #2a3f55", borderRadius:6, color:"#e2e8f0",
-                    padding:"8px 10px", fontSize:11, fontFamily:"'Bebas Neue',sans-serif",
+                    padding:"8px 10px", fontSize:11, fontFamily:"inherit",
                     resize:"vertical", outline:"none", boxSizing:"border-box" }}
                 />
                 <div style={{ display:"flex", gap:8, marginTop:6 }}>
                   <button onClick={() => { savePlayerNote(p.pid, noteVal.trim()); setEditingNote(false); }}
                     style={{ fontSize:8, background:"#9580FF22", border:"1px solid #9580FF66",
                       color:"#9580FF", borderRadius:4, padding:"3px 12px",
-                      cursor:"pointer", fontFamily:"'Bebas Neue',sans-serif", fontWeight:700 }}>
+                      cursor:"pointer", fontFamily:"inherit", fontWeight:700 }}>
                     SAVE
                   </button>
                   <button onClick={() => setEditingNote(false)}
                     style={{ fontSize:8, background:"none", border:"1px solid #2a3f55",
                       color:"#8892a4", borderRadius:4, padding:"3px 10px",
-                      cursor:"pointer", fontFamily:"'Bebas Neue',sans-serif" }}>
+                      cursor:"pointer", fontFamily:"inherit" }}>
                     CANCEL
                   </button>
                   {savedNote && (
                     <button onClick={() => { savePlayerNote(p.pid, ""); setEditingNote(false); }}
-                      style={{ fontSize:8, background:"#FF475722", border:"1px solid #ef444466",
+                      style={{ fontSize:8, background:"#ef444422", border:"1px solid #ef444466",
                         color:"#FF4757", borderRadius:4, padding:"3px 10px",
-                        cursor:"pointer", fontFamily:"'Bebas Neue',sans-serif" }}>
+                        cursor:"pointer", fontFamily:"inherit" }}>
                       CLEAR
                     </button>
                   )}
@@ -220,7 +220,7 @@ function PlayerRow({ p, newsMap, playerNotes, savePlayerNote, viewMode = "dynast
               </div>
             ) : savedNote ? (
               <div style={{ fontSize:11, color:"#e2e8f0", lineHeight:1.7,
-                background:"#f59e0b0d", border:"1px solid #FFD70022",
+                background:"#f59e0b0d", border:"1px solid #f59e0b22",
                 borderRadius:6, padding:"8px 12px" }}>
                 {savedNote}
               </div>
@@ -319,7 +319,7 @@ function Overview({ myGrade, owners, players, newsMap, currentOwner, setTab, vie
       <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))", gap:10 }}>
         <div style={{ background:"#1d2535", border:"1px solid #242d40", borderRadius:0, padding:"14px 16px" }}>
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
-            <div style={{ fontSize:11, color:"#FF4757", letterSpacing:"0.1em", fontWeight:700 }}>
+            <div style={{ fontSize:9, color:"#FF4757", letterSpacing:2, fontWeight:700 }}>
               ⚑ SELL-HIGH ({sells.length})
             </div>
             {sells.length > 0 && (
@@ -332,7 +332,7 @@ function Overview({ myGrade, owners, players, newsMap, currentOwner, setTab, vie
             ? <div style={{ fontSize:9, color:"#8892a4" }}>No sell-high candidates right now</div>
             : sells.map(p => (
               <div key={p.pid} style={{ display:"flex", justifyContent:"space-between",
-                alignItems:"center", padding:"5px 0", borderBottom:"1px solid #161b26" }}>
+                alignItems:"center", padding:"5px 0", borderBottom:"1px solid #242d40" }}>
                 <div>
                   <div style={{ fontSize:11, fontWeight:700, color:"#e2e8f0" }}>{p.name}</div>
                   <div style={{ fontSize:9, color:"#7a95ae" }}>{p.pos} · Age {p.age}</div>
@@ -344,14 +344,14 @@ function Overview({ myGrade, owners, players, newsMap, currentOwner, setTab, vie
         </div>
 
         <div style={{ background:"#1d2535", border:"1px solid #242d40", borderRadius:0, padding:"14px 16px" }}>
-          <div style={{ fontSize:11, color:"#FFD700", letterSpacing:"0.1em", fontWeight:700, marginBottom:10 }}>
+          <div style={{ fontSize:9, color:"#FFD700", letterSpacing:2, fontWeight:700, marginBottom:10 }}>
             ◈ POSITIONAL GAPS
           </div>
           {weak.length === 0
             ? <div style={{ fontSize:9, color:"#8892a4" }}>No significant gaps detected</div>
             : weak.map(w => (
               <div key={w.pos} style={{ display:"flex", justifyContent:"space-between",
-                alignItems:"center", padding:"5px 0", borderBottom:"1px solid #161b26" }}>
+                alignItems:"center", padding:"5px 0", borderBottom:"1px solid #242d40" }}>
                 <span style={{ fontSize:11, fontWeight:700, color:"#e2e8f0" }}>{w.pos}</span>
                 <div style={{ textAlign:"right" }}>
                   <div style={{ fontSize:9 }}>
@@ -369,14 +369,14 @@ function Overview({ myGrade, owners, players, newsMap, currentOwner, setTab, vie
 
         {injured.length > 0 && (
           <div style={{ background:"#1d2535", border:"1px solid #242d40", borderRadius:0, padding:"14px 16px" }}>
-            <div style={{ fontSize:11, color:"#FF4757", letterSpacing:"0.1em", fontWeight:700, marginBottom:10 }}>
+            <div style={{ fontSize:9, color:"#FF4757", letterSpacing:2, fontWeight:700, marginBottom:10 }}>
               ⚠ INJURY ALERTS ({injured.length})
             </div>
             {injured.map(p => {
               const c = INJ_COLOR[p.injStatus] || "#FF4757";
               return (
                 <div key={p.pid} style={{ display:"flex", justifyContent:"space-between",
-                  alignItems:"center", padding:"5px 0", borderBottom:"1px solid #161b26" }}>
+                  alignItems:"center", padding:"5px 0", borderBottom:"1px solid #242d40" }}>
                   <div>
                     <div style={{ fontSize:11, fontWeight:700, color:"#e2e8f0" }}>{p.name}</div>
                     <div style={{ fontSize:9, color:"#7a95ae" }}>{p.pos} · {p.team}</div>
@@ -391,7 +391,7 @@ function Overview({ myGrade, owners, players, newsMap, currentOwner, setTab, vie
 
       {/* League standings */}
       <div style={{ background:"#1d2535", border:"1px solid #242d40", borderRadius:0, padding:"14px 16px" }}>
-        <div style={{ fontSize:11, color:"#00D4FF", letterSpacing:"0.1em", fontWeight:700, marginBottom:12 }}>
+        <div style={{ fontSize:9, color:"#00D4FF", letterSpacing:2, fontWeight:700, marginBottom:12 }}>
           LEAGUE STANDINGS
         </div>
         {allGrades.map((g, i) => {
@@ -399,7 +399,7 @@ function Overview({ myGrade, owners, players, newsMap, currentOwner, setTab, vie
           return (
             <div key={g.owner} style={{ display:"flex", alignItems:"center", gap:10,
               padding:"6px 10px", borderRadius:6,
-              background:isMe?"#0c1e35":"transparent",
+              background:isMe?"#1d2535":"transparent",
               border:isMe?"1px solid #60a5f644":"1px solid transparent" }}>
               <span style={{ fontSize:9, color:"#8892a4", minWidth:20 }}>#{i+1}</span>
               <span style={{ flex:1, fontSize:10, fontWeight:isMe?700:400,
@@ -442,7 +442,7 @@ function SellHighTab({ roster, newsMap, viewMode="dynasty" }) {
             const isSell = n?.signal === "SELL";
             return (
               <div key={p.pid} style={{ display:"flex", alignItems:"center", gap:12,
-                padding:"12px 16px", borderBottom:"1px solid #161b26",
+                padding:"12px 16px", borderBottom:"1px solid #242d40",
                 background:isSell?"#1a0a0a":"#0d1117" }}>
                 <div style={{ width:42, textAlign:"center", flexShrink:0 }}>
                   <div style={{ fontSize:18, fontWeight:900, color:ts.text }}>{pv(p,viewMode)}</div>
@@ -483,9 +483,9 @@ function TargetsTab({ currentOwner, myGrade, players, newsMap, viewMode="dynasty
   return (
     <div>
       {weak.length > 0 && (
-        <div style={{ background:"#1d2535", border:"1px solid #FFD70044", borderRadius:0,
+        <div style={{ background:"#1d2535", border:"1px solid #f59e0b44", borderRadius:0,
           padding:"12px 16px", marginBottom:14 }}>
-          <div style={{ fontSize:11, color:"#FFD700", letterSpacing:"0.1em", fontWeight:700, marginBottom:10 }}>
+          <div style={{ fontSize:9, color:"#FFD700", letterSpacing:2, fontWeight:700, marginBottom:10 }}>
             ◈ YOUR WEAKEST POSITIONS
           </div>
           <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
@@ -521,7 +521,7 @@ function TargetsTab({ currentOwner, myGrade, players, newsMap, viewMode="dynasty
             const isBuy = n?.signal === "BUY";
             return (
               <div key={p.pid} style={{ display:"flex", alignItems:"center", gap:12,
-                padding:"10px 16px", borderBottom:"1px solid #161b26",
+                padding:"10px 16px", borderBottom:"1px solid #242d40",
                 background:isBuy?"#0a1f0a":"#0d1117" }}>
                 <div style={{ width:42, textAlign:"center", flexShrink:0 }}>
                   <div style={{ fontSize:16, fontWeight:900, color:ts.text }}>{pv(p,viewMode)}</div>
@@ -567,9 +567,9 @@ function RosterTab({ roster, newsMap, playerNotes, savePlayerNote, viewMode="dyn
         <div style={{ display:"flex", gap:0, border:"1px solid #242d40", borderRadius:6, overflow:"hidden" }}>
           {["ALL",...POS_ORDER].map(pos => (
             <button key={pos} onClick={() => setPosFilter(pos)}
-              style={{ background:posFilter===pos?"#0c1e35":"transparent",
+              style={{ background:posFilter===pos?"#1d2535":"transparent",
                 color:posFilter===pos?"#00D4FF":"#8892a4",
-                border:"none", padding:"5px 9px", fontFamily:"'Bebas Neue',sans-serif",
+                border:"none", padding:"5px 9px", fontFamily:"inherit",
                 fontSize:9, cursor:"pointer", fontWeight:posFilter===pos?700:400,
                 borderRight:"1px solid #242d40" }}>
               {pos}
@@ -579,9 +579,9 @@ function RosterTab({ roster, newsMap, playerNotes, savePlayerNote, viewMode="dyn
         <div style={{ display:"flex", gap:0, border:"1px solid #242d40", borderRadius:6, overflow:"hidden" }}>
           {[["score","SCORE"],["age","AGE"],["ppg","PPG"]].map(([k,l]) => (
             <button key={k} onClick={() => setSortKey(k)}
-              style={{ background:sortKey===k?"#0c1e35":"transparent",
+              style={{ background:sortKey===k?"#1d2535":"transparent",
                 color:sortKey===k?"#00D4FF":"#8892a4",
-                border:"none", padding:"5px 10px", fontFamily:"'Bebas Neue',sans-serif",
+                border:"none", padding:"5px 10px", fontFamily:"inherit",
                 fontSize:9, cursor:"pointer", fontWeight:sortKey===k?700:400,
                 borderRight:"1px solid #242d40" }}>
               {l}
@@ -590,8 +590,8 @@ function RosterTab({ roster, newsMap, playerNotes, savePlayerNote, viewMode="dyn
         </div>
         <span style={{ fontSize:9, color:"#8892a4" }}>{filtered.length} players</span>
         {viewMode === "redraft" && (
-          <span style={{ fontSize:8, color:"#FFD700", background:"rgba(245,158,11,0.12)",
-            border:"1px solid rgba(245,158,11,0.3)", borderRadius:4, padding:"2px 6px",
+          <span style={{ fontSize:8, color:"#FFD700", background:"rgba(255,215,0,0.12)",
+            border:"1px solid rgba(255,215,0,0.3)", borderRadius:4, padding:"2px 6px",
             fontWeight:700, letterSpacing:0.5 }}>
             SV {filtered.some(p => p.ppg != null) ? "" : "· OFFSEASON PROJ"}
           </span>
@@ -634,7 +634,7 @@ function CompareTab({ myGrade, owners, players, newsMap, currentOwner, viewMode=
           style={{ flex:1, background:"#050a10", border:"1px solid #2a3f55",
             color: oppOwner ? "#e2e8f0" : "#8892a4",
             borderRadius:6, padding:"6px 10px", fontSize:11,
-            fontFamily:"'Bebas Neue',sans-serif", cursor:"pointer", outline:"none" }}>
+            fontFamily:"inherit", cursor:"pointer", outline:"none" }}>
           <option value="">— Select an owner —</option>
           {otherOwners.map(o => <option key={o} value={o}>{o}</option>)}
         </select>
@@ -723,7 +723,7 @@ function CompareTab({ myGrade, owners, players, newsMap, currentOwner, viewMode=
                   <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
                     {gaps.map(pos => (
                       <span key={pos} style={{ fontSize:9, background:"#f59e0b18",
-                        border:"1px solid #FFD70044", color:"#FFD700",
+                        border:"1px solid #f59e0b44", color:"#FFD700",
                         borderRadius:4, padding:"2px 8px", fontWeight:700 }}>{pos}</span>
                     ))}
                   </div>
@@ -797,7 +797,7 @@ function CompareTab({ myGrade, owners, players, newsMap, currentOwner, viewMode=
                       return (
                         <div key={p.pid} style={{ display:"flex", alignItems:"center",
                           gap:8, padding:"5px 10px",
-                          background:"#0d1117", borderBottom:"1px solid #161b26" }}>
+                          background:"#0d1117", borderBottom:"1px solid #242d40" }}>
                           <div style={{ width:32, textAlign:"center", flexShrink:0 }}>
                             <div style={{ fontSize:13, fontWeight:900, color:ts2.text,
                               textShadow:`0 0 6px ${ts2.glow}` }}>{pv(p,viewMode)}</div>
@@ -866,7 +866,7 @@ export function TeamHub({ viewMode="dynasty", phase, players, owners, currentOwn
             style={{ background:"none", border:"none",
               borderBottom:tab===key?"3px solid #9580FF":"2px solid transparent",
               color:tab===key?"#9580FF":"#8892a4",
-              padding:"6px 16px", fontFamily:"'Bebas Neue',sans-serif",
+              padding:"6px 16px", fontFamily:"inherit",
               fontSize:10, letterSpacing:2, fontWeight:tab===key?700:400, cursor:"pointer" }}>
             {label}
           </button>
