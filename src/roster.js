@@ -14,7 +14,7 @@
 // Canonical threshold is now dynastyValue >= top 35% of owner's roster (relative),
 // with a minimum absolute floor of 45 to catch value regardless of roster depth.
 
-import { PRIME, POS_ORDER, LINEUP_SLOTS, POS_DV_MAX } from "./constants";
+import { PRIME, POS_ORDER, LINEUP_SLOTS } from "./constants";
 
 // ─── GRADE ROSTER ─────────────────────────────────────────────────────────────
 // Takes an owner name and full player list.
@@ -234,24 +234,16 @@ export function tradeTargets(currentOwner, myGrade, players, newsMap, topN = 8) 
 }
 
 // ─── POSITION LEAGUE RANK (0-100) ─────────────────────────────────────────────
-// For each position, ranks every team by their starter-slot avg DV
-// (matching posDep.avg methodology), then converts to a 0-100 score where:
+// For each position, returns a league-relative percentile score where:
 //   100 = best team in the league at this position
-//   50  = exactly median
-//   0   = worst team
-// Used to drive the position bars in TeamHub and Dashboard.
+//   50  = exactly league average
+//   0   = worst team in the league
 //
-// Returns: { QB: 87, RB: 42, WR: 71, ... }
-
-// ─── POSITION HEALTH SCORES ───────────────────────────────────────────────────
-// Returns a 0-100 health score per position where:
-//   100 = you hold the theoretical maximum (top-ranked starter(s) in the game)
-//   50  = average starter-level quality at this position
-//   0   = no meaningful starters
+// Score = "how many teams are you better than, as a 0-100 percentage."
+// This is what matters for dynasty management — your QB room vs the QBs
+// you're competing against, not vs an unreachable theoretical ceiling.
 //
-// Scale is ABSOLUTE (vs POS_DV_MAX), not percentile-relative, so a weak
-// position reads low even if it's the best in this particular 10-team league.
-// leagueRank is provided for supplementary "X of N teams" context only.
+// Individual player absolute rankings belong in the player DB / waiver tool.
 
 export function posLeagueRank(myGrade, players) {
   const owners = [...new Set(players.map(p => p.owner).filter(Boolean))];
@@ -259,25 +251,26 @@ export function posLeagueRank(myGrade, players) {
 
   const result = {};
   POS_ORDER.forEach(pos => {
-    const slots  = LINEUP_SLOTS[pos] || 1;
-    const maxDV  = POS_DV_MAX[pos] || 500;
-    const myAvg  = myGrade.posDep[pos]?.avg ?? 0;
+    const slots = LINEUP_SLOTS[pos] || 1;
+    const myAvg = myGrade.posDep[pos]?.avg ?? 0;
 
-    // Absolute 0-100 score: how close are your starters to the theoretical max?
-    const score = Math.min(100, Math.round(myAvg / maxDV * 100));
+    // Compute every team's starter-slot avg DV at this position
+    // (same methodology as gradeRoster posDep.avg — top LINEUP_SLOTS by DV)
+    const teamAvgs = owners.map(owner => {
+      const atPos = players
+        .filter(p => p.owner === owner && p.pos === pos)
+        .sort((a, b) => b.dynastyValue - a.dynastyValue)
+        .slice(0, slots);
+      return atPos.length ? atPos.reduce((s, p) => s + p.dynastyValue, 0) / atPos.length : 0;
+    });
 
-    // League rank (1 = best) for supplementary display
-    let leagueRank = 1;
-    if (n > 1) {
-      const teamAvgs = owners.map(owner => {
-        const atPos = players
-          .filter(p => p.owner === owner && p.pos === pos)
-          .sort((a, b) => b.dynastyValue - a.dynastyValue)
-          .slice(0, slots);
-        return atPos.length ? atPos.reduce((s, p) => s + p.dynastyValue, 0) / atPos.length : 0;
-      });
-      leagueRank = teamAvgs.filter(v => v > myAvg).length + 1; // 1-indexed, lower = better
-    }
+    // League-relative percentile: count teams strictly below you
+    // worst = 0, best = 100, league average = ~50
+    const belowMe    = teamAvgs.filter(v => v < myAvg).length;
+    const score      = n > 1 ? Math.min(100, Math.round((belowMe / (n - 1)) * 100)) : 50;
+
+    // League rank (1 = best) — supplementary display only
+    const leagueRank = teamAvgs.filter(v => v > myAvg).length + 1;
 
     result[pos] = { score, leagueRank, leagueTotal: n };
   });
