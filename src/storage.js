@@ -29,7 +29,7 @@ export const lsDel = (userKey, k) => {
 // Copies legacy non-namespaced keys (pre-0.8.0) into the new userId namespace
 // on first login so existing users don't lose their data on upgrade.
 export const runMigration = (userId) => {
-  ["watchlist", "situations", "bigboard", "fa_watchlist"].forEach(k => {
+  ["watchlist", "situations", "bigboard", "fa_watchlist", "player_notes", "elo_scores"].forEach(k => {
     const old = localStorage.getItem(`mgg_${k}`);
     const nk  = `mgg_${k}_${userId}`;
     if (old && !localStorage.getItem(nk)) {
