@@ -6,6 +6,7 @@ import {
   sitMultiplier, resolveBreakoutFlag, detectSituation, deriveSignal,
   calcDynastyValues, calcStartRaw,
 } from "./scoring";
+import { loadMarketValues } from "./ktc";
 
 // ─── RE-EXPORTS FOR BACKWARD COMPAT ──────────────────────────────────────────
 // These functions now live in their dedicated logic modules.
@@ -404,6 +405,10 @@ export const loadData = async (log, manualSitsRef) => {
   const tc = ["Elite","Starter","Flex","Depth","Stash"]
     .map(t => `${t}:${pl.filter(x => x.tier === t).length}`).join(" · ");
   log(`Scores complete · ${tc}`, "success");
+
+  // ── Market values (FantasyCalc + KTC) — non-fatal, failures logged internally
+  pl = await loadMarketValues(pl, log);
+
   log("Ready — use ◈ INTEL SCAN for news, ⬇ EXPORT XLSX for snapshot", "done");
 
   // ── Season state ─────────────────────────────────────────────────────────
@@ -426,7 +431,7 @@ export const loadData = async (log, manualSitsRef) => {
     season:         String(season),
     leagueName:     lg.name || LEAGUE_ID,
   };
-  log(`Season: ${seasonState.season} · ${seasonState.mode.toUpperCase()}${seasonState.currentWeek ? " · Week " + seasonState.currentWeek : ""}`, "success");
+  log(`Season: ${seasonState.season} Â· ${seasonState.mode.toUpperCase()}${seasonState.currentWeek ? " Â· Week " + seasonState.currentWeek : ""}`, "success");
 
   return { players: pl.sort((a, b) => b.dynastyValue - a.dynastyValue), nflDb: allP, seasonState, draftPicksByOwner, rosterIdToOwner, leagueUsers: users };
 };
