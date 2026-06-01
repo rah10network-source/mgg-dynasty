@@ -246,13 +246,15 @@ export function tradeTargets(currentOwner, myGrade, players, newsMap, topN = 8) 
 // Individual player absolute rankings belong in the player DB / waiver tool.
 
 export function posLeagueRank(myGrade, players) {
-  const owners = [...new Set(players.map(p => p.owner).filter(Boolean))];
-  const n      = owners.length;
+  const owners     = [...new Set(players.map(p => p.owner).filter(Boolean))];
+  const n          = owners.length;
+  // Locate this owner's index once — we pull myAvg FROM teamAvgs so both values
+  // use the identical computation path and floating-point arithmetic.
+  const myOwnerIdx = owners.indexOf(myGrade.owner);
 
   const result = {};
   POS_ORDER.forEach(pos => {
     const slots = LINEUP_SLOTS[pos] || 1;
-    const myAvg = myGrade.posDep[pos]?.avg ?? 0;
 
     // Compute every team's starter-slot avg DV at this position
     // (same methodology as gradeRoster posDep.avg — top LINEUP_SLOTS by DV)
@@ -263,6 +265,9 @@ export function posLeagueRank(myGrade, players) {
         .slice(0, slots);
       return atPos.length ? atPos.reduce((s, p) => s + p.dynastyValue, 0) / atPos.length : 0;
     });
+
+    // Pull myAvg from the same teamAvgs array — guarantees apples-to-apples comparison
+    const myAvg      = myOwnerIdx >= 0 ? teamAvgs[myOwnerIdx] : 0;
 
     // League-relative percentile: count teams strictly below you
     // worst = 0, best = 100, league average = ~50
