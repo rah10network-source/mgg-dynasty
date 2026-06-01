@@ -8,7 +8,7 @@ export const SCARCITY = { QB:2.0, RB:1.7, WR:1.3, TE:1.5, DL:1.9, LB:2.2, DB:1.5
 
 // [rise, peak, cliff] ages by position
 export const PRIME = {
-  QB:[25,34,38], RB:[23,27,30], WR:[23,29,33], TE:[24,31,35],
+  QB:[23,28,33], RB:[23,27,30], WR:[23,29,33], TE:[24,31,35],
   DL:[22,27,31], LB:[22,27,31], DB:[22,29,34], K:[24,35,42],
 };
 
