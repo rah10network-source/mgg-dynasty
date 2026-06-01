@@ -275,7 +275,7 @@ export const loadData = async (log, manualSitsRef) => {
       startPenalty = 0.65;
     }
 
-    p.ageGated = p.ageRaw * Math.min(p.effRole, 1.0) * startPenalty;
+    p.ageGated = p.ageRaw * Math.min(p.effRole, 1.0); // startPenalty intentionally excluded — dynasty ranking should not penalise rookies with limited early starts
 
     const sc = ["DL","LB","DB"].includes(p.pos)
       ? idpScarcity(p.pos, p.seasonTotals)

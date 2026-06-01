@@ -218,6 +218,14 @@ export const ARCHETYPES = [
   },
 ];
 
+// ─── COLLEGE STATS LINK ───────────────────────────────────────────────────────
+// Generates a sports-reference.com/cfb search URL by player name.
+// Works without any external IDs — SR search redirects to the player page
+// if the name is unique, or shows a results list if there are multiple matches.
+export function cfbStatsUrl(name) {
+  return `https://www.sports-reference.com/cfb/search/search.fcgi?search=${encodeURIComponent(name)}`;
+}
+
 // ─── ROUND LABEL HELPERS ──────────────────────────────────────────────────────
 export const ROUND_LABEL = {
   1:"1st", 2:"2nd", 3:"3rd", 4:"4th", 5:"5th",
