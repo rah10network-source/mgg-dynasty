@@ -6,7 +6,9 @@
 //   p.marketValue  — floor aggregate: average of available sources
 //   p.ktcTier      — human pick-equivalent label for that market value
 
-const FC_URL  = "https://api.fantasycalc.com/values/current?isDynasty=true&numQbs=1&ppr=1&superflex=false";
+// League is 2-QB superflex, 0.5 PPR (see constants.js LINEUP_SLOTS/SCORING) —
+// 1QB full-PPR values systematically undervalued QBs in a superflex format.
+const FC_URL  = "https://api.fantasycalc.com/values/current?isDynasty=true&numQbs=2&ppr=0.5&superflex=true";
 const KTC_URL = "https://api.ktc.app/players/dynasty";
 
 // ── Name normalisation ────────────────────────────────────────────────────────

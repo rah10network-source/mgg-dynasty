@@ -2,7 +2,10 @@
 // Shows the full league leaderboard only.
 // The "Your Roster" personal callout lives in Team Hub.
 import { POS_ORDER } from "../../constants";
-import { gradeRoster } from "../Roster";
+// v1.3.9: import the CANONICAL gradeRoster from roster.js — the copy in
+// tabs/Roster.jsx is a stale legacy duplicate whose thresholds run on the old
+// scale and graded every team A+.
+import { gradeRoster } from "../../roster";
 
 export function RosterGrades({ phase, players, owners, currentOwner }) {
   if (phase !== "done") {

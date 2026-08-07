@@ -32,12 +32,17 @@ export const tradeTotal = (items) => items.reduce((sum, x) => sum + itemScore(x)
 // Evaluates from Side B's perspective (returning team's point of view).
 // diff > 0 = Side B wins the trade.
 
+// Thresholds are a PERCENTAGE of the larger side, not absolute points —
+// absolute cutoffs (5/15/30) were calibrated for the old 0-100 scale and made
+// every trade on the 0-999 DV scale read as STRONG WIN / LOPSIDED LOSS.
 export const tradeVerdict = (sideA, sideB) => {
-  const diff = tradeTotal(sideB) - tradeTotal(sideA);
-  const abs  = Math.abs(diff);
-  if (abs <= 5)  return { label: "FAIR TRADE",    color: "#3b82f6", diff };
-  if (abs <= 15) return { label: diff > 0 ? "SLIGHT WIN"  : "SLIGHT LOSS",  color: diff > 0 ? "#22c55e" : "#f59e0b", diff };
-  if (abs <= 30) return { label: diff > 0 ? "CLEAR WIN"   : "CLEAR LOSS",   color: diff > 0 ? "#22c55e" : "#ef4444", diff };
+  const totalA = tradeTotal(sideA);
+  const totalB = tradeTotal(sideB);
+  const diff   = totalB - totalA;
+  const pct    = Math.abs(diff) / Math.max(totalA, totalB, 1) * 100;
+  if (pct <= 5)  return { label: "FAIR TRADE",    color: "#3b82f6", diff };
+  if (pct <= 12) return { label: diff > 0 ? "SLIGHT WIN"  : "SLIGHT LOSS",  color: diff > 0 ? "#22c55e" : "#f59e0b", diff };
+  if (pct <= 25) return { label: diff > 0 ? "CLEAR WIN"   : "CLEAR LOSS",   color: diff > 0 ? "#22c55e" : "#ef4444", diff };
   return           { label: diff > 0 ? "STRONG WIN"  : "LOPSIDED LOSS", color: diff > 0 ? "#22c55e" : "#ef4444", diff };
 };
 

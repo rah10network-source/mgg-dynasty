@@ -344,8 +344,9 @@ function LiveDraft({ liveDraftId, setLiveDraftId, players, bigBoard, owners, cur
   const [polling,   setPolling]   = useState(false);
   const [manualId,  setManualId]  = useState(liveDraftId||"");
   const [error,     setError]     = useState(null);
+  const [userMap,   setUserMap]   = useState({}); // user_id → team/display name
 
-  // Auto-fetch league drafts on mount
+  // Auto-fetch league drafts + users on mount
   useEffect(()=>{
     (async()=>{
       try {
@@ -357,6 +358,17 @@ function LiveDraft({ liveDraftId, setLiveDraftId, players, bigBoard, owners, cur
           // Auto-select the most recent/upcoming draft
           const active = d.find(dr=>dr.status==="in_progress") || d[d.length-1];
           if (active && !liveDraftId) setLiveDraftId(active.draft_id);
+        }
+      } catch {}
+      // Owner names for the pick feed (picked_by is a raw Sleeper user_id)
+      try {
+        const r = await fetch(`${SLEEPER_API}/league/${LEAGUE_ID}/users`,
+          {signal:AbortSignal.timeout(8000)});
+        if (r.ok) {
+          const users = await r.json();
+          const m = {};
+          (users||[]).forEach(u => { m[u.user_id] = u.metadata?.team_name || u.display_name || u.username || u.user_id; });
+          setUserMap(m);
         }
       } catch {}
     })();
@@ -467,7 +479,10 @@ function LiveDraft({ liveDraftId, setLiveDraftId, players, bigBoard, owners, cur
               </thead>
               <tbody>
                 {[...picks].reverse().map((pk,i)=>{
-                  const bbRank = bigBoard.findIndex(b=>b.name===pk.metadata?.first_name+" "+pk.metadata?.last_name||(b.name||"").toLowerCase().includes((pk.metadata?.last_name||"").toLowerCase()));
+                  // Exact full-name match only — the old fuzzy last-name fallback
+                  // tagged any board player sharing a last name with the pick
+                  const pkName = `${pk.metadata?.first_name||""} ${pk.metadata?.last_name||""}`.trim().toLowerCase();
+                  const bbRank = pkName ? bigBoard.findIndex(b=>(b.name||"").toLowerCase()===pkName) : -1;
                   return (
                     <tr key={pk.pick_no} style={{background:i%2===0?"#080d14":"#0a1118"}}>
                       <td style={{padding:"6px 8px",textAlign:"center",borderBottom:"1px solid #0f1923",fontSize:10,color:"#4d6880"}}>{pk.pick_no}</td>
@@ -478,7 +493,7 @@ function LiveDraft({ liveDraftId, setLiveDraftId, players, bigBoard, owners, cur
                       </td>
                       <td style={{padding:"6px 8px",textAlign:"center",borderBottom:"1px solid #0f1923",fontSize:10,color:"#60a5fa"}}>{pk.metadata?.position}</td>
                       <td style={{padding:"6px 8px",textAlign:"center",borderBottom:"1px solid #0f1923",fontSize:10,color:"#7a95ae"}}>{pk.metadata?.team}</td>
-                      <td style={{padding:"6px 10px",borderBottom:"1px solid #0f1923",fontSize:10,color:"#a8bccf"}}>{pk.picked_by||"—"}</td>
+                      <td style={{padding:"6px 10px",borderBottom:"1px solid #0f1923",fontSize:10,color:"#a8bccf"}}>{userMap[pk.picked_by]||pk.picked_by||"—"}</td>
                     </tr>
                   );
                 })}

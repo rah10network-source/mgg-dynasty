@@ -1,3 +1,31 @@
+# MGG Dynasty — v1.3.9 Draft-Eve Polish (2026-08-07)
+
+Second pass on audit findings, verified by 17 unit tests + full Playwright
+walkthrough (grades confirmed differentiating A/B/C, live 2026 draft selected).
+
+## Fixed
+- **constants.js / trade.js** — picks moved to the DYNASTY-VALUE scale
+  (1st ≈ 550 → 10th ≈ 12, 3-year decay, all 10 rounds) so the Trade Analyzer
+  compares picks and players on one scale; verdict thresholds now a % of the
+  larger side (old absolute 5/15/30 cutoffs called every DV-scale trade
+  lopsided). PICK_ROUNDS extended 1st–10th in the trade UI.
+- **MyPicks.jsx** — rounds 4–10 no longer valued as 3rds; round chips and
+  breakdown dots cover all 10 rounds.
+- **ktc.js** — FantasyCalc fetched as 2QB superflex 0.5 PPR (was 1QB full-PPR,
+  systematically undervaluing QBs in this league's format).
+- **DraftRoom.jsx** — live pick feed OWNER column shows team names instead of
+  raw Sleeper user IDs; Big Board badge uses exact name match (precedence bug
+  matched any shared last name).
+- **App.jsx** — QuickRank modal suppressed while league is pre_draft/drafting
+  (no full-screen Elo interruption on draft day, no DV mutation off stale
+  rankings).
+- **RosterGrades.jsx** — imports canonical `gradeRoster` from roster.js; the
+  stale duplicate in tabs/Roster.jsx graded every team A+.
+- **export.js** — XLSX column shift fixed (both sheets): "SV" header added, so
+  Tier/Depth/etc. no longer read one cell off; "2025 Stats" → "Season Stats".
+
+---
+
 # MGG Dynasty — v1.3.8 Draft-Day Fixes (2026-08-07)
 
 Pre-draft audit pass (full report: `_Archive`-level audit doc in project root /

@@ -5,8 +5,10 @@ export const doExport = (players, newsMap) => {
   const wb = XLSX.utils.book_new();
 
   // ── Sheet 1: Dynasty Board ───────────────────────────────────────────────────
-  const bh = ["Rank","Player","Pos","Team","Age","Yrs Exp","Score","Tier","Depth","Role%",
-               "G Started","G Played","PPG","2025 Stats","Trades","FA Adds","Injury","Owner",
+  // v1.3.9: "SV" header added — rows push 22 values but the header had 21,
+  // shifting every column from "Tier" onward one cell right in the export.
+  const bh = ["Rank","Player","Pos","Team","Age","Yrs Exp","DV","SV","Tier","Depth","Role%",
+               "G Started","G Played","PPG","Season Stats","Trades","FA Adds","Injury","Owner",
                "Signal","Situation","News Note"];
   const bd = players.map((p, i) => {
     const n = newsMap[p.name] || {};
@@ -22,13 +24,14 @@ export const doExport = (players, newsMap) => {
   });
   const ws1 = XLSX.utils.aoa_to_sheet([bh, ...bd]);
   ws1['!cols'] = [
-    {wch:5},{wch:22},{wch:5},{wch:6},{wch:5},{wch:7},{wch:7},{wch:9},{wch:7},{wch:6},
+    {wch:5},{wch:22},{wch:5},{wch:6},{wch:5},{wch:7},{wch:6},{wch:6},{wch:9},{wch:7},{wch:6},
     {wch:8},{wch:8},{wch:6},{wch:28},{wch:7},{wch:7},{wch:12},{wch:18},{wch:7},{wch:11},{wch:50},
   ];
   XLSX.utils.book_append_sheet(wb, ws1, "Dynasty Board");
 
   // ── Sheet 2: By Position ─────────────────────────────────────────────────────
-  const rows2 = [["Pos","Rank","Player","Team","Age","Score","Tier","Depth","G Started","PPG","Stats","Owner","Signal"]];
+  // v1.3.9: same off-by-one — 14 values, 13 headers. "SV" added after "DV".
+  const rows2 = [["Pos","Rank","Player","Team","Age","DV","SV","Tier","Depth","G Started","PPG","Stats","Owner","Signal"]];
   POS_ORDER.forEach(pos => {
     players.filter(p => p.pos === pos).forEach((p, i) => {
       const n = newsMap[p.name] || {};

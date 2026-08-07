@@ -32,11 +32,19 @@ export const SCORING = {
 };
 
 // ─── PICK VALUES ──────────────────────────────────────────────────────────────
-export const PICK_VALUES  = { "1st":[72,60,48], "2nd":[38,30,24], "3rd":[18,14,10] };
-export const PICK_ROUNDS  = ["1st","2nd","3rd"];
+// DYNASTY-VALUE SCALE (0-999), same scale players are scored on, so the Trade
+// Analyzer can compare picks and players directly. [thisYear, +1, +2] decay.
+// v1.3.9: was a legacy 0-72 scale — pick trades read as lopsided vs any player.
+export const PICK_VALUES  = {
+  "1st": [550, 460, 380], "2nd": [300, 250, 205], "3rd": [170, 140, 115],
+  "4th": [100,  85,  70], "5th": [ 70,  60,  50], "6th": [ 50,  42,  35],
+  "7th": [ 35,  30,  25], "8th": [ 25,  21,  18], "9th": [ 18,  15,  12],
+  "10th":[ 12,  10,   8],
+};
+export const PICK_ROUNDS  = ["1st","2nd","3rd","4th","5th","6th","7th","8th","9th","10th"];
 export const PICK_YEARS   = [2026,2027,2028];
 export const pickValue    = (round, yearOffset) =>
-  (PICK_VALUES[round]||[10,8,6])[Math.min(yearOffset,2)];
+  (PICK_VALUES[round]||[10,8,6])[Math.max(0, Math.min(yearOffset,2))];
 
 // ─── TIER STYLES ─────────────────────────────────────────────────────────────
 export const TIER_STYLE = {

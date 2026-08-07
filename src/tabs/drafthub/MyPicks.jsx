@@ -3,8 +3,12 @@
 // Data comes from Sleeper rosters[n].draft_picks — extracted during sync.
 import { PICK_VALUES, PICK_ROUNDS } from "../../constants";
 
-const ROUND_COLOR = { "1st":"#22c55e", "2nd":"#60a5fa", "3rd":"#f59e0b", "4th":"#f97316", "5th":"#6b7280" };
-const ROUND_LABEL = { 1:"1st", 2:"2nd", 3:"3rd", 4:"4th", 5:"5th" };
+const ROUND_COLOR = {
+  "1st":"#22c55e", "2nd":"#60a5fa", "3rd":"#f59e0b", "4th":"#f97316", "5th":"#a855f7",
+  "6th":"#06b6d4", "7th":"#ec4899", "8th":"#84cc16", "9th":"#94a3b8", "10th":"#6b7280",
+};
+const ROUND_LABEL = { 1:"1st", 2:"2nd", 3:"3rd", 4:"4th", 5:"5th", 6:"6th", 7:"7th", 8:"8th", 9:"9th", 10:"10th" };
+const ALL_ROUNDS  = [1,2,3,4,5,6,7,8,9,10];
 
 // Estimate pick value: round 1 = highest, later years = discounted
 const estimateValue = (round, season) => {
@@ -45,7 +49,7 @@ export function MyPicks({ currentOwner, draftPicksByOwner, rosterIdToOwner, play
       isMe: owner === currentOwner,
       picks,
       totalValue: picks.reduce((s,pk) => s + estimateValue(pk.round, pk.season), 0),
-      byRound: [1,2,3,4,5].map(r => picks.filter(pk => pk.round === r).length),
+      byRound: ALL_ROUNDS.map(r => picks.filter(pk => pk.round === r).length),
     }))
     .sort((a,b) => b.totalValue - a.totalValue);
 
@@ -167,7 +171,7 @@ export function MyPicks({ currentOwner, draftPicksByOwner, rosterIdToOwner, play
                   </div>
                   {/* Round breakdown dots */}
                   <div style={{display:"flex",gap:3,paddingLeft:20}}>
-                    {[1,2,3,4,5].map(r => {
+                    {ALL_ROUNDS.map(r => {
                       const cnt = o.byRound[r-1];
                       const col = ROUND_COLOR[ROUND_LABEL[r]] || "#6b7280";
                       return cnt > 0 ? (

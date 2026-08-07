@@ -274,9 +274,13 @@ export default function App() {
 
       setPlayers(enrichedPl);setNflDb(db);setDraftPicksByOwner(dpbo);setRosterIdToOwner(rid2o);
       setSeasonState(prev=>prev._override?prev:ss);setSyncedAt(new Date().toLocaleTimeString());setPhase("done");
-      // Show QuickRank once per 24h after a successful sync
+      // Show QuickRank once per 24h after a successful sync — but never on
+      // draft day (pre_draft/drafting): a full-screen modal over the app right
+      // before the draft is the wrong moment, and its Elo blend would mutate
+      // dynastyValue off months-old rankings.
       const lastRank = lsGet(userKey,"last_quickrank",0);
-      if(Date.now() - lastRank > 86400000) setShowQuickRank(true);
+      if(Date.now() - lastRank > 86400000 &&
+         !["pre_draft","drafting"].includes(ss.leagueStatus)) setShowQuickRank(true);
       // ── Auto-match identity to roster owner ─────────────────────────────
       // Priority 1: hard match on Sleeper user_id (100% reliable)
       // Priority 2: fuzzy match on display name / username
