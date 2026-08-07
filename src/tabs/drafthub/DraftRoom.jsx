@@ -2,10 +2,10 @@
 // Mock mode: simulate a draft with AI suggestions at your pick slot
 // Live mode: connect to Sleeper draft API and track in real-time
 import { useState, useEffect, useCallback } from "react";
-import { TIER_STYLE, POS_ORDER, INJ_COLOR } from "../../constants";
+import { LEAGUE_ID, TIER_STYLE, POS_ORDER, INJ_COLOR } from "../../constants";
 import { calcAge } from "../../scoring";
+import { isDraftableVet } from "../../draft";
 
-const LEAGUE_ID   = import.meta.env?.VITE_LEAGUE_ID || "1178580692040589312";
 const SLEEPER_API = "https://api.sleeper.app/v1";
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
@@ -59,23 +59,33 @@ function MockDraft({ owners, players, nflDb, bigBoard, bigBoardMode, currentOwne
   const isDone   = donePick >= order.length;
 
   // Build available pool
+  // Rostered players are never draftable; vet-inclusive modes use the FA-vet
+  // gate so unsigned veterans (draftable in this league) stay in the pool.
+  const rosteredPids = new Set(players.map(pl => pl.pid));
   const pool = Object.entries(nflDb)
     .filter(([pid, p]) => {
       if (drafted.has(pid)) return false;
+      if (rosteredPids.has(pid)) return false;
       if (!p.position || !["QB","RB","WR","TE","DL","LB","DB","K"].includes(p.position)) return false;
-      if (cfg.mode==="rookies" && (p.years_exp??99) !== 0) return false;
+      const yrs = p.years_exp ?? 99;
+      if (cfg.mode==="rookies" && yrs !== 0) return false;
+      if (cfg.mode==="vets"    && yrs === 0) return false;
+      if (cfg.mode!=="rookies" && !isDraftableVet(p)) return false;
       return true;
     })
-    .map(([pid, p]) => ({
-      pid, pos:p.position,
-      name: p.full_name||`${p.first_name||""} ${p.last_name||""}`.trim(),
-      team: p.team||"FA",
-      age:  calcAge(p.birth_date),
-      depth:p.depth_chart_order||null,
-      yrsExp:p.years_exp??null,
-      get score(){ return scoreForDraft(this, bigBoard, players); },
-    }))
-    .sort((a,b) => b.dynastyValue-a.dynastyValue);
+    .map(([pid, p]) => {
+      const o = {
+        pid, pos:p.position,
+        name: p.full_name||`${p.first_name||""} ${p.last_name||""}`.trim(),
+        team: p.team||"FA",
+        age:  calcAge(p.birth_date),
+        depth:p.depth_chart_order||null,
+        yrsExp:p.years_exp??null,
+      };
+      o.score = scoreForDraft(o, bigBoard, players);
+      return o;
+    })
+    .sort((a,b) => b.score-a.score);
 
   const suggestions = pool.slice(0, 5);
   const filteredPool = inputSearch
@@ -132,7 +142,7 @@ function MockDraft({ owners, players, nflDb, bigBoard, bigBoardMode, currentOwne
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             <span style={{fontSize:11,color:"#e2e8f0"}}>Player Pool</span>
             <div style={{display:"flex",gap:0,border:"1px solid #1e2d3d",borderRadius:5,overflow:"hidden"}}>
-              {[["rookies","ROOKIES"],["all","ROOKIES + VETS"]].map(([m,l])=>(
+              {[["rookies","ROOKIES"],["vets","FA VETS"],["all","ALL"]].map(([m,l])=>(
                 <button key={m} onClick={()=>setCfg(p=>({...p,mode:m}))}
                   style={{background:cfg.mode===m?"#0f2b1a":"transparent",
                     color:cfg.mode===m?"#22c55e":"#4b6580",

@@ -189,7 +189,7 @@ export function BigBoard({
         {/* Mode toggle */}
         <div style={{display:"flex",gap:0,marginBottom:12,background:"#080d14",
           borderRadius:6,border:"1px solid #1e2d3d",overflow:"hidden"}}>
-          {[["rookies","◈ ROOKIES"],["all","◈ ROOKIES + VETS"]].map(([m,l]) => (
+          {[["rookies","◈ ROOKIES"],["vets","◈ FA VETS"],["all","◈ ALL"]].map(([m,l]) => (
             <button key={m} onClick={() => setBigBoardMode(m)}
               style={{flex:1,background:bigBoardMode===m?"#0f2b1a":"transparent",
                 color:bigBoardMode===m?"#22c55e":"#4b6580",
@@ -225,6 +225,8 @@ export function BigBoard({
             <div style={{fontSize:10,color:"#4d6880",padding:"16px 0",textAlign:"center"}}>
               {bigBoardMode==="rookies"
                 ? "No rookies found — Sleeper adds rookie data before the draft"
+                : bigBoardMode==="vets"
+                ? "No unrostered veterans match filters"
                 : "No available players match filters"}
             </div>
           )}

@@ -26,9 +26,32 @@ export function isActivePlayer(p) {
   return true;
 }
 
+// ─── FA-VET GATE ──────────────────────────────────────────────────────────────
+// This league's rookie draft includes unsigned FA veterans, who by definition
+// have no team and are usually labelled "Inactive" by Sleeper — exactly the
+// players isActivePlayer() throws out. This gate keeps them draftable while
+// still excluding players who are genuinely out of the league.
+export function isDraftableVet(p) {
+  if (!p) return false;
+  if (!p.position) return false;
+  if (p.active === false) return false;      // Sleeper: out of the league
+  if (p.status === "Retired") return false;
+  // Signed players: same inactive-status gate as before
+  if (p.team) return !INACTIVE_STATUSES.has(p.status);
+  // Teamless: unsigned FA — keep, but cap age so long-retired players
+  // whose Sleeper status never flipped don't flood the pool
+  const age = calcAge(p.birth_date);
+  if (age != null && age > 38) return false;
+  return true;
+}
+
 // ─── POOL BUILDER ─────────────────────────────────────────────────────────────
-// mode: "rookies" | "all"
-// rosteredPids: Set of player IDs already on rosters (exclude in "all" mode)
+// mode: "rookies" | "vets" | "all"
+//   rookies → incoming class only (years_exp === 0)
+//   vets    → veterans only, FA vets included (this league drafts them)
+//   all     → both
+// rosteredPids: Set of player IDs already on rosters — ALWAYS excluded:
+//   a rostered player is never draftable, in any mode
 // excludePids: Set of player IDs to exclude (already on board, already drafted)
 
 const VALID_POSITIONS = new Set(["QB", "RB", "WR", "TE", "DL", "LB", "DB", "K"]);
@@ -37,10 +60,13 @@ export function filterDraftPool(nflDb, { mode = "rookies", rosteredPids = new Se
   return Object.entries(nflDb)
     .filter(([pid, p]) => {
       if (excludePids.has(pid)) return false;
+      if (rosteredPids.has(pid)) return false;
       if (!VALID_POSITIONS.has(p.position)) return false;
-      if (!isActivePlayer(p)) return false;
-      if (mode === "rookies" && (p.years_exp ?? 99) !== 0) return false;
-      if (mode === "all" && rosteredPids.has(pid)) return false;
+      const yrs = p.years_exp ?? 99;
+      if (mode === "rookies" && yrs !== 0) return false;
+      if (mode === "vets"    && yrs === 0) return false;
+      // Rookies keep the strict gate; vet-inclusive modes use the FA-vet gate
+      if (!(mode === "rookies" ? isActivePlayer(p) : isDraftableVet(p))) return false;
       if (posFilter !== "ALL" && p.position !== posFilter) return false;
       if (searchQ) {
         const s  = searchQ.toLowerCase();

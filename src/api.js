@@ -82,7 +82,13 @@ export const loadData = async (log, manualSitsRef) => {
   const draftPicksByOwner = {};
   const draftRounds = lg.settings?.draft_rounds || lg.settings?.rounds || 5;
   const currentSeason = Number(lg.season || new Date().getFullYear());
-  const futureSeasons = [currentSeason + 1, currentSeason + 2, currentSeason + 3];
+  // If the current season's draft hasn't happened yet (pre_draft/drafting),
+  // this season's picks are still live assets — include them in the portfolio.
+  const currentDraftPending = ["pre_draft", "drafting"].includes(lg.status);
+  const futureSeasons = [
+    ...(currentDraftPending ? [currentSeason] : []),
+    currentSeason + 1, currentSeason + 2, currentSeason + 3,
+  ];
 
   // 1. Seed every roster with their own picks for all future seasons
   rosters.forEach(r => {
@@ -109,22 +115,26 @@ export const loadData = async (log, manualSitsRef) => {
       const season = String(tp.season);
       const round  = tp.round;
 
-      // ── FIX: skip current and past season picks ──────────────────────────
+      // ── Skip picks from drafts that have already happened ────────────────
       // Sleeper returns ALL traded picks including already-used ones.
-      // Only future drafts are relevant for the My Picks portfolio view.
-      if (Number(season) <= currentSeason) return;
+      // Past seasons are always dead; the current season is dead only once
+      // its draft is complete (pre_draft/drafting = picks still live).
+      if (Number(season) < currentSeason) return;
+      if (Number(season) === currentSeason && !currentDraftPending) return;
 
       const origId = tp.roster_id;          // whose pick it originally was
       const newId  = tp.owner_id;           // who now owns it
-      const prevId = tp.previous_owner_id;
 
-      // Remove from whoever currently holds it
-      const prevOwnerName = rosterIdToOwner[prevId] || rosterIdToOwner[origId];
-      if (prevOwnerName && draftPicksByOwner[prevOwnerName]) {
-        const idx = draftPicksByOwner[prevOwnerName].findIndex(
+      // Remove from whoever currently holds it in our reconstruction.
+      // NOTE: previous_owner_id can reference an intermediate holder from a
+      // multi-hop trade whose seeded list never contained this pick — so we
+      // search every owner rather than trusting previous_owner_id, otherwise
+      // the pick ends up duplicated (held by both original and new owner).
+      for (const holderName of Object.keys(draftPicksByOwner)) {
+        const idx = draftPicksByOwner[holderName].findIndex(
           p => String(p.season) === season && p.round === round && p.rosterId === origId
         );
-        if (idx !== -1) draftPicksByOwner[prevOwnerName].splice(idx, 1);
+        if (idx !== -1) { draftPicksByOwner[holderName].splice(idx, 1); break; }
       }
 
       // Add to new owner
