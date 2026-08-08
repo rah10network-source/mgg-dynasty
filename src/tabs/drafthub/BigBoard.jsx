@@ -52,7 +52,7 @@ function IntelBadge({ result }) {
 // ─── Prospect score badge ─────────────────────────────────────────────────────
 function ProspectScore({ score, pos }) {
   if (score == null) return null;
-  const color = score >= 75 ? "#22c55e" : score >= 55 ? "#f59e0b" : "#4d6880";
+  const color = score >= 750 ? "#22c55e" : score >= 550 ? "#f59e0b" : "#4d6880";
   return (
     <div style={{ textAlign:"center", minWidth:36 }}>
       <div style={{ fontSize:16, fontWeight:900, color, lineHeight:1 }}>
@@ -216,7 +216,7 @@ export function BigBoard({
         </div>
 
         <div style={{fontSize:9,color:"#4d6880",letterSpacing:1,marginBottom:8}}>
-          {pool.length} AVAILABLE · CLICK TO ADD · DYN = DYNASTY VALUE (0-1000) · PROSPECT = BASE ESTIMATE
+          {pool.length} AVAILABLE · CLICK TO ADD · EST. DYNASTY VALUE (0-1000) FROM AGE + DEPTH + ROOKIE STATUS
         </div>
 
         {/* Pool list */}
@@ -241,7 +241,7 @@ export function BigBoard({
               {/* Prospect score */}
               <div style={{width:30,textAlign:"center",flexShrink:0}}>
                 <div style={{fontSize:13,fontWeight:900,
-                  color: p.prospectScore>=75?"#22c55e":p.prospectScore>=55?"#f59e0b":"#4d6880",
+                  color: p.prospectScore>=750?"#22c55e":p.prospectScore>=550?"#f59e0b":"#4d6880",
                   lineHeight:1}}>
                   {Math.round(p.prospectScore)}
                 </div>

@@ -29,13 +29,13 @@ const buildSnakeOrder = (teams, rounds) => {
 // Score a player for AI suggestion (uses dynasty score if rostered, otherwise basic estimate)
 const scoreForDraft = (p, bigBoard, players) => {
   const bbRank = bigBoard.findIndex(b => b.pid === p.pid);
-  if (bbRank >= 0) return 1000 - bbRank; // Big Board rank is authoritative
+  if (bbRank >= 0) return 10000 - bbRank; // Big Board rank is authoritative, above any estimate
   const roster = players.find(pl => pl.pid === p.pid);
   if (roster) return roster.dynastyValue || 0;
-  // Fallback: prefer depth #1 young players
+  // Fallback: prefer depth #1 young players — DV scale (×10) to match dynastyValue
   const age = p.age || 25;
   const depthBonus = p.depth===1?20:p.depth===2?10:0;
-  return Math.max(0, 80 - age*1.5 + depthBonus + (p.yrsExp===0?15:0));
+  return Math.max(0, 80 - age*1.5 + depthBonus + (p.yrsExp===0?15:0)) * 10;
 };
 
 // ── MOCK DRAFT ────────────────────────────────────────────────────────────────
@@ -374,7 +374,10 @@ function LiveDraft({ liveDraftId, setLiveDraftId, players, bigBoard, owners, cur
     })();
   },[]);
 
-  const loadDraft = useCallback(async(id)=>{
+  const loadDraft = useCallback(async(rawId)=>{
+    // Pasted IDs routinely carry whitespace/newlines — untrimmed input built
+    // /draft/%20<id>%20 URLs that 404'd with "Failed to load draft"
+    const id = String(rawId||"").trim();
     if (!id) return;
     setLoading(true); setError(null);
     try {
@@ -390,9 +393,10 @@ function LiveDraft({ liveDraftId, setLiveDraftId, players, bigBoard, owners, cur
     finally { setLoading(false); }
   },[]);
 
-  // Poll every 15s when in-progress
+  // Poll every 15s when in-progress — AND while pre_draft, so the board
+  // picks up the moment the draft goes live without a manual re-LOAD
   useEffect(()=>{
-    if (!liveDraftId || draft?.status !== "in_progress") return;
+    if (!liveDraftId || !["pre_draft","in_progress"].includes(draft?.status)) return;
     setPolling(true);
     const interval = setInterval(()=>loadDraft(liveDraftId), 15000);
     return ()=>{ clearInterval(interval); setPolling(false); };
@@ -435,7 +439,7 @@ function LiveDraft({ liveDraftId, setLiveDraftId, players, bigBoard, owners, cur
             placeholder="Or paste a draft ID..."
             style={{flex:1,background:"#080d14",border:"1px solid #1e2d3d",color:"#e2e8f0",
               padding:"6px 10px",borderRadius:5,fontFamily:"monospace",fontSize:10}}/>
-          <button onClick={()=>{ setLiveDraftId(manualId); loadDraft(manualId); }}
+          <button onClick={()=>{ const id=manualId.trim(); setManualId(id); setLiveDraftId(id); loadDraft(id); }}
             style={{background:"#1e2d3d",color:"#e2e8f0",border:"1px solid #374151",
               borderRadius:5,padding:"6px 14px",fontFamily:"inherit",fontSize:10,cursor:"pointer"}}>
             LOAD

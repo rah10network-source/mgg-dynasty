@@ -83,3 +83,22 @@ describe("buildSnakeOrder sanity", () => {
     expect(order[order.length - 1].pick).toBe(100);
   });
 });
+
+describe("prospect estimates on DV scale (v1.3.10)", async () => {
+  const { scoreDraftPlayer } = await import("../src/draft");
+  it("young depth-1 rookie estimates in the DV hundreds, not <100", () => {
+    const s = scoreDraftPlayer({ pid:"x", age:21, depth:1, yrsExp:0 }, [], [], "BPA");
+    expect(s).toBeGreaterThan(500);
+    expect(s).toBeLessThanOrEqual(950);
+  });
+  it("Big Board rank always outranks any estimate", () => {
+    const board = Array.from({length:60},(_,i)=>({pid:`b${i}`}));
+    const lastBoard = scoreDraftPlayer({ pid:"b59" }, board, [], "BPA");
+    const bestEst   = scoreDraftPlayer({ pid:"z", age:21, depth:1, yrsExp:0 }, board, [], "BPA");
+    expect(lastBoard).toBeGreaterThan(bestEst);
+  });
+  it("rostered players score by dynastyValue on the same scale", () => {
+    const s = scoreDraftPlayer({ pid:"r1" }, [], [{ pid:"r1", dynastyValue: 640, score: 55 }], "BPA");
+    expect(s).toBe(640);
+  });
+});

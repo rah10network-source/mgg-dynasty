@@ -1,3 +1,17 @@
+# MGG Dynasty — v1.3.10 Live-Draft Hotfix (2026-08-07, late)
+
+- **DraftRoom.jsx** — pasted draft IDs are trimmed (whitespace from a paste
+  built `/draft/%20<id>` URLs → "Failed to load draft"); the 15s live poll now
+  also runs while the draft is `pre_draft`, so the board follows the draft the
+  moment it goes live instead of requiring a manual re-LOAD.
+- **draft.js / BigBoard.jsx / DraftRoom.jsx** — prospect estimates moved to the
+  DV scale (0-950): pool values were 0-95 under a "0-1000" label, reading as
+  suppressed (max ~90) next to real dynasty values. Big Board rank priority now
+  10000-rank so user rankings stay above any estimate; rostered fallback uses
+  dynastyValue (not the 0-100 start value); color thresholds rescaled.
+
+---
+
 # MGG Dynasty — v1.3.9 Draft-Eve Polish (2026-08-07)
 
 Second pass on audit findings, verified by 17 unit tests + full Playwright

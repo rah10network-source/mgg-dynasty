@@ -115,24 +115,28 @@ export function buildSnakeOrder(teams, rounds) {
 // This is used both for user suggestions and AI auto-picks.
 
 export function scoreDraftPlayer(p, bigBoard = [], rosteredPlayers = [], archetype = "BPA") {
-  // Big Board rank is always authoritative — user's own research takes priority
+  // Big Board rank is always authoritative — user's own research takes priority.
+  // 10000-rank keeps board players strictly above any DV-scale estimate (0-950).
   const bbRank = bigBoard.findIndex(b => b.pid === p.pid);
-  if (bbRank >= 0) return 1000 - bbRank;
+  if (bbRank >= 0) return 10000 - bbRank;
 
-  // If already scored by the dynasty model, use it
+  // If already scored by the dynasty model, use its DV (same 0-999 scale)
   const rostered = rosteredPlayers.find(pl => pl.pid === p.pid);
-  if (rostered?.dynastyValue ?? rostered?.startValue) return applyArchetypeWeight(rostered.score, p, archetype);
+  if (rostered?.dynastyValue != null) return applyArchetypeWeight(rostered.dynastyValue, p, archetype);
 
   // Fallback estimate — unrostered players scored by age + depth + position
   return applyArchetypeWeight(estimateBaseScore(p), p, archetype);
 }
 
-// Base score estimate for players not in the dynasty model
+// Base estimate for players not in the dynasty model — on the DYNASTY-VALUE
+// scale (0-950) so pool numbers read like player values everywhere.
+// v1.3.10: was 0-95, displayed under a "0-1000" label — values looked
+// suppressed (max ~90) next to real DVs.
 function estimateBaseScore(p) {
   const age        = p.age || 25;
   const depthBonus = p.depth === 1 ? 20 : p.depth === 2 ? 10 : 0;
   const rookieBonus= p.yrsExp === 0 ? 15 : 0;
-  return Math.max(0, Math.min(95, 80 - age * 1.2 + depthBonus + rookieBonus));
+  return Math.max(0, Math.min(95, 80 - age * 1.2 + depthBonus + rookieBonus)) * 10;
 }
 
 // Archetype modifiers — adjust base score based on opponent draft philosophy
