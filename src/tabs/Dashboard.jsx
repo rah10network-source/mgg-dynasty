@@ -62,8 +62,10 @@ export function Dashboard({ phase, players, currentOwner, owners, newsMap, seaso
 
   const weak    = weakPositions(myGrade, players);
   const posRanks = posLeagueRank(myGrade, players);
-  // Weak = absolute health score below 40 (below 40% of theoretical max)
-  const weakPos = new Set(Object.entries(posRanks).filter(([,v]) => (v?.score ?? v) < 40).map(([pos]) => pos));
+  // Weak = bottom 40% of the league at that position (rank-based, v1.3.11)
+  const weakPos = new Set(Object.entries(posRanks)
+    .filter(([,v]) => v?.leagueRank && v.leagueRank / (v.leagueTotal || 10) > 0.6)
+    .map(([pos]) => pos));
   const targets = tradeTargets(currentOwner, myGrade, players, newsMap, 5);
 
   const modeInfo  = MODE_LABEL[seasonState?.mode] || MODE_LABEL.offseason;
@@ -149,25 +151,28 @@ export function Dashboard({ phase, players, currentOwner, owners, newsMap, seaso
           {POS_ORDER.map(pos => {
             const dep  = myGrade.posDep[pos];
             if (!dep?.count) return null;
-            const pr   = posRanks[pos] ?? { score:50, leagueRank:5, leagueTotal:10 };
-            const score = pr.score ?? pr;  // backwards-compat if number
-            const col  = score >= 70 ? "#9580FF" : score >= 50 ? "#00D4FF" : score >= 30 ? "#FFD700" : "#FF4757";
+            // v1.3.11: honest rank display (see TeamHub note) — rank, not fake 0-100
+            const pr    = posRanks[pos] ?? { leagueRank:null, leagueTotal:10 };
+            const rank  = pr.leagueRank, total = pr.leagueTotal || 10;
+            const fill  = rank ? Math.round(((total - rank + 1) / total) * 100) : 50;
+            const rp    = rank ? rank / total : 0.5;
+            const col   = rp <= 0.3 ? "#9580FF" : rp <= 0.5 ? "#00D4FF" : rp <= 0.7 ? "#FFD700" : "#FF4757";
             const isWk = weakPos.has(pos);
             return (
               <div key={pos} style={{flex:"1 1 55px",minWidth:48}}>
                 <div style={{fontSize:8,color:isWk?"#FF9040":"#7a95ae",marginBottom:3,
                   letterSpacing:1,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                   <span>{pos}{isWk?" ⚠":""}</span>
-                  <span style={{color:col,fontWeight:900,fontSize:10}}>{score}</span>
+                  <span style={{color:col,fontWeight:900,fontSize:10}}>{rank ? `#${rank}/${total}` : "—"}</span>
                 </div>
                 <div style={{height:6,background:"#242d40",borderRadius:3,overflow:"hidden",
                   border:isWk?"1px solid #f9731633":undefined}}>
-                  <div style={{height:"100%",width:`${score}%`,background:col,borderRadius:3,
+                  <div style={{height:"100%",width:`${fill}%`,background:col,borderRadius:3,
                     transition:"width .4s ease"}}/>
                 </div>
                 <div style={{fontSize:7,color:"#8892a4",marginTop:3,display:"flex",justifyContent:"space-between"}}>
                   <span>{dep.count} rostered</span>
-                  {pr.leagueRank && <span>#{pr.leagueRank}/{pr.leagueTotal}</span>}
+                  <span>{Math.round(dep.avg)} dv</span>
                 </div>
               </div>
             );
@@ -264,26 +269,29 @@ export function Dashboard({ phase, players, currentOwner, owners, newsMap, seaso
           </div>
           <div style={{display:"flex",flexDirection:"column",gap:10}}>
             {POS_ORDER.filter(pos => (myGrade.posDep[pos]?.count ?? 0) > 0).map(pos => {
-              const pr     = posRanks[pos] ?? { score:50 };
-              const score  = pr.score ?? pr;
-              const delta  = score - 50; // positive = above league midpoint, negative = below
-              const gCol   = score >= 60 ? "#9580FF" : score >= 40 ? "#FFD700" : "#FF4757";
+              // v1.3.11: honest rank display — "+delta vs avg (50)" was percentile
+              // arithmetic dressed as a rating; show rank + real DV instead
+              const pr    = posRanks[pos] ?? { leagueRank:null, leagueTotal:10 };
+              const rank  = pr.leagueRank, total = pr.leagueTotal || 10;
+              const fill  = rank ? Math.round(((total - rank + 1) / total) * 100) : 50;
+              const rp    = rank ? rank / total : 0.5;
+              const gCol  = rp <= 0.4 ? "#9580FF" : rp <= 0.6 ? "#FFD700" : "#FF4757";
+              const myDV  = Math.round(myGrade.posDep[pos]?.avg || 0);
               return (
                 <div key={pos}>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
                     <span style={{fontSize:10,fontWeight:700,color:"#00D4FF"}}>{pos}</span>
                     <span style={{fontSize:9,color:gCol,fontWeight:700}}>
-                      {delta >= 0 ? `+${delta}` : delta} vs avg (50)
-                      {pr.leagueRank ? <span style={{color:"#8892a4",fontWeight:400,marginLeft:5}}>#{pr.leagueRank}/{pr.leagueTotal}</span> : null}
+                      {rank ? `#${rank} of ${total}` : "—"}
+                      <span style={{color:"#8892a4",fontWeight:400,marginLeft:5}}>{myDV} dv</span>
                     </span>
                   </div>
                   <div style={{display:"flex",alignItems:"center",gap:6}}>
                     <div style={{flex:1,height:6,background:"#242d40",borderRadius:3,overflow:"hidden",position:"relative"}}>
-                      {/* Average marker at 50% */}
+                      {/* League midpoint marker */}
                       <div style={{position:"absolute",left:"50%",top:0,bottom:0,width:1,background:"#2a3548",zIndex:1}}/>
-                      <div style={{height:"100%",width:`${score}%`,background:gCol,borderRadius:3}}/>
+                      <div style={{height:"100%",width:`${fill}%`,background:gCol,borderRadius:3}}/>
                     </div>
-                    <div style={{width:28,fontSize:9,color:gCol,fontWeight:700,textAlign:"right"}}>{score}</div>
                   </div>
                 </div>
               );

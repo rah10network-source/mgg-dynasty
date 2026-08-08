@@ -1,3 +1,29 @@
+# MGG Dynasty — v1.3.12 Draft-Day QoL (2026-08-08)
+
+- **api.js** — fast pre-draft sync: skip the 18 weekly stats fetches (season
+  not started, all empty — verified live) and fetch transactions week 1 only
+  (all offseason moves live there; weeks 2-18 empty). ~35 fewer API calls per
+  sync; matters when re-syncing mid-draft. Full 18-week behavior unchanged
+  once the season starts.
+- **main.jsx** — React error boundary: an unexpected render error now shows an
+  in-place error card with a RELOAD button instead of white-screening the app
+  and eating the session. TeamHub "avg dv" unit label on gaps panel (from the
+  SV-side audit).
+
+---
+
+# MGG Dynasty — v1.3.11 Honest Position Ranks (2026-08-07, late)
+
+- **TeamHub.jsx / Dashboard.jsx** — the 0-100 "position score" was league rank
+  in costume ((teams below)/(n-1)×100 — with 10 teams it could only be 0, 11,
+  22 ... 100) and read as an absolute quality rating it isn't. All three
+  surfaces (TeamHub bars, Dashboard bars, Dashboard gaps panel) now show the
+  rank plainly (#3/10), bar fill = rank strength, plus the real starter-avg DV
+  so the number matches the scale used everywhere else. Weak-position flag is
+  now rank-based (bottom 40%).
+
+---
+
 # MGG Dynasty — v1.3.10 Live-Draft Hotfix (2026-08-07, late)
 
 - **DraftRoom.jsx** — pasted draft IDs are trimmed (whitespace from a paste

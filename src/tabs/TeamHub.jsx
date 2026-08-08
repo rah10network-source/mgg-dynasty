@@ -292,22 +292,28 @@ function Overview({ myGrade, owners, players, newsMap, currentOwner, setTab, vie
           {POS_ORDER.map(pos => {
             const dep  = myGrade.posDep[pos];
             if (!dep?.count) return null;
-            const pr    = posRanks[pos] ?? { score:50, leagueRank:null, leagueTotal:null };
-            const score = pr.score ?? pr;
-            const col   = score >= 70 ? "#9580FF" : score >= 50 ? "#00D4FF" : score >= 30 ? "#FFD700" : "#FF4757";
+            // v1.3.11: honest rank display — the old 0-100 "score" was just
+            // league rank re-expressed ((teams below)/(n-1)*100), which read as
+            // a quality rating it isn't. Show the rank plainly; fill = rank strength.
+            const pr    = posRanks[pos] ?? { leagueRank:null, leagueTotal:null };
+            const rank  = pr.leagueRank, total = pr.leagueTotal || 10;
+            const fill  = rank ? Math.round(((total - rank + 1) / total) * 100) : 50;
+            const rp    = rank ? rank / total : 0.5;
+            const col   = rp <= 0.3 ? "#9580FF" : rp <= 0.5 ? "#00D4FF" : rp <= 0.7 ? "#FFD700" : "#FF4757";
             return (
               <div key={pos} style={{ flex:"1 1 55px", minWidth:48 }}>
                 <div style={{ fontSize:8, color:"#7a95ae", marginBottom:3, letterSpacing:1,
                   display:"flex", justifyContent:"space-between" }}>
-                  <span>{pos}</span><span style={{ color:col, fontWeight:900, fontSize:10 }}>{score}</span>
+                  <span>{pos}</span>
+                  <span style={{ color:col, fontWeight:900, fontSize:10 }}>{rank ? `#${rank}/${total}` : "—"}</span>
                 </div>
                 <div style={{ height:5, background:"#242d40", borderRadius:2, overflow:"hidden" }}>
-                  <div style={{ height:"100%", width:`${score}%`, background:col, borderRadius:2,
+                  <div style={{ height:"100%", width:`${fill}%`, background:col, borderRadius:2,
                     transition:"width .4s ease" }}/>
                 </div>
                 <div style={{ fontSize:7, color:"#8892a4", marginTop:3, display:"flex", justifyContent:"space-between" }}>
                   <span>{dep.count}p</span>
-                  {pr.leagueRank && <span>#{pr.leagueRank}</span>}
+                  <span>{Math.round(dep.avg)} dv</span>
                 </div>
               </div>
             );
@@ -356,7 +362,7 @@ function Overview({ myGrade, owners, players, newsMap, currentOwner, setTab, vie
                 <div style={{ textAlign:"right" }}>
                   <div style={{ fontSize:9 }}>
                     <span style={{ color:w.gap < -10?"#FF4757":"#FFD700" }}>{w.mine.toFixed(0)}</span>
-                    <span style={{ color:"#8892a4" }}> vs {w.league.toFixed(0)} avg</span>
+                    <span style={{ color:"#8892a4" }}> vs {w.league.toFixed(0)} avg dv</span>
                   </div>
                   <div style={{ fontSize:8, color:"#8892a4" }}>
                     {w.gap < 0 ? `${Math.abs(w.gap).toFixed(0)} below avg` : "Above avg"}

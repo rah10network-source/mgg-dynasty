@@ -166,9 +166,13 @@ export const loadData = async (log, manualSitsRef) => {
   const allP = await sf(`/players/nfl`);
   log(`${Object.keys(allP).length} players in database`, "success");
 
-  log("Parsing transactions (18 weeks)...");
+  // v1.3.12 fast pre-draft sync: before the season starts, ALL offseason
+  // transactions live in week 1 (verified live) and weeks 2-18 are empty —
+  // fetching them is ~17 wasted round-trips per sync.
+  const txWeeks = currentDraftPending ? 1 : 18;
+  log(`Parsing transactions (${txWeeks === 1 ? "offseason — week 1 only" : "18 weeks"})...`);
   const tradeCnt = {}, faAdd = {}, dropCnt = {};
-  for (let wk = 1; wk <= 18; wk++) {
+  for (let wk = 1; wk <= txWeeks; wk++) {
     try {
       const txs = await sf(`/league/${LEAGUE_ID}/transactions/${wk}`);
       if (!Array.isArray(txs)) continue;
@@ -211,9 +215,15 @@ export const loadData = async (log, manualSitsRef) => {
   }).filter(Boolean);
 
   // Sleeper season stats (18 weekly bulk calls)
-  log("Fetching Sleeper season stats (18 weeks)...");
+  // v1.3.12 fast pre-draft sync: the current season has no stats before the
+  // draft (verified: /stats/nfl/regular/<season>/1 returns {}) — skip all 18
+  // fetches; ppg stays null and SV falls back to DV-rank projection as designed.
+  const statWeeks = currentDraftPending ? 0 : 18;
+  log(statWeeks === 0
+    ? "Season stats: skipped — season not started (pre-draft)"
+    : "Fetching Sleeper season stats (18 weeks)...");
   const sleeperTotals = {};
-  for (let wk = 1; wk <= 18; wk++) {
+  for (let wk = 1; wk <= statWeeks; wk++) {
     try {
       const r = await fetch(
         `https://api.sleeper.app/v1/stats/nfl/regular/${lg.season}/${wk}`,
