@@ -2,7 +2,7 @@ import {
   LEAGUE_ID, SLEEPER, SCARCITY, PRIME, POS_ORDER, SCORING, SITUATION_PATTERNS,
 } from "./constants";
 import {
-  calcAge, ageScore, normalise, calcSleeperPts, idpScarcity,
+  calcAge, ageScore, qbMobility, normalise, calcSleeperPts, idpScarcity,
   sitMultiplier, resolveBreakoutFlag, detectSituation, deriveSignal,
   calcDynastyValues, calcStartRaw,
 } from "./scoring";
@@ -313,7 +313,10 @@ export const loadData = async (log, manualSitsRef) => {
 
   // Dynasty scoring
   pl.forEach(p => {
-    p.ageRaw = ageScore(p.age, p.pos);
+    // v1.3.14: QBs age on a mobility-aware curve (rush ypg from season stats)
+    p.ageRaw = p.pos === "QB"
+      ? ageScore(p.age, p.pos, qbMobility(p.seasonTotals))
+      : ageScore(p.age, p.pos);
     const espnRate = (p.gamesStarted != null && p.gamesPlayed > 0) ? p.gamesStarted / p.gamesPlayed : null;
     p.effRole = espnRate != null ? p.roleConf * 0.35 + espnRate * 0.65 : p.roleConf;
 

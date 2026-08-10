@@ -9,14 +9,39 @@ export const calcAge = (bd) => {
   return +((today - b) / (365.25 * 86400000)).toFixed(1);
 };
 
-export const ageScore = (age, pos) => {
+// ─── QB MOBILITY (v1.3.14) ───────────────────────────────────────────────────
+// Pocket passers age gracefully (Brady/Brees class play elite into their
+// mid-30s); rushing-dependent QBs decline with their athleticism. Mobility is
+// measured from actual rush yards per game: ≤10 ypg = pure pocket (0),
+// ≥35 ypg = fully mobile (1). No stats → 0.5 (neutral).
+export const qbMobility = (seasonTotals) => {
+  if (!seasonTotals || !(seasonTotals.gp > 0)) return 0.5;
+  const ypg = (seasonTotals.rush_yd || 0) / seasonTotals.gp;
+  return Math.min(1, Math.max(0, (ypg - 10) / 25));
+};
+
+// The base QB window ([23,28,33]) was RB-grade brutal — QBs of every style
+// play longer than that. ALL QBs get +2 years (peak 30, cliff 35); pure
+// pocket passers get up to +4 (peak 32, cliff 37); mobile QBs sit closer to
+// +2 since their rushing value declines with athleticism. Applied to BOTH the
+// rank composite (ageScore) and the DV age multiplier so the whole pipeline
+// agrees.
+const qbAgeShift = (mobility) => 1.5 + (1 - (mobility ?? 0.5)) * 1.5;
+
+export const ageScore = (age, pos, mobility = null) => {
   if (!age) return 45;
-  const [rise, peak, cliff] = PRIME[pos] || [23, 29, 33];
+  let [rise, peak, cliff] = PRIME[pos] || [23, 29, 33];
+  if (pos === "QB") {
+    const shift = qbAgeShift(mobility);
+    peak += shift; cliff += shift;
+  }
   if (age < 21)     return 60;
   if (age <= rise)  return 70 + (age - 21) / (rise - 21) * 15;
   if (age <= peak)  return 85 + (age - rise) / (peak - rise) * 15;
   if (age <= cliff) return Math.max(100 - (age - peak) / (cliff - peak) * 60, 40);
-  return Math.max(40 - (age - cliff) * 8, 0);
+  // Past cliff: QBs fall more gently than the base 8/yr (pocket 5, mobile 6.5)
+  const cliffSlope = pos === "QB" ? 6.5 - (1 - (mobility ?? 0.5)) * 1.5 : 8;
+  return Math.max(40 - (age - cliff) * cliffSlope, 0);
 };
 
 // ─── NORMALISATION ────────────────────────────────────────────────────────────
@@ -174,13 +199,23 @@ export const calcDynastyValues = (players, eloScores = {}) => {
       let dv = Math.max(floor, top * Math.exp(-k * idx));
 
       // Age multiplier — young players get dynasty premium, old past cliff get steep discount
-      const [rise, peak, cliff] = PRIME[p.pos] || [23, 28, 33];
+      // v1.3.14: QBs use the mobility-shifted window (pocket peak→31, cliff→36)
+      // and gentler decline slopes, matching the ageScore change above.
+      let [rise, peak, cliff] = PRIME[p.pos] || [23, 28, 33];
+      let postPeakSlope = 0.06, postCliffSlope = 0.12;
+      if (p.pos === "QB") {
+        const m = qbMobility(p.seasonTotals);
+        const shift = qbAgeShift(m);
+        peak += shift; cliff += shift;
+        postPeakSlope  = 0.05 - (1 - m) * 0.015;  // mobile: 0.05, pocket: 0.035
+        postCliffSlope = 0.10 - (1 - m) * 0.02;   // mobile: 0.10, pocket: 0.08
+      }
       const age = p.age || 26;
       let ageMult;
       if      (age < rise)   ageMult = Math.min(1.2, 1.1 + (rise - age) * 0.03);  // young premium
       else if (age <= peak)  ageMult = 1.0;
-      else if (age <= cliff) ageMult = Math.max(0.65, 0.95 - (age - peak) * 0.06);
-      else                   ageMult = Math.max(0.25, 0.65 - (age - cliff) * 0.12);
+      else if (age <= cliff) ageMult = Math.max(0.65, 0.95 - (age - peak) * postPeakSlope);
+      else                   ageMult = Math.max(0.25, 0.65 - (age - cliff) * postCliffSlope);
 
       dv *= ageMult;
 

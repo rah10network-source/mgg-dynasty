@@ -1,3 +1,24 @@
+# MGG Dynasty — v1.3.14 Mobility-Aware QB Aging (2026-08-08, post-draft)
+
+The base QB age window ([23,28,33] — peak ending at 28) was RB-grade brutal:
+Josh Allen (22.3 ppg, best in football) ranked QB12 at DV 390 on age alone.
+
+- **scoring.js** — new `qbMobility(seasonTotals)`: 0 (pure pocket, ≤10 rush
+  ypg) to 1 (fully mobile, ≥35 ypg), neutral 0.5 without stats. ALL QBs get
+  +1.5 years of prime window; pure pocket passers get up to +3 (peak ~31,
+  cliff ~36); mobile QBs stay closer to the base curve since rushing value
+  declines with athleticism. Post-peak/post-cliff decline slopes softened the
+  same way. Applied consistently to ageScore (rank composite) AND the DV age
+  multiplier.
+- **api.js** — passes mobility into ageScore for QBs.
+
+Verified QB board after: Lawrence 896, Allen 894, Hurts 869, Purdy 835,
+Herbert 771, Lamar 712 ... Goff 375 (pocket relief but still age-priced),
+Dart 295 (wild-card slot). Owner-approved direction: "too brutal on age for
+QBs, but for more mobile QBs it makes sense."
+
+---
+
 # MGG Dynasty — v1.3.13 Valuation Calibration (2026-08-08, post-draft)
 
 Root-caused "Jaxson Dart DV 999 > Jalen Hurts": with no current-season stats,
