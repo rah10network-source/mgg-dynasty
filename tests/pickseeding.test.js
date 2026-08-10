@@ -71,33 +71,39 @@ describe("C2 fix: current-season pick seeding (live Sleeper)", () => {
     const { lg, rosters, draftPicksByOwner, currentSeason, draftRounds, tradedPicks, currentDraftPending } =
       await reconstructPicks();
 
-    // Sanity: this is the league we think it is, in the state we think it's in
+    // Sanity: this is the league we think it is
     expect(String(LEAGUE_ID)).toBe("1315875703715016704");
-    expect(currentSeason).toBe(2026);
-    expect(lg.status).toBe("pre_draft");
-    expect(currentDraftPending).toBe(true);
+    expect(currentSeason).toBeGreaterThanOrEqual(2026);
 
     const all = Object.values(draftPicksByOwner).flat();
     const cur = all.filter(p => Number(p.season) === currentSeason);
 
-    // THE regression this fix kills: 2026 picks must exist
-    expect(cur.length).toBe(rosters.length * draftRounds);
+    if (currentDraftPending) {
+      // THE regression the C2 fix kills: current-season picks must exist pre-draft
+      expect(cur.length).toBe(rosters.length * draftRounds);
+    } else {
+      // Post-draft: current-season picks are spent — must NOT be seeded
+      expect(cur.length).toBe(0);
+    }
 
     // Conservation: no pick duplicated or lost across all seeded seasons
-    const seasons = 4; // current + 3 future
+    const seasons = currentDraftPending ? 4 : 3; // (current +) 3 future
     expect(all.length).toBe(rosters.length * draftRounds * seasons);
     const keys = new Set(all.map(p => `${p.season}-${p.round}-${p.rosterId}`));
     expect(keys.size).toBe(all.length);
 
-    // Every current-season traded pick is reflected: its current holder is
-    // the trade's owner_id, not the original team
-    const curTrades = tradedPicks.filter(tp => Number(tp.season) === currentSeason);
-    for (const tp of curTrades) {
-      const holder = cur.find(p => p.round === tp.round && p.rosterId === tp.roster_id);
-      expect(holder, `2026 R${tp.round} orig roster ${tp.roster_id} missing`).toBeTruthy();
+    // Every applied traded pick is reflected: its current holder is the
+    // trade's owner_id, not the original team (current season only pre-draft)
+    const liveTrades = tradedPicks.filter(tp =>
+      currentDraftPending ? Number(tp.season) === currentSeason
+                          : Number(tp.season) === currentSeason + 1);
+    const pool = currentDraftPending ? cur : all.filter(p => Number(p.season) === currentSeason + 1);
+    for (const tp of liveTrades) {
+      const holder = pool.find(p => p.round === tp.round && p.rosterId === tp.roster_id);
+      expect(holder, `R${tp.round} orig roster ${tp.roster_id} missing`).toBeTruthy();
       expect(holder.ownerRosterId).toBe(tp.owner_id);
     }
     // eslint-disable-next-line no-console
-    console.log(`2026 picks: ${cur.length} · traded 2026 picks applied: ${curTrades.length} · owners: ${Object.keys(draftPicksByOwner).length}`);
+    console.log(`state: ${lg.status} · current-season picks: ${cur.length} · traded picks verified: ${liveTrades.length} · owners: ${Object.keys(draftPicksByOwner).length}`);
   }, 30000);
 });

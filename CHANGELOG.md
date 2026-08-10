@@ -1,3 +1,27 @@
+# MGG Dynasty — v1.3.13 Valuation Calibration (2026-08-08, post-draft)
+
+Root-caused "Jaxson Dart DV 999 > Jalen Hurts": with no current-season stats,
+DV ranked on age+role+demand only, and two structural flaws let a young QB1
+with ONE offseason trade take the top slot. Verified live: Dart 999 → 440
+(QB11); overall top-10 now Hurts/Lawrence/Nacua/Cook/JSN/Purdy/Bijan/Chase;
+zero players saturated at 999.
+
+## Fixed
+- **api.js** — when the current season has no stats yet (pre-draft, preseason,
+  early September), load LAST season's totals via one aggregate call
+  (`/stats/nfl/regular/<season-1>`, includes gp/gs) so ppg, games started,
+  and stat lines feed DV/SV. Current-season weekly stats take over
+  automatically once games are played. `seasonState.statsSeason` reports which
+  season is in use. Also fixed mojibake in the season log line.
+- **scoring.js** — demand term on a FIXED scale (demandRaw/15, capped 1.0)
+  instead of position min-max: one league trade previously made a player the
+  "max demand" asset (+0.20 composite — this was the Dart bump). Soft ceiling
+  above DV 850 (slope 0.35) replaces the hard 999 clip: stacked young-age ×
+  superflex multipliers (up to 1274 pre-clip) had every young top-3 QB pinned
+  at exactly 999 with no visible ordering.
+
+---
+
 # MGG Dynasty — v1.3.12 Draft-Day QoL (2026-08-08)
 
 - **api.js** — fast pre-draft sync: skip the 18 weekly stats fetches (season

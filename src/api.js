@@ -214,15 +214,46 @@ export const loadData = async (log, manualSitsRef) => {
     };
   }).filter(Boolean);
 
-  // Sleeper season stats (18 weekly bulk calls)
-  // v1.3.12 fast pre-draft sync: the current season has no stats before the
-  // draft (verified: /stats/nfl/regular/<season>/1 returns {}) — skip all 18
-  // fetches; ppg stays null and SV falls back to DV-rank projection as designed.
+  // Sleeper season stats
+  // v1.3.12: skip the 18 empty weekly fetches pre-draft.
+  // v1.3.13: a model with ZERO production data ranks players on age+role+demand
+  // alone — which crowned Jaxson Dart (young, QB1, 1 offseason trade) the #1
+  // asset at 999 over Jalen Hurts. Any time the current season has no stats
+  // yet (pre-draft, preseason, early September), fall back to LAST season's
+  // totals via ONE aggregate call so DV reflects real production, games
+  // started, and efficiency. Once current-season weekly stats exist, they win.
   const statWeeks = currentDraftPending ? 0 : 18;
-  log(statWeeks === 0
-    ? "Season stats: skipped — season not started (pre-draft)"
-    : "Fetching Sleeper season stats (18 weeks)...");
   const sleeperTotals = {};
+  let statsSeasonUsed = String(lg.season);
+
+  const loadPrevSeasonTotals = async () => {
+    const prevSeason = currentSeason - 1;
+    try {
+      const r = await fetch(
+        `https://api.sleeper.app/v1/stats/nfl/regular/${prevSeason}`,
+        { signal: AbortSignal.timeout(15000) }
+      );
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const seasonStats = await r.json();
+      Object.entries(seasonStats).forEach(([pid, s]) => {
+        if (!s || !(s.gp > 0)) return;
+        const t = { pts: calcSleeperPts(s), gp: s.gp || 0, gs: s.gs ?? s.gms_active ?? 0 };
+        STAT_FIELDS.forEach(f => { t[f] = s[f] || 0; });
+        sleeperTotals[pid] = t;
+      });
+      statsSeasonUsed = String(prevSeason);
+      log(`${prevSeason} season totals loaded · ${Object.keys(sleeperTotals).length} players (1 call)`, "success");
+    } catch (e) {
+      log(`${prevSeason} season stats failed (${e.message}) — using role-based projection`, "info");
+    }
+  };
+
+  if (currentDraftPending) {
+    log(`Season stats: using ${currentSeason - 1} season totals (draft prep)...`);
+    await loadPrevSeasonTotals();
+  } else {
+    log("Fetching Sleeper season stats (18 weeks)...");
+  }
   for (let wk = 1; wk <= statWeeks; wk++) {
     try {
       const r = await fetch(
@@ -246,7 +277,13 @@ export const loadData = async (log, manualSitsRef) => {
     }
     if (wk % 6 === 0) log(`Sleeper stats: ${wk}/18 weeks aggregated...`);
   }
-  log(`Sleeper stats complete · ${Object.keys(sleeperTotals).length} players with data`, "success");
+  // Season started on paper but no games played yet (preseason / early Sept):
+  // current-season stats are empty — fall back to last season's totals.
+  if (!currentDraftPending && Object.keys(sleeperTotals).length === 0) {
+    log(`No ${lg.season} stats yet — falling back to ${currentSeason - 1} season totals`, "info");
+    await loadPrevSeasonTotals();
+  }
+  log(`Sleeper stats complete · ${Object.keys(sleeperTotals).length} players with data (${statsSeasonUsed} season)`, "success");
 
   // Apply stats to rostered players
   let hits = 0;
@@ -449,9 +486,10 @@ export const loadData = async (log, manualSitsRef) => {
     hasMatchups:    lStatus === "in_season" && leg > 0,
     leagueStatus:   lStatus,
     season:         String(season),
+    statsSeason:    statsSeasonUsed,   // which season's stats drive ppg/DV right now
     leagueName:     lg.name || LEAGUE_ID,
   };
-  log(`Season: ${seasonState.season} Â· ${seasonState.mode.toUpperCase()}${seasonState.currentWeek ? " Â· Week " + seasonState.currentWeek : ""}`, "success");
+  log(`Season: ${seasonState.season} · ${seasonState.mode.toUpperCase()}${seasonState.currentWeek ? " · Week " + seasonState.currentWeek : ""}`, "success");
 
   return { players: pl.sort((a, b) => b.dynastyValue - a.dynastyValue), nflDb: allP, seasonState, draftPicksByOwner, rosterIdToOwner, leagueUsers: users };
 };

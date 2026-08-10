@@ -156,7 +156,12 @@ export const calcDynastyValues = (players, eloScores = {}) => {
     };
     const ageNorm  = localNorm(group, "ageGated");
     const prodNorm = localNorm(group, "prodProxy");
-    const demNorm  = localNorm(group, "demandRaw");
+    // v1.3.13: demand on a FIXED scale, not min-max. Min-max meant whoever had
+    // the single highest demandRaw in a position got 1.0 — in the offseason,
+    // ONE league trade made Jaxson Dart the "max demand" QB (+0.20 composite,
+    // enough to outrank Hurts). demandRaw ≈ trades*3 + adds - drops/2; 15 ≈
+    // sustained real interest (5 trades or ~15 adds) = full credit.
+    const demNorm  = group.map(x => Math.min(1, Math.max(0, (x.demandRaw ?? 0) / 15)));
 
     const ranked = [...group]
       .map((p, i) => ({ p, score: ageNorm[i] * 0.50 + prodNorm[i] * 0.30 + demNorm[i] * 0.20 }))
@@ -188,6 +193,14 @@ export const calcDynastyValues = (players, eloScores = {}) => {
         const peerNorm = (eloScores[p.pid] - eloMin) / eloRange; // 0-1
         dv = dv * 0.85 + top * peerNorm * 0.15;
       }
+
+      // v1.3.13: soft ceiling instead of a hard clip. Stacked multipliers
+      // (young premium 1.2 × QB superflex 1.18 on a 900 top) reach ~1274, so
+      // the old min(999, dv) SATURATED — every young QB in the top ~3 ranks
+      // showed exactly 999 and the ordering vanished. Compress above 850 so
+      // order is preserved and 999 is effectively unreachable except by the
+      // single strongest profile.
+      if (dv > 850) dv = 850 + (dv - 850) * 0.35;
 
       result[p.pid] = Math.round(Math.max(1, Math.min(999, dv)));
     });
